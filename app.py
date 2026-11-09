@@ -294,6 +294,69 @@ def extract_text(data):
 
     return ""
 
+
+# ==========================================
+# TRACEABILITY AND CONSISTENCY CHECKS
+# ==========================================
+
+def rule_ids_in_output(output):
+    return sorted(set(re.findall(r"\bR\d{2}\b", output)))
+
+def revised_section(output):
+    """Extract the revised text, not its explanatory notes."""
+    match = re.search(
+        r"(?ims)^#{1,5}\s*1\.\s*Teksti i rishikuar\s*\n"
+        r"(.*?)(?=^#{1,5}\s*2\.|\Z)",
+        output
+    )
+    return match.group(1).strip() if match else ""
+
+def consistency_flags(original, revised):
+    if not revised:
+        return ["Seksioni i tekstit të rishikuar nuk u identifikua "
+                "automatikisht; bëj krahasim manual."]
+
+    flags = []
+    numeric = re.compile(r"(?<!\w)\d+(?:[.,/]\d+)*(?!\w)")
+    original_numbers = set(numeric.findall(original))
+    revised_numbers = set(numeric.findall(revised))
+    removed_numbers = original_numbers - revised_numbers
+    added_numbers = revised_numbers - original_numbers
+    if removed_numbers or added_numbers:
+        flags.append(
+            "Kontrollo numrat/datat: të hequr "
+            + (", ".join(sorted(removed_numbers)) or "asnjë")
+            + "; të shtuar "
+            + (", ".join(sorted(added_numbers)) or "asnjë")
+            + "."
+        )
+
+    acronyms = re.compile(r"\b[A-Z]{2,}(?:-[A-Z0-9]+)*\b")
+    removed_acronyms = set(acronyms.findall(original)) - set(
+        acronyms.findall(revised)
+    )
+    if removed_acronyms:
+        flags.append(
+            "Akronime të origjinalit që nuk u gjetën në redaktim: "
+            + ", ".join(sorted(removed_acronyms)) + "."
+        )
+
+    sensitive_meanings = (
+        "miratuar", "miratim", "detyrim", "përmbushur",
+        "përfunduar", "certifikuar"
+    )
+    new_claims = [
+        word for word in sensitive_meanings
+        if word not in original.casefold()
+        and word in revised.casefold()
+    ]
+    if new_claims:
+        flags.append(
+            "Kontrollo terma që mund të ndryshojnë statusin juridik: "
+            + ", ".join(new_claims) + "."
+        )
+    return flags
+
 # ==========================================
 # USER INTERFACE
 # ==========================================
@@ -474,37 +537,88 @@ kërko kontroll njerëzor. Mos shpik referenca.
                         mime="text/plain"
                     )
 
-                    with st.expander("Reference guidance considered"):
-                        if selected_rules:
-                            for rule in selected_rules:
+                    extracted = revised_section(result)
+                    alerts = consistency_flags(user_text, extracted)
+                    with st.expander("Consistency checks (automatic)"):
+                        if alerts:
+                            for item in alerts:
+                                st.warning(item)
+                        else:
+                            st.info(
+                                "No obvious changes to numbers, acronyms or "
+                                "selected status terms detected. This does "
+                                "not verify semantic or legal accuracy."
+                            )
+
+                    cited = rule_ids_in_output(result)
+                    available = {
+                        rule.get("rule_id"): rule
+                        for rule in selected_rules
+                    }
+                    cited_valid = [
+                        available[rule_id] for rule_id in cited
+                        if rule_id in available
+                    ]
+                    unsupported = [
+                        rule_id for rule_id in cited
+                        if rule_id not in available
+                    ]
+
+                    with st.expander("Source traceability – citations in output"):
+                        if unsupported:
+                            st.warning(
+                                "Unverified rule identifiers cited by model: "
+                                + ", ".join(unsupported)
+                                + ". Do not rely on those citations."
+                            )
+                        if cited_valid:
+                            for rule in cited_valid:
                                 source = SOURCE_BY_ID.get(
                                     rule.get("source_id"), {}
                                 )
                                 st.markdown(
-                                    "**{id}:** {guidance}".format(
+                                    "**[{id}] {guidance}**".format(
                                         id=rule.get("rule_id", ""),
                                         guidance=rule.get("guidance", "")
                                     )
                                 )
                                 st.caption(
-                                    "{title} – {loc} (editorial draft)"
-                                    .format(
+                                    "{title} | {loc} | Editorial summary; "
+                                    "expert approval pending".format(
                                         title=source.get("title", "Source"),
                                         loc=rule.get("source_location", "")
                                     )
                                 )
                                 url = source.get("url", "")
                                 if url.startswith("https://"):
-                                    st.markdown("[Consult publication](" + url + ")")
-                        else:
-                            st.write("No matching editorial guidance.")
+                                    st.markdown(
+                                        "[Open source publication](" + url + ")"
+                                    )
+                        elif not unsupported:
+                            st.info(
+                                "The model did not cite a specific rule "
+                                "in its proposed changes."
+                            )
 
+                        st.caption(
+                            "Rule IDs and source locations are checked "
+                            "against the local library. This does not "
+                            "prove that the rule supports the change."
+                        )
+
+                    with st.expander("Other editorial guidance retrieved"):
+                        for rule in selected_rules:
+                            if rule.get("rule_id") not in cited:
+                                st.write(
+                                    "[" + rule.get("rule_id", "") + "] "
+                                    + rule.get("guidance", "")
+                                )
                         if selected_terms:
-                            st.markdown("**Candidate terms (not approved):**")
+                            st.write("Candidate glossary terms (not approved):")
                             for term in selected_terms:
                                 st.write(
-                                    term.get("english", "") + " / " +
-                                    term.get("albanian", "")
+                                    term.get("english", "") + " / "
+                                    + term.get("albanian", "")
                                 )
 
                     st.warning(
