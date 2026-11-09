@@ -1,0 +1,748 @@
+{
+  "version": "0.1.0",
+  "description": "ALBA AI — rregulla të përmbledhura manualisht nga burime publike. Referencat janë faqet e PDF-së (numërimi fillon nga 1), jo citime të drejtpërdrejta. Verifikim njerëzor i kërkuar.",
+  "sources": {
+    "STYLE": {
+      "title": "Udhëzues për stilin e raportimit (JUSTAL / Ministria e Drejtësisë, 2024)",
+      "file": "Udhezues-per-stilin-e-raportimit_Online.pdf",
+      "role": "udhëzues rekomandues për raporte dhe dokumente institucionale"
+    },
+    "MANUAL": {
+      "title": "Manual për hartimin e legjislacionit, botimi i 3-të (Ministria e Drejtësisë / JUSTAL, 2023)",
+      "file": "Manual-per-hartimin-e-legjislacionit_Online.pdf",
+      "role": "metodologji e hartimit normativ; jo zëvendësim për legjislacionin në fuqi"
+    }
+  },
+  "rules": [
+    {
+      "id": "S01",
+      "title": "Njëtrajtshmëria e stilit",
+      "rule": "Përdor të njëjtin stil, emërtime, shkurtime dhe mënyrë referimi përgjatë të gjithë dokumentit.",
+      "source_id": "STYLE",
+      "pdf_page": 8,
+      "tasks": [
+        "all",
+        "email",
+        "minutes",
+        "translation"
+      ],
+      "keywords": [
+        "njëtrajtshmëri",
+        "stil",
+        "shkurtim",
+        "emërtim"
+      ]
+    },
+    {
+      "id": "S02",
+      "title": "Referimi te nenet",
+      "rule": "Në referencat e neneve shkruaj fjalën 'Neni/neni' të plotë dhe përcakto qartë nenin, paragrafin dhe shkronjën.",
+      "source_id": "STYLE",
+      "pdf_page": 9,
+      "tasks": [
+        "legal",
+        "terminology"
+      ],
+      "keywords": [
+        "neni",
+        "paragrafi",
+        "shkronja",
+        "dispozita"
+      ]
+    },
+    {
+      "id": "S03",
+      "title": "Tituj të qartë",
+      "rule": "Titujt duhet të jenë koncizë dhe të qartë; shmang shkurtimet e panjohura dhe pikën në fund të titullit.",
+      "source_id": "STYLE",
+      "pdf_page": 10,
+      "tasks": [
+        "all",
+        "minutes",
+        "email"
+      ],
+      "keywords": [
+        "titull",
+        "kapitull",
+        "seksion"
+      ]
+    },
+    {
+      "id": "S04",
+      "title": "Paragrafë të shkurtër",
+      "rule": "Për raportet, prefero paragrafë të shkurtër dhe një organizim të njëtrajtshëm të tekstit.",
+      "source_id": "STYLE",
+      "pdf_page": 10,
+      "tasks": [
+        "all",
+        "minutes",
+        "email"
+      ],
+      "keywords": [
+        "paragraf",
+        "raport",
+        "shkresë"
+      ]
+    },
+    {
+      "id": "S05",
+      "title": "Gjatësia e fjalive në raporte",
+      "rule": "Për raportet udhëzuesi rekomandon fjali mesatarisht me jo më shumë se 15–20 fjalë, kur kjo nuk cenon kuptimin.",
+      "source_id": "STYLE",
+      "pdf_page": 11,
+      "tasks": [
+        "all",
+        "minutes",
+        "email"
+      ],
+      "keywords": [
+        "fjali",
+        "gjatësia",
+        "raport"
+      ]
+    },
+    {
+      "id": "S06",
+      "title": "Shënimet fundore në raporte",
+      "rule": "Përdor shënimet në fund të faqes kryesisht për të treguar burimet; mos i mbingarko me diskutime të gjata.",
+      "source_id": "STYLE",
+      "pdf_page": 11,
+      "tasks": [
+        "minutes",
+        "legal"
+      ],
+      "keywords": [
+        "shënim",
+        "burim",
+        "citim",
+        "referencë"
+      ]
+    },
+    {
+      "id": "S07",
+      "title": "Theksimi i matur",
+      "rule": "Përdor shkronja të trasha ose kursive për theksim; shmang nënvizimin dhe teprimin me theksimin.",
+      "source_id": "STYLE",
+      "pdf_page": 12,
+      "tasks": [
+        "minutes",
+        "email"
+      ],
+      "keywords": [
+        "theksim",
+        "nënvizim",
+        "kursiv"
+      ]
+    },
+    {
+      "id": "S08",
+      "title": "Listat me pikësim të njëtrajtshëm",
+      "rule": "Në një listë, ruaj numërtimin dhe pikësimin në mënyrë të njëtrajtshme, sipas lidhjes së elementeve me fjalinë hyrëse.",
+      "source_id": "STYLE",
+      "pdf_page": 13,
+      "tasks": [
+        "minutes",
+        "legal"
+      ],
+      "keywords": [
+        "listë",
+        "pika",
+        "numërtim",
+        "renditje"
+      ]
+    },
+    {
+      "id": "S09",
+      "title": "Datat në tekst rrëfyes",
+      "rule": "Në raportim shkruaj datën të plotë, për shembull '31 janar 2023', jo me vit dyshifror.",
+      "source_id": "STYLE",
+      "pdf_page": 14,
+      "tasks": [
+        "all",
+        "email",
+        "minutes"
+      ],
+      "keywords": [
+        "datë",
+        "vit",
+        "muaj",
+        "afat"
+      ]
+    },
+    {
+      "id": "S10",
+      "title": "Datat e akteve ligjore",
+      "rule": "Në citimet e akteve ligjore udhëzuesi përdor formatin numerik, për shembull 'ligji nr. 8678, datë 14.05.2001'.",
+      "source_id": "STYLE",
+      "pdf_page": 15,
+      "tasks": [
+        "legal",
+        "terminology"
+      ],
+      "keywords": [
+        "ligji",
+        "vendim",
+        "datë",
+        "akt",
+        "nr"
+      ]
+    },
+    {
+      "id": "S11",
+      "title": "Monedhat në shqip",
+      "rule": "Në tekstin shqip, shëno monedhën ose simbolin pas shumës sipas udhëzuesit të raportimit.",
+      "source_id": "STYLE",
+      "pdf_page": 15,
+      "tasks": [
+        "minutes",
+        "email"
+      ],
+      "keywords": [
+        "lekë",
+        "euro",
+        "eur",
+        "usd",
+        "buxhet"
+      ]
+    },
+    {
+      "id": "S12",
+      "title": "Shkronjat e mëdha në emërtimet institucionale",
+      "rule": "Dallo emërtimin e përveçëm zyrtar të institucionit nga përdorimi i përgjithshëm i funksionit ose organit.",
+      "source_id": "STYLE",
+      "pdf_page": 17,
+      "tasks": [
+        "all",
+        "email",
+        "terminology"
+      ],
+      "keywords": [
+        "ministër",
+        "ministria",
+        "drejtori",
+        "institucion",
+        "komision"
+      ]
+    },
+    {
+      "id": "S13",
+      "title": "Presja para 'por'",
+      "rule": "Përdor presje për të ndarë pjesët e fjalisë të lidhura me lidhëzën kundërshtore 'por'.",
+      "source_id": "STYLE",
+      "pdf_page": 19,
+      "tasks": [
+        "all",
+        "email",
+        "minutes"
+      ],
+      "keywords": [
+        "por",
+        "megjithatë"
+      ]
+    },
+    {
+      "id": "S14",
+      "title": "Lidhëzat 'ose' dhe 'apo'",
+      "rule": "Mos vendos presje automatikisht para 'ose' dhe 'apo' kur lidhin pjesë bashkërenditëse të fjalisë.",
+      "source_id": "STYLE",
+      "pdf_page": 19,
+      "tasks": [
+        "all",
+        "email",
+        "minutes"
+      ],
+      "keywords": [
+        "ose",
+        "apo",
+        "alternativa"
+      ]
+    },
+    {
+      "id": "S15",
+      "title": "Mos e mbingarko fjalinë me presje",
+      "rule": "Kur ka shumë presje, shqyrto ndarjen e periudhës në fjali më të shkurtra, pa ndryshuar kuptimin.",
+      "source_id": "STYLE",
+      "pdf_page": 21,
+      "tasks": [
+        "all",
+        "email",
+        "minutes"
+      ],
+      "keywords": [
+        "presje",
+        "fjali",
+        "periudhë"
+      ]
+    },
+    {
+      "id": "S16",
+      "title": "Shpjegimi i shkurtimeve",
+      "rule": "Në raportim, përmend fillimisht emrin e plotë dhe vendos shkurtimin në kllapa; përdore pastaj në mënyrë konsistente.",
+      "source_id": "STYLE",
+      "pdf_page": 23,
+      "tasks": [
+        "all",
+        "email",
+        "minutes"
+      ],
+      "keywords": [
+        "shkurtim",
+        "akronim",
+        "iniciale"
+      ]
+    },
+    {
+      "id": "S17",
+      "title": "Akronimet pa pika",
+      "rule": "Akronimet si BE, NATO dhe OSBE shkruhen pa pika ndërmjet shkronjave.",
+      "source_id": "STYLE",
+      "pdf_page": 24,
+      "tasks": [
+        "all",
+        "translation",
+        "email"
+      ],
+      "keywords": [
+        "be",
+        "nato",
+        "osbe",
+        "akronim"
+      ]
+    },
+    {
+      "id": "S18",
+      "title": "Citimi besnik i burimit",
+      "rule": "Kur citon drejtpërdrejt, ruaj përmbajtjen e burimit; mos e ndrysho citatin pa treguar qartë ndërhyrjen.",
+      "source_id": "STYLE",
+      "pdf_page": 29,
+      "tasks": [
+        "legal",
+        "minutes",
+        "terminology"
+      ],
+      "keywords": [
+        "citim",
+        "thonjëza",
+        "burim"
+      ]
+    },
+    {
+      "id": "S19",
+      "title": "Drejtshkrimi i fjalëve të shpeshta",
+      "rule": "Kontrollo trajta si 'agjenci', 'certifikatë', 'digjitalizim', 'marrëdhënie', 'proces', 'standard' sipas tabelës së udhëzuesit.",
+      "source_id": "STYLE",
+      "pdf_page": 32,
+      "tasks": [
+        "all",
+        "email",
+        "minutes",
+        "translation"
+      ],
+      "keywords": [
+        "agjenci",
+        "certifikatë",
+        "digjitalizim",
+        "marrëdhënie",
+        "proces",
+        "standard"
+      ]
+    },
+    {
+      "id": "S20",
+      "title": "Fjalët e huaja në raport",
+      "rule": "Për fjalët e huaja të domosdoshme në raport, udhëzuesi rekomandon kursivin dhe, kur nevojitet, përkthimin në kllapa.",
+      "source_id": "STYLE",
+      "pdf_page": 33,
+      "tasks": [
+        "minutes",
+        "translation",
+        "email"
+      ],
+      "keywords": [
+        "anglisht",
+        "huaj",
+        "përkthim"
+      ]
+    },
+    {
+      "id": "M01",
+      "title": "Qartësi dhe saktësi juridike",
+      "rule": "Një tekst normativ duhet të jetë njëkohësisht i saktë dhe i kuptueshëm për grupin e personave të cilëve u drejtohet.",
+      "source_id": "MANUAL",
+      "pdf_page": 119,
+      "tasks": [
+        "legal",
+        "terminology",
+        "translation"
+      ],
+      "keywords": [
+        "qartësi",
+        "saktësi",
+        "dispozitë"
+      ]
+    },
+    {
+      "id": "M02",
+      "title": "Kuptueshmëria nuk zëvendëson saktësinë",
+      "rule": "Shmang thjeshtimin stilistik që ndryshon përmbajtjen ose pasojën juridike të dispozitës.",
+      "source_id": "MANUAL",
+      "pdf_page": 122,
+      "tasks": [
+        "legal",
+        "terminology",
+        "translation"
+      ],
+      "keywords": [
+        "detyrim",
+        "kompetencë",
+        "afat",
+        "e",
+        "drejtë"
+      ]
+    },
+    {
+      "id": "M03",
+      "title": "Një veprim kryesor për fjali",
+      "rule": "Kur është e mundur, ndërto një fjali për një veprim dhe ndaj periudhat e mbingarkuara në fjali më të shkurtra.",
+      "source_id": "MANUAL",
+      "pdf_page": 123,
+      "tasks": [
+        "all",
+        "legal",
+        "email",
+        "minutes"
+      ],
+      "keywords": [
+        "fjali",
+        "veprim",
+        "periudhë"
+      ]
+    },
+    {
+      "id": "M04",
+      "title": "Shmang nominalizimet e shumta",
+      "rule": "Riformulo fjalitë me shumë grupe emërore dhe struktura të ngarkuara, kur kjo rrit qartësinë.",
+      "source_id": "MANUAL",
+      "pdf_page": 123,
+      "tasks": [
+        "all",
+        "legal",
+        "email"
+      ],
+      "keywords": [
+        "riformulim",
+        "formulim"
+      ]
+    },
+    {
+      "id": "M05",
+      "title": "Diateza veprore për përgjegjësitë",
+      "rule": "Në normat juridike përdor diatezën veprore kur është e rëndësishme të identifikohet qartë subjekti që kryen veprimin.",
+      "source_id": "MANUAL",
+      "pdf_page": 124,
+      "tasks": [
+        "legal",
+        "terminology"
+      ],
+      "keywords": [
+        "autoritet",
+        "kryen",
+        "përgjegjës",
+        "përcakton"
+      ]
+    },
+    {
+      "id": "M06",
+      "title": "Shmang referencat e panevojshme brenda nenit",
+      "rule": "Brenda të njëjtit nen, përdor stilin rrëfyes për të shmangur referencat e përsëritura, vetëm nëse referenti mbetet i qartë.",
+      "source_id": "MANUAL",
+      "pdf_page": 124,
+      "tasks": [
+        "legal"
+      ],
+      "keywords": [
+        "pika",
+        "neni",
+        "paragraf",
+        "sipas",
+        "pikës"
+      ]
+    },
+    {
+      "id": "M07",
+      "title": "Fjalor i zakonshëm, por formal",
+      "rule": "Prefero fjalë bashkëkohore me kuptim të qartë; shmang arkaizmat, neologjizmat e papërhapur dhe formulimet informale në tekstin juridik.",
+      "source_id": "MANUAL",
+      "pdf_page": 125,
+      "tasks": [
+        "all",
+        "legal",
+        "email",
+        "translation"
+      ],
+      "keywords": [
+        "stil",
+        "fjalë",
+        "terminologji",
+        "formal"
+      ]
+    },
+    {
+      "id": "M08",
+      "title": "Një term për një koncept juridik",
+      "rule": "Përdor të njëjtin term për të njëjtin koncept brenda një akti; mos përdor të njëjtën fjalë për koncepte të ndryshme.",
+      "source_id": "MANUAL",
+      "pdf_page": 125,
+      "tasks": [
+        "legal",
+        "terminology",
+        "translation"
+      ],
+      "keywords": [
+        "term",
+        "përkufizim",
+        "koncept"
+      ]
+    },
+    {
+      "id": "M09",
+      "title": "Fjalë të huaja vetëm kur justifikohen",
+      "rule": "Shmang huazimet kur ekziston një ekuivalent shqip i përshtatshëm; përjashto termat teknikë ose termat e njohur të fushës kur duhen për saktësi.",
+      "source_id": "MANUAL",
+      "pdf_page": 125,
+      "tasks": [
+        "legal",
+        "terminology",
+        "translation",
+        "email"
+      ],
+      "keywords": [
+        "implementim",
+        "input",
+        "draft",
+        "realizim",
+        "anglisht"
+      ]
+    },
+    {
+      "id": "M10",
+      "title": "Terma teknikë të kuptueshëm",
+      "rule": "Kur një term teknik përdoret në një akt me fushë të gjerë zbatimi, përkufizoje qartë nëse lexuesi nuk pritet ta njohë.",
+      "source_id": "MANUAL",
+      "pdf_page": 126,
+      "tasks": [
+        "legal",
+        "terminology"
+      ],
+      "keywords": [
+        "teknik",
+        "përkufizohet",
+        "profesional"
+      ]
+    },
+    {
+      "id": "M11",
+      "title": "Shprehjet latine",
+      "rule": "Shmang shprehjet latine në aktet juridike kur ka ekuivalent shqip; p.sh. 'mutatis mutandis' = 'me ndryshimet përkatëse'.",
+      "source_id": "MANUAL",
+      "pdf_page": 126,
+      "tasks": [
+        "legal",
+        "terminology",
+        "translation"
+      ],
+      "keywords": [
+        "mutatis",
+        "ex",
+        "officio",
+        "ex",
+        "lege",
+        "de",
+        "facto"
+      ]
+    },
+    {
+      "id": "M12",
+      "title": "Referenca brenda neneve të ndryshme",
+      "rule": "Mos përdor përemra të paqartë për t'iu referuar termave të neneve të tjera; përsërit termin e nevojshëm.",
+      "source_id": "MANUAL",
+      "pdf_page": 126,
+      "tasks": [
+        "legal"
+      ],
+      "keywords": [
+        "nenit",
+        "sipas",
+        "tij",
+        "ajo",
+        "këtë"
+      ]
+    },
+    {
+      "id": "M13",
+      "title": "Datat dhe muajt në akte",
+      "rule": "Për datat e tekstit të ligjit, shkruaj muajin me fjalë, vitin me katër shifra dhe emrin e muajit me shkronjë të vogël.",
+      "source_id": "MANUAL",
+      "pdf_page": 127,
+      "tasks": [
+        "legal"
+      ],
+      "keywords": [
+        "datë",
+        "muaj",
+        "vit"
+      ]
+    },
+    {
+      "id": "M14",
+      "title": "Njëjësi në dispozita",
+      "rule": "Kur përmirëson saktësinë, prefero njëjësin ndaj shumësit për të shmangur dykuptimësitë për procedurat dhe përgjegjësitë.",
+      "source_id": "MANUAL",
+      "pdf_page": 128,
+      "tasks": [
+        "legal",
+        "terminology"
+      ],
+      "keywords": [
+        "procedurat",
+        "subjekte",
+        "ankime"
+      ]
+    },
+    {
+      "id": "M15",
+      "title": "Koha e tashme në legjislacion",
+      "rule": "Dispozitat normative zakonisht hartohen në kohën e tashme, jo në të ardhmen, për të shprehur rregullin që zbatohet.",
+      "source_id": "MANUAL",
+      "pdf_page": 128,
+      "tasks": [
+        "legal"
+      ],
+      "keywords": [
+        "duhet",
+        "do",
+        "të",
+        "paraqet",
+        "përcakton"
+      ]
+    },
+    {
+      "id": "M16",
+      "title": "Mënyra dëftore në dispozita",
+      "rule": "Formulo dispozitat, si rregull, në mënyrën dëftore dhe jo në mënyrën urdhërore ose lidhore.",
+      "source_id": "MANUAL",
+      "pdf_page": 128,
+      "tasks": [
+        "legal"
+      ],
+      "keywords": [
+        "detyrimi",
+        "paraqitja",
+        "ndalohet"
+      ]
+    },
+    {
+      "id": "M17",
+      "title": "Dallimi 'dhe' / 'ose'",
+      "rule": "Në dispozita, 'dhe' lidh kërkesa bashkërisht, ndërsa 'ose' shpreh alternativa; ruaje këtë dallim gjatë riformulimit.",
+      "source_id": "MANUAL",
+      "pdf_page": 129,
+      "tasks": [
+        "legal",
+        "terminology",
+        "translation"
+      ],
+      "keywords": [
+        "dhe",
+        "ose",
+        "apo",
+        "alternativa"
+      ]
+    },
+    {
+      "id": "M18",
+      "title": "Foljet para emrave të veprimit",
+      "rule": "Kur kuptimi ruhet, prefero foljen drejtpërdrejt: 'kërkon' në vend të 'bën kërkesë', 'konsultohet' në vend të 'hyn në konsultim'.",
+      "source_id": "MANUAL",
+      "pdf_page": 129,
+      "tasks": [
+        "all",
+        "legal",
+        "email",
+        "translation"
+      ],
+      "keywords": [
+        "kërkesë",
+        "konsultim",
+        "zhvillim",
+        "realizim"
+      ]
+    },
+    {
+      "id": "M19",
+      "title": "Mos ngatërro 'duhet' me 'mund'",
+      "rule": "Kontrollo vlerën normative të 'duhet' dhe 'mund'; mos e kthe detyrimin në diskrecion ose anasjelltas.",
+      "source_id": "MANUAL",
+      "pdf_page": 130,
+      "tasks": [
+        "legal",
+        "terminology",
+        "translation"
+      ],
+      "keywords": [
+        "duhet",
+        "mund",
+        "detyrohet",
+        "lejohet"
+      ]
+    },
+    {
+      "id": "M20",
+      "title": "Pikësimi nuk zëvendëson qartësinë",
+      "rule": "Mos mbështet kuptimin juridik vetëm te presjet apo shenjat e tjera; ristrukturo fjalinë nëse përmbajtja varet prej tyre.",
+      "source_id": "MANUAL",
+      "pdf_page": 130,
+      "tasks": [
+        "legal",
+        "terminology"
+      ],
+      "keywords": [
+        "pikësim",
+        "presje",
+        "kuptim"
+      ]
+    },
+    {
+      "id": "M21",
+      "title": "Shkurtimet në tekstet normative",
+      "rule": "Në pjesën dispozitive të ligjit shmang shkurtimet jozyrtare; shkruaj 'për shembull' dhe 'i ndryshuar' të plota, me përjashtimet e manualit.",
+      "source_id": "MANUAL",
+      "pdf_page": 131,
+      "tasks": [
+        "legal",
+        "terminology"
+      ],
+      "keywords": [
+        "p.sh.",
+        "ndryshuar",
+        "shkurtime",
+        "ligj"
+      ]
+    },
+    {
+      "id": "M22",
+      "title": "Gjuha politikisht asnjanëse",
+      "rule": "Teksti normativ duhet të përdorë gjuhë politikisht asnjanëse, pa vlerësime partiake të panevojshme.",
+      "source_id": "MANUAL",
+      "pdf_page": 127,
+      "tasks": [
+        "legal"
+      ],
+      "keywords": [
+        "politike",
+        "pozicion",
+        "parti"
+      ]
+    }
+  ]
+}
