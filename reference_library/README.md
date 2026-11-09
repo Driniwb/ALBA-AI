@@ -23,6 +23,12 @@ Five additional publications were reviewed and selected for **limited, source-tr
 
 These are **research or opinion pieces, not official binding orthographic or legal norms**. Their vocabulary and examples may be historical or contested. In particular, no mass replacement from borrowed words to suggested Albanian forms is authorised. A proposed equivalent must preserve legal and technical meaning in context. The full user-supplied PDFs were **not** committed to the public repository. Full screening decisions for all 20 materials are in `material_review_2026-11.md`.
 
+## Second screening: 12 uploaded PDFs (9 November 2026)
+
+Four sources were integrated in a restricted form: the Council of Europe *Glossary of the European Convention on Human Rights* (2016; selected terminology candidates only); Agim Spahiu, *Gabimet më të shpeshta gjuhësore në shtypin tonë* (2002; revised 2007); *Fjalët jostandarde në FGJSSH* (2008); and *Eufemizmat, ironia dhe fjalët me kuptim keqësues* (2008). Only seven short paraphrases (R31-R37) and ten candidate bilingual terms were added; **no full PDF, extensive wordlist, or source prose was copied to GitHub**.
+
+The Council of Europe glossary is an institutional terminology resource for ECHR law, **not an authoritative general Albanian dictionary**; it is copyrighted (© Council of Europe 2016, reproduction permission reserved), and some translations contain editorial errors. Its entries remain candidate terms pending expert checking. Linguistic studies are descriptive, historical or author opinions and are not binding orthographic rules. The eight other PDFs are classified in `material_review_2026-11_batch2.md` and were not activated.
+
 ## Files
 
 - `sources.csv`: bibliographic metadata and review status.
