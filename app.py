@@ -16,7 +16,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("ALBA AI")
+st.title("ALBA AI 3.0")
 
 st.subheader(
     "AI Language Base for Albanian Legal and Institutional Writing"
@@ -556,6 +556,6 @@ kërko kontroll njerëzor. Mos shpik referenca.
 st.divider()
 
 st.caption(
-    "ALBA AI | Cloudflare Prototype | "
+    "ALBA AI 3.0 | Cloudflare + Public Reference Library | "
     "Human Review Required"
 )
