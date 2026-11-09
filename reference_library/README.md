@@ -1,4 +1,4 @@
-# ALBA AI 3.0 – Reference Library
+# ALBA AI 3.1 – Reference Library
 
 This public repository contains **short, original editorial summaries** of published Albanian legislative drafting and reporting-style guidance. It does not reproduce the full manuals. Each entry links to an identifiable source and location. The summaries are **editorial drafts**, not legally binding provisions, official quotations, or expert-approved terminology. The glossary contains **candidate translations**, not mandatory equivalents.
 
@@ -8,6 +8,8 @@ This public repository contains **short, original editorial summaries** of publi
 2. Ministry of Justice / JUSTAL, *Udhezues per Stilin e Raportimit* (February 2024): https://www.drejtesia.gov.al/wp-content/uploads/2024/05/Udhezues-per-stilin-e-raportimit_Online.pdf
 
 Page numbers in `rules.csv` are **printed manual pages**, not necessarily PDF viewer page indices. Check the source publication before treating a summary as authoritative. Do not automatically replace legal terminology: context and relevant legislation control. The language assistant must not infer a legal position or institutional approval from a stylistic rule.
+
+3. Albanian Academy of Sciences / Institute of Linguistics and Literature, *Drejtshkrimi i gjuhës shqipe* (1973), bibliographic record: https://search.worldcat.org/title/Drejtshkrimi-i-gjuhes-shqipe/oclc/247236720 . A 178-page partial scan was supplied for internal verification. The source is **historical** and contains spelling rules, **not an orthographic dictionary**. PDF text extraction contains substantial character-recognition errors. Only carefully paraphrased rules are included; the scan itself is **not distributed**. Current orthographic usage must be checked against more recent authoritative resources when uncertain.
 
 ## Files
 
