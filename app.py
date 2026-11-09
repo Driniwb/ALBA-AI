@@ -54,7 +54,7 @@ except Exception:
 
 
 # ==========================================
-# ALBA 3.0 REFERENCE LIBRARY
+# ALBA 3.1 REFERENCE LIBRARY
 # Curated public-source summaries, NOT full PDFs
 # ==========================================
 
@@ -122,7 +122,8 @@ with st.sidebar:
     st.metric("Candidate glossary entries", len(GLOSSARY))
     st.caption(
         "Only short paraphrased guidance is used. "
-        "The manuals themselves are not uploaded or searched. "
+        "The full manuals and research PDFs are not uploaded or searched. "
+        "Research articles are not official norms. "
         "Entries are editorial drafts pending expert approval."
     )
     for source in SOURCES:
