@@ -1,2 +1,2 @@
-streamlit
-huggingface_hub
+streamlit>=1.40
+huggingface_hub>=0.34
