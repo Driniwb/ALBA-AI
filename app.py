@@ -207,7 +207,11 @@ if st.button("Analyse text", type="primary"):
         except Exception as error:
             # Do not display full error messages:
             # they may contain request or account details.
-            status = getattr(error, "status_code", None)
+status = getattr(
+    getattr(error, "response", None),
+    "status_code",
+    None
+)
             error_type = type(error).__name__
 
             st.error("The AI request failed.")
