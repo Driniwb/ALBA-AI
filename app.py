@@ -135,7 +135,7 @@ with st.sidebar:
             )
             source_url = source.get("url", "")
             if source_url.startswith("https://"):
-                st.link_button("Official publication", source_url)
+                st.link_button("Source information / publication", source_url)
 
 # ==========================================
 # TASKS
@@ -427,6 +427,17 @@ if st.button("Analyse text", type="primary"):
         }
 
         selected_rules = select_relevant_rules(user_text, task + " " + document_type)
+        # Include a baseline spelling principle for editing/translation.
+        if task in {
+            "Improve Albanian institutional language",
+            "Adapt English into formal Albanian",
+            "Draft an official email",
+        } and not any(r.get("rule_id") == "R17" for r in selected_rules):
+            baseline = next(
+                (r for r in RULES if r.get("rule_id") == "R17"), None
+            )
+            if baseline:
+                selected_rules = selected_rules[:5] + [baseline]
         selected_terms = select_relevant_terms(user_text)
 
         reference_guidance = "\n".join(
@@ -625,6 +636,8 @@ kërko kontroll njerëzor. Mos shpik referenca.
                         "AI-generated draft. Guidance consists of short "
                         "paraphrases of public manuals, pending expert review. "
                         "No independent legal validity check has been made. "
+                        "The 1973 orthography source is historical, not "
+                        "a current spelling dictionary. "
                         "Human review is mandatory."
                     )
 
