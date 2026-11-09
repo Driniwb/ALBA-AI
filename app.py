@@ -89,7 +89,7 @@ def select_relevant_rules(text, task, limit=6):
         ]
         score = sum(
             1 for word in keywords
-            if re.search(r"(?<!\\w)" + re.escape(word) + r"(?!\\w)", query)
+            if re.search(r"(?<!\w)" + re.escape(word) + r"(?!\w)", query)
         )
         if score:
             ranked.append((score, rule))
@@ -311,7 +311,7 @@ if st.button("Analyse text", type="primary"):
         selected_rules = select_relevant_rules(user_text, task)
         selected_terms = select_relevant_terms(user_text)
 
-        reference_guidance = "\\n".join(
+        reference_guidance = "\n".join(
             "[{id}] {text} (Burimi: {source}, {loc}; STATUS: draft)"
             .format(
                 id=item.get("rule_id", ""),
@@ -322,7 +322,7 @@ if st.button("Analyse text", type="primary"):
             for item in selected_rules
         ) or "Nuk ka udhëzime përkatëse."
 
-        reference_terms = "\\n".join(
+        reference_terms = "\n".join(
             "{en} = {sq} (kandidat; konteksti: {context})"
             .format(
                 en=item.get("english", ""),
