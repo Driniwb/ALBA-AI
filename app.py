@@ -2,6 +2,10 @@
 import streamlit as st
 from huggingface_hub import InferenceClient
 
+# --------------------------------------------------
+# ALBA AI - Albanian Legal & Institutional Assistant
+# --------------------------------------------------
+
 st.set_page_config(
     page_title="ALBA AI",
     page_icon="📘",
@@ -13,12 +17,22 @@ st.subheader(
     "AI Language Base for Albanian Legal and Institutional Writing"
 )
 
-st.info(
-    "Prototype for public and synthetic texts only. "
-    "Do not enter personal, confidential or sensitive information."
+st.caption(
+    "An AI-powered assistant for clearer and more accurate "
+    "Albanian legal and institutional communication."
 )
 
-tasks = [
+st.warning(
+    "DATA PROTECTION: Use only public or synthetic texts. "
+    "Do not enter personal, sensitive, confidential, "
+    "contractual or unpublished institutional information."
+)
+
+# AI MODEL
+MODEL_ID = "openai/gpt-oss-120b:cheapest"
+
+# TASKS
+TASKS = [
     "Improve Albanian institutional language",
     "Adapt English into formal Albanian",
     "Check legal and administrative terminology",
@@ -26,11 +40,15 @@ tasks = [
     "Prepare meeting minutes"
 ]
 
-task = st.selectbox("Select the type of assistance", tasks)
+task = st.selectbox(
+    "Select the type of assistance",
+    TASKS
+)
 
 user_text = st.text_area(
     "Enter your text",
     height=220,
+    max_chars=6000,
     placeholder="Enter a public or synthetic text..."
 )
 
@@ -39,83 +57,188 @@ safe_input = st.checkbox(
     "confidential or sensitive information."
 )
 
+# INSTRUCTIONS FOR EACH TASK
+TASK_INSTRUCTIONS = {
+    "Improve Albanian institutional language":
+        "Improve the Albanian language, institutional tone, "
+        "clarity, grammar and structure. Preserve the meaning.",
+
+    "Adapt English into formal Albanian":
+        "Translate and adapt the English text into natural, "
+        "formal Albanian institutional language. "
+        "Avoid literal translations.",
+
+    "Check legal and administrative terminology":
+        "Review the text for potentially incorrect or "
+        "inconsistent Albanian legal and administrative "
+        "terminology. Flag uncertain terminology.",
+
+    "Draft an official email":
+        "Prepare a clear and professional Albanian "
+        "institutional email based only on the information "
+        "provided. Do not invent dates or commitments.",
+
+    "Prepare meeting minutes":
+        "Prepare structured meeting minutes in Albanian "
+        "with discussion points, decisions and action items. "
+        "Do not invent participants, deadlines or decisions."
+}
+
+SYSTEM_PROMPT = """
+You are ALBA AI, an assistant for Albanian legal,
+administrative and institutional writing.
+
+Your purpose is to help improve the quality of
+written communication with Albanian public institutions.
+
+GENERAL RULES:
+
+1. Write in accurate, formal and natural Albanian.
+2. Preserve the meaning of the original text.
+3. Avoid literal English-to-Albanian translations.
+4. Do not invent facts, names, dates or institutions.
+5. Never invent laws, articles or legal references.
+6. Do not claim that terminology has been verified
+   against official sources unless references are provided.
+7. Identify uncertain legal terminology.
+8. Clearly mark missing information as
+   [Për t'u konfirmuar].
+9. Do not treat your response as final legal advice.
+10. Prefer clear, professional and concise formulations.
+
+OUTPUT FORMAT:
+
+### 1. Improved Albanian version
+Provide the complete improved text.
+
+### 2. Terminology and language notes
+Explain the most important changes briefly.
+
+### 3. Points requiring human review
+List uncertain information or terminology.
+If none is identified, say so without claiming
+that the text has been legally verified.
+
+Respond in Albanian.
+"""
+
+# CHECK TOKEN CONFIGURATION
+token = st.secrets.get("HF_TOKEN", "")
+
+if not token:
+    st.error(
+        "Hugging Face token is missing. "
+        "Add HF_TOKEN in Streamlit App Settings > Secrets."
+    )
+
+# GENERATE RESPONSE
 if st.button("Analyse text", type="primary"):
 
     if not user_text.strip():
         st.warning("Please enter a text.")
 
     elif not safe_input:
-        st.warning("Please confirm that your text is safe to process.")
+        st.warning(
+            "Please confirm that the text is safe to process."
+        )
 
-    elif "HF_TOKEN" not in st.secrets:
-        st.error("Hugging Face token is missing from Streamlit Secrets.")
+    elif not token:
+        st.error(
+            "AI connection unavailable: HF_TOKEN is not configured."
+        )
 
     else:
-        prompt = f"""
-You are ALBA, an AI assistant specialising in
-Albanian legal, administrative and institutional writing.
-
-Selected task: {task}
-
-Instructions:
-- Write in accurate, natural and professional Albanian.
-- Preserve the original meaning.
-- Avoid literal translations from English.
-- Do not invent facts, legal provisions or references.
-- Do not claim that terminology has been verified
-  against official sources unless sources were provided.
-- Identify uncertain legal terminology.
-- Mark missing information as [To be confirmed].
-
-Provide three sections:
-1. Improved Albanian text
-2. Terminology and language notes
-3. Points requiring human review
-
-Input text:
-{user_text}
-"""
-
         try:
             client = InferenceClient(
+                api_key=token,
                 provider="auto",
-                token=st.secrets["HF_TOKEN"]
+                timeout=90
             )
 
-            with st.spinner("ALBA is analysing your text..."):
+            messages = [
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Selected task: {task}\n\n"
+                        f"Instructions: {TASK_INSTRUCTIONS[task]}\n\n"
+                        f"Text to process:\n{user_text}"
+                    )
+                }
+            ]
+
+            with st.spinner("ALBA AI is processing your text..."):
                 response = client.chat.completions.create(
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are a careful Albanian legal "
-                                "and institutional writing assistant."
-                            )
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    max_tokens=1200
+                    model=MODEL_ID,
+                    messages=messages,
+                    max_tokens=1500,
+                    temperature=0.2
                 )
 
             result = response.choices[0].message.content
 
-            st.subheader("ALBA AI Analysis")
-            st.markdown(result or "No response was generated.")
+            if result:
+                st.success("Analysis completed.")
 
-            st.warning(
-                "AI-generated draft. Human review is required. "
-                "Official legal sources have not yet been connected."
-            )
+                st.subheader("ALBA AI Analysis")
+                st.markdown(result)
 
-        except Exception:
-            st.error(
-                "The AI service could not process this request. "
-                "Check the Hugging Face token, provider access "
-                "and available inference quota."
-            )
+                st.download_button(
+                    label="Download analysis",
+                    data=result,
+                    file_name="ALBA_AI_Analysis.txt",
+                    mime="text/plain"
+                )
+
+                st.info(
+                    "This output is AI-generated and requires "
+                    "human review. Official reference documents "
+                    "have not yet been connected."
+                )
+            else:
+                st.warning(
+                    "The model returned an empty response. "
+                    "Try a shorter text."
+                )
+
+        except Exception as error:
+            # Do not display full error messages:
+            # they may contain request or account details.
+            status = getattr(error, "status_code", None)
+            error_type = type(error).__name__
+
+            st.error("The AI request failed.")
+            st.write("Error type:", error_type)
+
+            if isinstance(status, int):
+                st.write("HTTP status:", status)
+
+            if status == 401 or status == 403:
+                st.info(
+                    "Check the Hugging Face token and "
+                    "Inference Providers permissions."
+                )
+            elif status == 402:
+                st.info(
+                    "Your inference credits may be exhausted "
+                    "or the provider may require billing."
+                )
+            elif status == 429:
+                st.info(
+                    "Rate limit reached. Try again later."
+                )
+            else:
+                st.info(
+                    "Check model availability, provider access "
+                    "and Hugging Face inference credits."
+                )
 
 st.divider()
-st.caption("ALBA AI | Prototype | Human review required")
+
+st.caption(
+    "ALBA AI | Experimental Prototype | "
+    "Human Review Required"
+)
