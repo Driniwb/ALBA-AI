@@ -1,6 +1,9 @@
 
 import streamlit as st
 import requests
+import csv
+import re
+from pathlib import Path
 
 # ==========================================
 # ALBA AI - Version 2.1
@@ -48,6 +51,91 @@ try:
 except Exception:
     API_TOKEN = ""
     ACCOUNT_ID = ""
+
+
+# ==========================================
+# ALBA 3.0 REFERENCE LIBRARY
+# Curated public-source summaries, NOT full PDFs
+# ==========================================
+
+LIBRARY_DIR = Path(__file__).parent / "reference_library"
+
+@st.cache_data(show_spinner=False)
+def read_reference_library():
+    def load_rows(name):
+        path = LIBRARY_DIR / name
+        if not path.is_file():
+            return []
+        with path.open("r", encoding="utf-8-sig", newline="") as file:
+            return list(csv.DictReader(file))
+    return (
+        load_rows("sources.csv"),
+        load_rows("rules.csv"),
+        load_rows("glossary.csv"),
+    )
+
+SOURCES, RULES, GLOSSARY = read_reference_library()
+SOURCE_BY_ID = {s.get("source_id"): s for s in SOURCES}
+
+def select_relevant_rules(text, task, limit=6):
+    """Basic keyword retrieval over editorial summaries."""
+    query = (text + " " + task).casefold()
+    ranked = []
+    for rule in RULES:
+        keywords = [
+            word.strip().casefold()
+            for word in rule.get("keywords", "").split("|")
+            if word.strip()
+        ]
+        score = sum(
+            1 for word in keywords
+            if re.search(r"(?<!\\w)" + re.escape(word) + r"(?!\\w)", query)
+        )
+        if score:
+            ranked.append((score, rule))
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    selected = [rule for _, rule in ranked[:limit]]
+
+    if not selected:
+        # Generic principles for the initial no-match case
+        selected = [
+            rule for rule in RULES
+            if rule.get("rule_id") in {"R01", "R07", "R09"}
+        ]
+    return selected[:limit]
+
+def select_relevant_terms(text, limit=10):
+    query = text.casefold()
+    matches = []
+    for item in GLOSSARY:
+        en = item.get("english", "").strip()
+        sq = item.get("albanian", "").strip()
+        if en and sq and (en.casefold() in query or sq.casefold() in query):
+            matches.append(item)
+    return matches[:limit]
+
+with st.sidebar:
+    st.header("Reference Library – 3.0")
+    st.metric("Public reference sources", len(SOURCES))
+    st.metric("Editorial guidance rules", len(RULES))
+    st.metric("Candidate glossary entries", len(GLOSSARY))
+    st.caption(
+        "Only short paraphrased guidance is used. "
+        "The manuals themselves are not uploaded or searched. "
+        "Entries are editorial drafts pending expert approval."
+    )
+    for source in SOURCES:
+        with st.expander(source.get("title", "Reference")):
+            st.write(source.get("institution", ""))
+            st.caption(
+                source.get("reference_scope", "")
+                + " | Expert approval: "
+                + source.get("expert_approval", "pending")
+            )
+            source_url = source.get("url", "")
+            if source_url.startswith("https://"):
+                st.link_button("Official publication", source_url)
 
 # ==========================================
 # TASKS
@@ -108,6 +196,10 @@ Shpjego vetëm korrigjimet e nevojshme.
 ### 3. Çështje për verifikim
 Identifiko vetëm paqartësitë reale.
 
+Nëse përdor rregulla nga biblioteka, përmend ID-në Rxx
+vetëm kur është e lidhur me një ndryshim konkret.
+Mos pretendo se ke lexuar manualet e plota ose
+se ke verifikuar vlefshmërinë e akteve juridike.
 Përgjigju në shqip.
 """
 
@@ -216,6 +308,30 @@ if st.button("Analyse text", type="primary"):
             "Content-Type": "application/json"
         }
 
+        selected_rules = select_relevant_rules(user_text, task)
+        selected_terms = select_relevant_terms(user_text)
+
+        reference_guidance = "\\n".join(
+            "[{id}] {text} (Burimi: {source}, {loc}; STATUS: draft)"
+            .format(
+                id=item.get("rule_id", ""),
+                text=item.get("guidance", ""),
+                source=item.get("source_id", ""),
+                loc=item.get("source_location", ""),
+            )
+            for item in selected_rules
+        ) or "Nuk ka udhëzime përkatëse."
+
+        reference_terms = "\\n".join(
+            "{en} = {sq} (kandidat; konteksti: {context})"
+            .format(
+                en=item.get("english", ""),
+                sq=item.get("albanian", ""),
+                context=item.get("context", ""),
+            )
+            for item in selected_terms
+        ) or "Nuk ka terma të përputhur."
+
         user_prompt = f"""
 DETYRA:
 {task}
@@ -227,6 +343,18 @@ TEKSTI:
 {user_text}
 
 Përgjigju në shqip dhe ruaj kuptimin.
+
+UDHËZIME EDITORIALE NGA MANUALE PUBLIKE:
+{reference_guidance}
+
+TERMA KANDIDATË PËR KONTROLL:
+{reference_terms}
+
+Këto janë përmbledhje editoriale, jo citime ose dispozita
+detyruese. Mos i trajto si verifikim juridik.
+Përdor vetëm ID-të R01 etj. kur një rregull realisht
+lidhet me ndryshimin. Nëse një term mbetet i pasigurt,
+kërko kontroll njerëzor. Mos shpik referenca.
 """
 
         payload = {
@@ -283,10 +411,44 @@ Përgjigju në shqip dhe ruaj kuptimin.
                         mime="text/plain"
                     )
 
+                    with st.expander("Reference guidance considered"):
+                        if selected_rules:
+                            for rule in selected_rules:
+                                source = SOURCE_BY_ID.get(
+                                    rule.get("source_id"), {}
+                                )
+                                st.markdown(
+                                    "**{id}:** {guidance}".format(
+                                        id=rule.get("rule_id", ""),
+                                        guidance=rule.get("guidance", "")
+                                    )
+                                )
+                                st.caption(
+                                    "{title} – {loc} (editorial draft)"
+                                    .format(
+                                        title=source.get("title", "Source"),
+                                        loc=rule.get("source_location", "")
+                                    )
+                                )
+                                url = source.get("url", "")
+                                if url.startswith("https://"):
+                                    st.markdown("[Consult publication](" + url + ")")
+                        else:
+                            st.write("No matching editorial guidance.")
+
+                        if selected_terms:
+                            st.markdown("**Candidate terms (not approved):**")
+                            for term in selected_terms:
+                                st.write(
+                                    term.get("english", "") + " / " +
+                                    term.get("albanian", "")
+                                )
+
                     st.warning(
-                        "AI-generated draft. Human review "
-                        "is required. Vetted legal sources "
-                        "are not yet connected."
+                        "AI-generated draft. Guidance consists of short "
+                        "paraphrases of public manuals, pending expert review. "
+                        "No independent legal validity check has been made. "
+                        "Human review is mandatory."
                     )
 
                 else:
