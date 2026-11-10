@@ -10,7 +10,8 @@ import json
 
 import streamlit as st
 
-from privacy_guard import BLOCK_NOTICE, combine_safe_text, scan_text_fields, screen_upload
+from privacy_guard import BLOCK_NOTICE, combine_safe_text, scan_text_fields
+from public_upload_ui import selected_public_attachment
 from ui_copy import friendly_error
 from ui_theme import apply_theme
 
@@ -144,8 +145,8 @@ supporting_file = st.file_uploader(
     type=["txt", "md", "docx", "pdf"],
     key="comm_supporting_file",
     help=(
-        "Attachments are screened locally. Scans, images and files that cannot "
-        "be checked reliably are blocked."
+        "Public PDF and DOCX files with logos are accepted when text is "
+        "readable. Select a relevant excerpt if a document is long."
     ),
 )
 
@@ -163,30 +164,29 @@ safe = st.checkbox(
 )
 
 
-# Scan source text, context fields and the attached document BEFORE
-# any AI call or displaying a previously generated result.
-uploaded_text = ""
-upload_digest = ""
-upload_check = (
-    screen_upload(supporting_file.name, supporting_file.getvalue(), max_chars=7000)
-    if supporting_file is not None else None
-)
+# Public communications may discuss legislation, confidentiality or health
+# as a topic. Actual private identifiers/classification labels still block.
 if scan_text_fields(
-    st.session_state["comm_source"], organization, audience, objective, visual
-).blocked or (upload_check and upload_check.blocked):
+    st.session_state["comm_source"], organization, audience, objective, visual,
+    public_legal=True,
+).blocked:
     st.session_state.pop("comm_editor", None)
     st.session_state.pop("comm_result_fingerprint", None)
     st.session_state.pop("comm_bundle", None)
     st.session_state.pop("comm_bundle_key", None)
     st.error(BLOCK_NOTICE)
     st.stop()
-if upload_check:
-    uploaded_text = upload_check.text
-    upload_digest = hashlib.sha256(supporting_file.getvalue()).hexdigest()[:20]
-    st.caption("The attachment passed local screening; its contents are not previewed.")
+
+uploaded_text, upload_digest = selected_public_attachment(
+    supporting_file,
+    current_text=st.session_state["comm_source"],
+    context_limit=8000,
+    state_prefix="comm_public",
+)
 try:
     combined_source = combine_safe_text(
-        st.session_state["comm_source"], uploaded_text, max_chars=8000
+        st.session_state["comm_source"], uploaded_text,
+        max_chars=8000, public_legal=True,
     )
 except ValueError as exc:
     st.error(friendly_error(exc, context="communication"))
@@ -246,8 +246,9 @@ if generate_single or generate_all:
                             communication_rules=rules,
                             albanian_rules=albanian, account_id=account,
                             api_token=token,
+                            public_legal_source=True,
                         )
-                    if any(scan_text_fields(text).blocked for text in bundle.values()):
+                    if any(scan_text_fields(text, public_legal=True).blocked for text in bundle.values()):
                         raise ValueError(BLOCK_NOTICE)
                     st.session_state["comm_bundle"] = bundle
                     st.session_state["comm_bundle_key"] = fingerprint
@@ -266,10 +267,13 @@ if generate_single or generate_all:
                     albanian_rules=albanian,
                     style_id=style_id,
                     output_language=output_language,
+                    public_legal_source=True,
                 )
                 with st.spinner("Preparing the draft..."):
-                    output = generate_communication(messages, account, token)
-                if scan_text_fields(output).blocked:
+                    output = generate_communication(
+                        messages, account, token, public_legal_source=True
+                    )
+                if scan_text_fields(output, public_legal=True).blocked:
                     st.session_state.pop("comm_editor", None)
                     st.session_state.pop("comm_result_fingerprint", None)
                     st.error(BLOCK_NOTICE)
@@ -284,7 +288,7 @@ if generate_single or generate_all:
 if (group == "Social Media" and st.session_state.get("comm_bundle_key") == fingerprint
         and st.session_state.get("comm_bundle") and safe):
     bundle = st.session_state["comm_bundle"]
-    if any(scan_text_fields(text).blocked for text in bundle.values()):
+    if any(scan_text_fields(text, public_legal=True).blocked for text in bundle.values()):
         st.session_state.pop("comm_bundle", None)
         st.session_state.pop("comm_bundle_key", None)
         st.error(BLOCK_NOTICE)
@@ -305,7 +309,7 @@ if (group == "Social Media" and st.session_state.get("comm_bundle_key") == finge
                 height=220,
                 key="comm_bundle_edit_" + platform,
             )
-            if scan_text_fields(current).blocked:
+            if scan_text_fields(current, public_legal=True).blocked:
                 st.error(BLOCK_NOTICE)
                 st.stop()
             body = extract_publishable_text(current)
@@ -320,7 +324,7 @@ if (group == "Social Media" and st.session_state.get("comm_bundle_key") == finge
         mime="text/plain; charset=utf-8",
     )
 
-if scan_text_fields(st.session_state.get("comm_editor", "")).blocked:
+if scan_text_fields(st.session_state.get("comm_editor", ""), public_legal=True).blocked:
     st.session_state.pop("comm_editor", None)
     st.session_state.pop("comm_result_fingerprint", None)
     st.error(BLOCK_NOTICE)
@@ -338,7 +342,7 @@ if (
         height=340,
     )
     draft = st.session_state["comm_editor"]
-    if scan_text_fields(draft).blocked:
+    if scan_text_fields(draft, public_legal=True).blocked:
         st.session_state.pop("comm_editor", None)
         st.error(BLOCK_NOTICE)
         st.stop()
@@ -372,7 +376,7 @@ if (
     def prepare_adaptation():
         publishable = extract_publishable_text(st.session_state["comm_editor"])
         proposed = publishable or st.session_state["comm_editor"]
-        if scan_text_fields(proposed).blocked:
+        if scan_text_fields(proposed, public_legal=True).blocked:
             st.session_state["comm_editor"] = ""
             st.session_state["comm_result_fingerprint"] = ""
             return

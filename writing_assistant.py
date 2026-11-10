@@ -4,7 +4,8 @@ import requests
 import csv
 import re
 from pathlib import Path
-from privacy_guard import BLOCK_NOTICE, combine_safe_text, scan_text, screen_upload
+from privacy_guard import BLOCK_NOTICE, combine_safe_text, scan_text
+from public_upload_ui import selected_public_attachment
 from ui_theme import apply_theme
 from ui_copy import friendly_error
 
@@ -382,9 +383,9 @@ attachment = st.file_uploader(
     "Optional supporting document (.txt, .md, .docx, or text-based .pdf)",
     type=["txt", "md", "docx", "pdf"],
     help=(
-        "Local screening happens before analysis. Only public/synthetic "
-        "text-based files are accepted. Scanned PDFs, embedded images and "
-        "uninspectable documents are blocked."
+        "Public PDFs/DOCXs with logos are accepted if their text is readable. "
+        "For long documents you can choose the relevant section. Scanned "
+        "image-only files and personal/confidential records remain blocked."
     ),
     key="alba_editor_attachment",
 )
@@ -393,24 +394,25 @@ safe_input = st.checkbox(
     "synthetic and contain no sensitive data."
 )
 
-# Fail closed *before* retrieving rules, producing previews or contacting AI.
-attachment_text = ""
-file_review = (
-    screen_upload(attachment.name, attachment.getvalue(), max_chars=6000)
-    if attachment is not None else None
-)
-if scan_text(user_text).blocked or (file_review and file_review.blocked):
+# Public documents can discuss legal secrecy or health without being private.
+# We still block actual personal identifiers, credentials and classifications.
+if scan_text(user_text, public_legal=True).blocked:
     st.error(BLOCK_NOTICE)
     st.stop()
-if file_review:
-    attachment_text = file_review.text
+
+attachment_text, _ = selected_public_attachment(
+    attachment,
+    current_text=user_text,
+    context_limit=6000,
+    state_prefix="writing_public",
+)
 try:
-    submitted_text = combine_safe_text(user_text, attachment_text, max_chars=6000)
+    submitted_text = combine_safe_text(
+        user_text, attachment_text, max_chars=6000, public_legal=True
+    )
 except ValueError as exc:
     st.error(friendly_error(exc))
     st.stop()
-if attachment is not None:
-    st.caption("Attached text passed local checks; content is not previewed here.")
 
 # ==========================================
 # ANALYSIS
@@ -561,7 +563,7 @@ kërko kontroll njerëzor. Mos shpik referenca.
                 if result:
 
                     # Never render or download AI-generated sensitive content.
-                    if scan_text(result).blocked:
+                    if scan_text(result, public_legal=True).blocked:
                         st.error(BLOCK_NOTICE)
                         st.stop()
 

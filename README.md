@@ -204,3 +204,36 @@ GitHub Actions CI runs the full local tests. This does not assess live
 model availability or the actual legal quality of GLM/Qwen-generated review.
 Always verify literal transposition, legal basis, annex applicability,
 institutional responsibilities, dates, figures and adoption status manually.
+
+
+## Easier public-document use across ALBA
+
+The **Writing Assistant**, **Communication Studio** and dedicated **EU
+Communication & Reporting** page now share the same public-document upload
+workflow as the **Legal Drafting** module. A user may upload a readable,
+public PDF/DOCX with an official logo or a figure, and ordinary references
+to confidentiality, medical records, privacy or legislation do not trigger
+a hard block on their own. PDF diagrams and embedded graphics are *not*
+interpreted or sent to the AI model.
+
+If a source exceeds the selected AI context window, the app reads and screens
+the source and opens an editable **Excerpt / article(s) to include** field,
+with a separately displayed read-only extracted text for selection. The
+default excerpt is explicitly identified as the opening of the document,
+**not** the whole law or report. No silent truncation, model calls before
+clicking Generate/Analyse, or extra external API credentials.
+
+The **ToC Builder** accepts public EU directives and logo-bearing blank
+DOCX templates using the same public-law privacy screening. It retains its
+one public-material declaration and its current article-by-article ToC limits.
+
+Real email addresses, private identifiers, filled patient records,
+credentials, confidential-document classifications, unreadable or
+image-only documents remain blocked, even when described as public.
+The safeguard is heuristic and cannot prove whether an attachment is
+actually public. The user remains responsible for selecting only genuinely
+public or synthetic materials suitable for external model processing.
+
+Regression coverage: `tests/test_public_document_modules.py`, plus
+`tests/test_public_legal_uploads.py`, validates public-topic vocabulary,
+mocked model generation, UI page loading and private-data blocking.

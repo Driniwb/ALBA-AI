@@ -123,7 +123,7 @@ def _validate(kind: str, source: str, draft: str, eu: str) -> None:
         raise ValueError("Source and draft are required.")
     if len(source) + len(eu) > MAX_SOURCE_CHARS or len(draft) > MAX_DRAFT_CHARS:
         raise ValueError("Review material exceeds public pilot limits.")
-    if scan_text_fields(source, draft, eu, public_legal=(kind == "legal")).blocked:
+    if scan_text_fields(source, draft, eu, public_legal=True).blocked:
         raise ValueError(BLOCK_NOTICE_SQ)
 
 def select_cloudflare_review_plan(*, kind: str, source_text: str,
@@ -199,7 +199,7 @@ def run_cloudflare_independent_review(
                 if response.status_code == 410:
                     raise ValueError("This Cloudflare model has been retired.")
                 raise ValueError(f"Cloudflare model request failed (HTTP {response.status_code}).")
-            result.findings[key] = _validated_response(response.json(), public_legal=(kind == "legal"))
+            result.findings[key] = _validated_response(response.json(), public_legal=True)
         except requests.exceptions.Timeout:
             result.errors[key] = "Cloudflare model request timed out."
         except requests.exceptions.RequestException:

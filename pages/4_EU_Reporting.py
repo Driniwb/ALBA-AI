@@ -19,7 +19,8 @@ from communication_studio import (
     load_library,
     qa_flags,
 )
-from privacy_guard import BLOCK_NOTICE, combine_safe_text, scan_text_fields, screen_upload
+from privacy_guard import BLOCK_NOTICE, combine_safe_text, scan_text_fields
+from public_upload_ui import selected_public_attachment
 from ui_copy import friendly_error
 from review_ui import render_auto_review
 from ui_theme import apply_theme
@@ -103,36 +104,40 @@ st.text_area(
 attachment = st.file_uploader(
     "Optional public supporting file (TXT, MD, DOCX or text-based PDF)",
     type=["txt", "md", "docx", "pdf"], key="eu_attachment",
-    help="The file is locally screened. Scanned and uninspectable files are blocked.",
+    help="Public PDF/DOCX files with logos are accepted if readable; select a section from long files.",
 )
 confirm = st.checkbox(
     "I confirm all material is public or synthetic and contains no personal "
     "or confidential information.",
     key="eu_public_confirm",
 )
-safe_upload = (
-    screen_upload(attachment.name, attachment.getvalue(), max_chars=7000)
-    if attachment is not None else None
-)
-if (scan_text_fields(
-    st.session_state.get("eu_source", ""), organisation, audience, objective
-).blocked or (safe_upload and safe_upload.blocked)):
+if scan_text_fields(
+    st.session_state.get("eu_source", ""), organisation, audience, objective,
+    public_legal=True,
+).blocked:
     st.session_state.pop("eu_report_draft", None)
     st.session_state.pop("eu_report_key", None)
     st.error(BLOCK_NOTICE)
     st.stop()
+
+uploaded_text, upload_digest = selected_public_attachment(
+    attachment,
+    current_text=st.session_state.get("eu_source", ""),
+    context_limit=8000,
+    state_prefix="eu_public",
+)
 try:
     source = combine_safe_text(
-        st.session_state.get("eu_source", ""),
-        safe_upload.text if safe_upload else "",
-        max_chars=8000,
+        st.session_state.get("eu_source", ""), uploaded_text,
+        max_chars=8000, public_legal=True,
     )
 except ValueError as exc:
     st.error(friendly_error(exc, context="communication"))
     st.stop()
+
 fingerprint = hashlib.sha256(
     json.dumps({
-        "source": source, "format": report_format, "language": output_language,
+        "source": source, "upload_digest": upload_digest, "format": report_format, "language": output_language,
         "mode": mode, "institution": organisation, "recipient": audience,
         "scope": objective,
     }, sort_keys=True, ensure_ascii=False).encode("utf-8")
@@ -160,10 +165,11 @@ if st.button("Generate EU reporting draft", type="primary", key="eu_generate"):
                     output_language=output_language,
                     communication_rules=communication_rules,
                     albanian_rules=albanian_rules,
+                    public_legal_source=True,
                 )
                 with st.spinner("Preparing the reporting document..."):
-                    draft = generate_communication(messages, account, token)
-                if scan_text_fields(draft).blocked:
+                    draft = generate_communication(messages, account, token, public_legal_source=True)
+                if scan_text_fields(draft, public_legal=True).blocked:
                     raise ValueError(BLOCK_NOTICE)
                 st.session_state["eu_report_draft"] = draft
                 st.session_state["eu_report_key"] = fingerprint
@@ -181,7 +187,7 @@ if (
         key="eu_report_draft", height=440,
     )
     revised = st.session_state["eu_report_draft"]
-    if scan_text_fields(revised).blocked:
+    if scan_text_fields(revised, public_legal=True).blocked:
         st.session_state.pop("eu_report_draft", None)
         st.session_state.pop("eu_report_key", None)
         st.error(BLOCK_NOTICE)
