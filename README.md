@@ -119,33 +119,65 @@ Public-media C-rules and historic Albanian editorial rules are not applied to th
 
 ### QA and release
 
-Run `python -m unittest discover -s tests -v` and check each Streamlit page. Unit tests use only synthetic fixtures and mocked calls; they validate prompt routing and UI smoke cases, **not** the legal accuracy or quality of live model-generated drafts. The new modules are developed in `feature/legal-drafting-eu-reporting-social-bundle` and should remain distinct from `main` until CI and human review pass.
+Run `python -m unittest discover -s tests -v` and check each Streamlit page. Unit tests use only synthetic fixtures and mocked calls; they validate prompt routing and UI smoke cases, **not** the legal accuracy or quality of live model-generated drafts. These modules are included in `main`; changes are checked in development branches before merging.
 
-## Automatic multi-model legal and EU reporting review (experimental)
+## Automatic Cloudflare-only independent review (experimental)
 
-Legal Drafting and EU Communication & Reporting include a single **Run ALBA independent review** button after a draft has been created. The user does **not** select Gemini, Nemotron, or both. `review_risk()` and `select_review_plan()` in `multi_model_review.py` route automatically based on document type, risks, length, and configured API credentials:
+ALBA uses the **existing Cloudflare Workers AI account and token only**. No
+Google AI Studio, OpenRouter, Hugging Face or second set of API credentials is
+required. The original Gemma 4 draft generation is unchanged.
 
-- Legal transposition and amendments, or long/complex legal texts, are considered higher risk. If both providers are configured, ALBA obtains two independent source-based reviews from **NVIDIA Nemotron 3 Ultra** (OpenRouter model ID `nvidia/nemotron-3-ultra-550b-a55b:free`) and **Google Gemini 2.5 Flash**.
-- Detailed EU reporting about administrative capacities, negotiating positions, progress against benchmarks, and Commission replies can receive two independent reviews when both are configured. Simpler Information Notes normally use one.
-- If only one eligible key is configured, ALBA uses that provider. If a provider is rate-limited, the successful independent review remains visible; there is **no paid model fallback** or automatic extra provider substitution.
-- If proposed corrections are returned, ALBA shows them as **Alternative formulations for expert decision**, attributed to each reviewer. These are not merged, voted on, applied to the original draft, or represented as certified legal conclusions. A model may return no defensible alternative.
-- The original Cloudflare/Gemma draft flow is unchanged. Independent reviews happen only after a separate explicit click and a checkbox confirming consent to the external processing. No AI processing occurs simply by opening or editing the page.
+Once a legal or EU reporting draft is prepared, the user may click **Run ALBA
+independent review**, after explicitly consenting to the additional processing
+of public/synthetic material inside Cloudflare. ALBA automatically decides
+whether to run **GLM-4.7-Flash** alone or both **GLM-4.7-Flash** and
+**Qwen 3.8 27B**, based on the legal/document risk. There is **no user model
+selection**. Source, draft and EU provisions are supplied to each independent
+reviewer. Review findings and defensible old/new formulations are displayed
+separately. These are not merged, ranked by votes, applied to drafts, or
+claimed as certification. Missing evidence or conflicting legal readings must
+be decided by a human expert.
 
-### Required Streamlit secrets
+* Source references: Cloudflare's current model catalog confirms
+  `@cf/zai-org/glm-4.7-flash` and `@cf/qwen/qwen3.8-27b`.
+* Workers Free allows **10,000 shared Neurons per day** for drafting and
+  reviewing combined. Once exhausted, new operations fail until the daily
+  reset. Workers Paid accounts may incur additional charges beyond this
+  allocation. The review UI is disabled unless the app administrator has
+  **positively verified** that the account is on Workers Free.
+* Requests are made only after the user clicks Review. Failed model calls
+  never trigger a paid service, a hidden retry, or a third-party API.
+  Successful partial results remain visible when another reviewer fails.
+* Work exclusively with **public or synthetic** texts. The source and draft
+  are screened with conservative local patterns, but those do not guarantee
+  that no confidential or identifying data will pass. Only approved public
+  workflows should be used at this stage.
+
+### Streamlit configuration
+
+The existing values remain:
 
 ```toml
-# Existing Cloudflare drafting credentials
 CLOUDFLARE_ACCOUNT_ID = "..."
 CLOUDFLARE_API_TOKEN = "..."
-
-# Optional independent reviewers: configure either or both
-GEMINI_API_KEY = "..."
-GEMINI_FREE_TIER_CONFIRMED = true
-OPENROUTER_API_KEY = "..."
 ```
 
-**Admin cost safeguards:** OpenRouter is pinned to a specific model with `:free` pricing. ALBA does not use paid routes or an unpinned `openrouter/free` router. Gemini is enabled only if the application administrator explicitly sets `GEMINI_FREE_TIER_CONFIRMED=true`, indicating that the API key belongs to a free-tier project. **Google does not provide a way for this prototype to enforce account billing limits**; the admin must validate the project's billing configuration. Free endpoints have rate limits and can change or disappear. Never store keys in GitHub or paste them into public content.
+After verifying your Cloudflare account is on **Workers Free**, add:
 
-**Privacy:** Gemini free-tier prompts/outputs may be used by Google to improve products. Nemotron's free endpoint on OpenRouter also states that content is logged for security and improvement purposes and prohibits confidential or personal submissions. The ALBA pilot therefore supports **only public or synthetic information**, with local heuristic screening and affirmative provider-sharing consent. These checks are not a confidentiality guarantee. Human review of citations, legal authorizations, drafting fidelity, FTE, annex references, adoption status and institutional approval remains essential.
+```toml
+CLOUDFLARE_FREE_PLAN_CONFIRMED = true
+```
 
-**Testing:** The suite includes mocked provider calls, dynamic risk routing, explicit consent and page imports, invalid/truncated response rejection, quota failure handling, a no-paid-fallback model assertion and conditional alternative wording. CI does **not** perform live Gemini or OpenRouter requests and does not certify their legal accuracy. Test with public/synthetic documents only.
+This flag is an administrator assertion, not a cryptographic or API-backed
+billing check. Leave it unset on Workers Paid if you require a hard
+**no-overage** policy. Do not store tokens in GitHub or expose them in chat.
+
+### Validation and limitations
+
+`tests/test_cloudflare_review.py` exercises deterministic routing, both
+model IDs, source and draft handling, response validation, privacy preflight,
+quota failures and Streamlit page loading with **mocked API responses**.
+GitHub Actions CI runs the full local tests. This does not assess live
+model availability or the actual legal quality of GLM/Qwen-generated review.
+Always verify literal transposition, legal basis, annex applicability,
+institutional responsibilities, dates, figures and adoption status manually.
