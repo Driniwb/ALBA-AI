@@ -103,6 +103,24 @@ class PublicLegalUploadTests(unittest.TestCase):
         self.assertIn("konfidencialitetin", legal.text)
         self.assertIn("Neni 4", legal.text)
 
+    def test_public_docx_with_official_logo_is_accepted_without_media(self):
+        from PIL import Image
+        logo = BytesIO()
+        Image.new("RGB", (4, 4), (250, 250, 250)).save(logo, format="PNG")
+        logo.seek(0)
+        doc = Document()
+        doc.add_picture(logo)
+        doc.add_paragraph(LEGAL_TEXT)
+        document = BytesIO()
+        doc.save(document)
+        self.assertTrue(screen_upload("normative.docx", document.getvalue()).blocked)
+        legal = screen_upload(
+            "normative.docx", document.getvalue(), public_legal=True
+        )
+        self.assertFalse(legal.blocked, legal.reason)
+        self.assertIn("Neni 1", legal.text)
+        self.assertTrue(legal.warning)
+
     def test_text_based_public_pdf_with_logo_is_accepted_without_image_bytes(self):
         document = pdf_with_logo()
         self.assertTrue(screen_upload("regulation.pdf", document).blocked)
