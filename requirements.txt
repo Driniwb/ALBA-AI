@@ -1,4 +1,7 @@
-streamlit>=1.40
+streamlit>=1.45
 requests>=2.32
 python-docx>=1.2.0
 pypdf>=5.0
+# Optional persisted Chat Workspace / OIDC authentication
+psycopg[binary]>=3.2,<4
+authlib>=1.3.2
