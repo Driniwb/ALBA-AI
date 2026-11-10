@@ -1,4 +1,4 @@
-"""ALBA Streamlit entrypoint: named navigation for five writing tools.
+"""ALBA Streamlit entrypoint: named navigation plus Chat Workspace.
 
 This file is intentionally a lightweight router. The first sidebar page is
 called 'Writing Assistant', not 'app' or 'ALBA AI'. All existing functionality
@@ -15,14 +15,19 @@ st.set_page_config(
 
 with st.sidebar:
     st.markdown("## ALBA")
-    st.caption("Writing · Concordance · Legal drafting · Communication · EU reporting")
+    st.caption("Chat · Writing · Concordance · Legal drafting · Communication · EU reporting")
 
 pages = [
+    st.Page(
+        "pages/5_Chat_Workspace.py",
+        title="Chat Workspace",
+        icon=":material/forum:",
+        default=True,
+    ),
     st.Page(
         "writing_assistant.py",
         title="Writing Assistant",
         icon=":material/edit_document:",
-        default=True,
     ),
     st.Page(
         "pages/1_ToC_Builder.py",
