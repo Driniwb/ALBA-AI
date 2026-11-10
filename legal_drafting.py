@@ -75,8 +75,9 @@ def build_legal_messages(*, act_type: str, mode: str, source_text: str,
                          drafting_goal: str = "") -> list[dict]:
     if act_type not in ACT_TYPES or mode not in DRAFT_MODES:
         raise ValueError("Unsupported act or drafting mode.")
-    if (scan_text_fields(source_text, eu_source, public_legal=True).blocked
-            or scan_text_fields(enabling_basis, drafting_goal).blocked):
+    if scan_text_fields(
+        source_text, enabling_basis, eu_source, drafting_goal, public_legal=True
+    ).blocked:
         raise ValueError(BLOCK_NOTICE_SQ)
     if not source_text.strip():
         raise ValueError("Source material is required.")
