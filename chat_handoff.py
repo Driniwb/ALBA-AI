@@ -55,7 +55,8 @@ _EU = (
 )
 _LEGAL = (
     r"\b(?:projekt\s*[- ]?\s*(?:vkm|ligj|udh[eë]zim|rregullore)|"
-    r"draft\s+(?:law|regulation|legislation)|"
+    r"draft\s+(?:(?:a|an)\s+)?(?:law|regulation|legislation)|"
+    r"(?:prepare|write|p[eë]rgatit|hart(?:o|im)).{0,18}(?:law|ligj|regulation|rregullore)|"
     r"vkm|vendim\s+(?:i\s+)?k[eë]shillit\s+t[eë]\s+ministrave|"
     r"amendment(?:s)?\s+to\s+(?:a\s+)?(?:law|act)|"
     r"ndryshim(?:e)?\s+(?:t[eë]|n[eë])\s+ligj|"
