@@ -35,7 +35,7 @@ def _has(pattern: str, value: str) -> bool:
 
 # Imperatives/instructions, not mere mentions of a topic.
 _TASK = (
-    r"\b(?:draft|drafting|prepare|create|write|revise|review|edit|amend|"
+    r"\b(?:draft|drafting|prepare|create|write|revise|review|edit|amend|correct|check|proofread|"
     r"translate|adapt|transpose|compile|generate|produce|redraft|"
     r"hart(?:o|im|oni|oj|uar)?|p[eë]rgatit|p[eë]rpil|rishik|korrigj|"
     r"p[eë]rshtat|p[eë]rkthe|transpoz|p[eë]raf(?:ro|rim|ruar)|"
@@ -59,7 +59,7 @@ _LEGAL = (
     r"(?:prepare|write|p[eë]rgatit|hart(?:o|im)).{0,18}(?:law|ligj|regulation|rregullore)|"
     r"vkm|vendim\s+(?:i\s+)?k[eë]shillit\s+t[eë]\s+ministrave|"
     r"amendment(?:s)?\s+to\s+(?:a\s+)?(?:law|act)|"
-    r"ndryshim(?:e)?\s+(?:t[eë]|n[eë])\s+ligj|"
+    r"ndryshim(?:e)?\s+(?:t[eë]|n[eë])\s+ligj|normative\s+provision|dispozit[eë]\s+normative|"
     r"p[eë]rafrim(?:in)?\s+(?:me\s+)?(?:direktiv|acquis)|"
     r"transpozim(?:in)?|legal drafting|hartim(?:i)?\s+ligjor)\b"
 )
@@ -71,7 +71,7 @@ _COMM = (
     r"postim(?:e|in)?|fushat[eë]\s+komunikimi)\b"
 )
 _WRITING = (
-    r"\b(?:email|e-mail|procesverbal|meeting minutes|"
+    r"\b(?:email|e-mail|procesverbal(?:in|i|e)?|meeting minutes|"
     r"grammar|spelling|drejtshkrim|terminologji|"
     r"gjuha\s+institucionale|shqipe\s+zyrtare|"
     r"proofread|copyedit|translation|p[eë]rkthim|"
