@@ -48,6 +48,12 @@ def main():
         print("INCONCLUSIVE: source did not return a PDF")
         return
 
+    # Public source only. Upload as short-lived CI artifact to support an
+    # actual offline local integration test with the privately held template.
+    outdir = Path("artifacts")
+    outdir.mkdir(exist_ok=True)
+    (outdir / "PUBLIC_2008_68_EC_2019_CONSOLIDATED_TEST.pdf").write_bytes(content)
+
     try:
         extracted = extract_document("directive_2008_68.pdf", content)
         rows = split_provisions(extracted.text)
