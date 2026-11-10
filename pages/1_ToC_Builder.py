@@ -73,7 +73,8 @@ c1, c2 = st.columns([2, 1])
 with c1:
     title = st.text_input(
         "Directive title in the ToC",
-        value="Direktiva 2008/68/KE",
+        value="",
+        placeholder="Enter the directive number and title",
         max_chars=200,
     )
 with c2:
