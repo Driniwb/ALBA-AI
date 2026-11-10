@@ -117,6 +117,39 @@ def extract_document(filename: str, data: bytes) -> Extracted:
     return Extracted(text=text, warnings=tuple(dict.fromkeys(warnings)))
 
 
+
+# PDF page identifiers in the consolidated layout are not legal text.
+# Optional cleanup must be requested by the user and remains subject to review.
+PDF_PAGE_MARKER = re.compile(
+    r"(?:▼[A-Z]\s*)?\b0\d{4}[A-Z]\d{4}\s*—\s*[A-Z]{2}\s*—\s*"
+    r"\d{2}\.\d{2}\.\d{4}\s*—\s*[\d.]+\s*—\s*\d{1,4}\b",
+    flags=re.UNICODE,
+)
+
+
+def pdf_extraction_flags(text: str) -> list[str]:
+    """Detect high-risk PDF layout artefacts; not a legal text validator."""
+    issues = []
+    if PDF_PAGE_MARKER.search(text):
+        issues.append("U gjetën shënime botimi/numra faqesh brenda dispozitave.")
+    if "\u00ad" in text:
+        issues.append("U gjetën ndarje fjalësh (soft hyphen) nga PDF-ja.")
+    return issues
+
+
+def normalise_pdf_display(text: str) -> str:
+    """Optional mechanical *display* cleanup, not a verified transcription.
+
+    Apply ONLY after segmentation into legal units. Does not translate,
+    paraphrase or create legal structure. The original PDF remains authoritative.
+    """
+    cleaned = PDF_PAGE_MARKER.sub("", text)
+    cleaned = re.sub(r"(?<=\w)\s*\u00ad\s*(?=\w)", "", cleaned)
+    cleaned = cleaned.replace("\u00ad", "")
+    cleaned = re.sub(r"[ \t]*\n[ \t]*", " ", cleaned)
+    cleaned = re.sub(r" {2,}", " ", cleaned)
+    return cleaned.strip()
+
 def split_provisions(text: str) -> list[Provision]:
     """Make Article/Annex rows, retaining preamble and all extracted text.
 
