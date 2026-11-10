@@ -19,6 +19,7 @@ from guest_browser_storage import (
 )
 from chat_store import ChatStore, MODES
 from chat_auth import verified_chat_owner
+from chat_handoff import suggest_handoff, prepare_handoff
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from ui_theme import apply_theme
 
@@ -208,6 +209,21 @@ if conversation:
     for message in messages:
         with st.chat_message(message["role"]):
             _render_chat_content(message["content"])
+
+    # If the last user turn requests a specialised ALBA workflow, offer
+    # exactly one direct handoff. General questions stay in the conversation.
+    latest_question = next(
+        (item["content"] for item in reversed(messages)
+         if item["role"] == "user"),
+        "",
+    )
+    recommended = suggest_handoff(latest_question)
+    if recommended and st.button(
+        "Continue in " + recommended.label,
+        key="alba_handoff_" + active_id + "_" + str(len(messages)),
+    ):
+        prepare_handoff(recommended, latest_question, st.session_state)
+        st.switch_page(recommended.page)
 else:
     st.subheader("How can I help?")
     mode = "general"
