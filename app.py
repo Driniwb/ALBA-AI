@@ -15,7 +15,6 @@ st.set_page_config(
 
 with st.sidebar:
     st.markdown("## ALBA")
-    st.caption("Chat · Writing · Concordance · Legal drafting · Communication · EU reporting")
 
 pages = [
     st.Page(
