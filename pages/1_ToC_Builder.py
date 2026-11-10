@@ -23,13 +23,13 @@ from ui_theme import apply_theme
 from ui_copy import friendly_error
 
 st.set_page_config(
-    page_title="ALBA AI – ToC Builder",
+    page_title="ALBA | ToC Builder",
     page_icon="📄",
     layout="wide",
 )
 apply_theme("TOC")
 st.title("ToC Builder")
-st.caption("ALBA 3.5 · Legal concordance · Literal English-to-Albanian translation · Word")
+st.caption("Legal concordance · Literal English-to-Albanian translation · Word")
 
 st.warning(
     "Experimental legal drafting tool, not an automatic transposition assessment. "
@@ -73,15 +73,19 @@ c1, c2 = st.columns([2, 1])
 with c1:
     title = st.text_input(
         "Directive title in the ToC",
-        value="Direktiva 2008/68/KE",
+        value="",
+        placeholder="Enter the directive number and title",
         max_chars=200,
     )
 with c2:
     article_count = st.selectbox(
         "Articles to include in this pilot",
-        [1, 2, 3],
-        index=0,
-        help="This pilot handles Articles 1–3 only.",
+        list(range(1, 9)),
+        index=2,
+        help=(
+            "Select Articles 1 through N, up to Article 8. "
+            "Large selections may require more manual review and several translation batches."
+        ),
     )
 mode = st.radio(
     "Content of column 2",
@@ -241,11 +245,11 @@ if st.button(
             with st.spinner("Translating: " + unit.reference):
                 result, warnings = translate_unit(unit, account_id, api_token)
             if scan_text_fields(result).blocked:
-                raise ValueError(BLOCK_NOTICE_SQ)
+                raise ValueError(BLOCK_NOTICE)
             translated[unit.reference] = result
             checks[unit.reference] = warnings
         except ValueError as error:
-            st.error(f"{unit.reference}: {error}")
+            st.error(unit.reference + ": " + friendly_error(error, context="toc"))
             break
         progress.progress(i / len(work))
     st.session_state["toc_translations"] = translated

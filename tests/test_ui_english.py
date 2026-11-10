@@ -13,21 +13,39 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class EnglishInterfaceTests(unittest.TestCase):
     def test_all_three_pages_apply_common_theme(self):
-        for path in ("app.py", "pages/1_ToC_Builder.py",
+        for path in ("writing_assistant.py", "pages/1_ToC_Builder.py",
                      "pages/2_Communication_Studio.py"):
             with self.subTest(path=path):
                 text = (ROOT / path).read_text(encoding="utf-8")
                 self.assertIn("apply_theme(", text)
-        for color in ("#f2fff2", "#add9bc", "#5b8c7c", "#0d1a1a"):
+        for color in ("#f4eedb", "#a9c9b4", "#608f82", "#161d1a", "#e3ac57"):
             self.assertIn(color, _CSS)
 
     def test_internal_rules_are_hidden_not_deleted(self):
-        app = (ROOT / "app.py").read_text(encoding="utf-8")
+        app = (ROOT / "writing_assistant.py").read_text(encoding="utf-8")
         comm = (ROOT / "pages/2_Communication_Studio.py").read_text(encoding="utf-8")
         self.assertNotIn("Reference Library – 3.3", app)
         self.assertNotIn("Other editorial guidance retrieved", app)
         self.assertNotIn("Rregullat aktive për këtë format", comm)
         self.assertIn("communication_rules=rules", comm)
+
+    def test_navigation_uses_alba_brand_and_writing_assistant(self):
+        router = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertIn('page_title="ALBA"', router)
+        self.assertIn('title="Writing Assistant"', router)
+        self.assertIn('title="ToC Builder"', router)
+        self.assertIn('title="Communication Studio"', router)
+        self.assertNotIn('Explore **ToC Builder**', router)
+        writing = (ROOT / "writing_assistant.py").read_text(encoding="utf-8")
+        self.assertNotIn('Explore **ToC Builder**', writing)
+        self.assertIn('st.title("Writing Assistant")', writing)
+        self.assertIn(".alba-hero", _CSS)
+
+    def test_toc_defaults_to_blank_title_and_up_to_eight_articles(self):
+        toc = (ROOT / "pages" / "1_ToC_Builder.py").read_text(encoding="utf-8")
+        self.assertIn('value=""', toc)
+        self.assertIn('list(range(1, 9))', toc)
+        self.assertIn('Enter the directive number and title', toc)
 
     def test_all_format_display_names_are_english(self):
         labels = {item["label"] for item in FORMATS.values()}

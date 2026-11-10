@@ -64,7 +64,7 @@ class AlbaReferenceChecks(unittest.TestCase):
         self.assertIn("Nuk është manual zyrtar", text)
 
     def test_specialized_document_types_exist(self):
-        app = (ROOT / "app.py").read_text(encoding="utf-8")
+        app = (ROOT / "writing_assistant.py").read_text(encoding="utf-8")
         self.assertIn('"Table of Concordance (ToC)":', app)
         self.assertIn('"Memo / internal briefing note":', app)
         self.assertIn("Shënimet e ALBA-s nuk janë udhëzime zyrtare.", app)
