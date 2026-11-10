@@ -21,7 +21,7 @@ from guest_browser_storage import (
 from chat_store import ChatStore, MODES
 from chat_auth import verified_chat_owner
 from chat_backup import backup_bytes, parse_backup_file
-from privacy_guard import BLOCK_NOTICE, scan_text_fields
+from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from ui_theme import apply_theme
 
 st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
@@ -253,6 +253,17 @@ if active_id and conversation is None:
 project_ids = [None] + [p["id"] for p in projects]
 project_label = lambda value: "No project" if value is None else names.get(value, "Project")
 
+def _render_chat_content(value: str) -> None:
+    marker = "\n\n[PUBLIC DOCUMENT EXCERPT: "
+    if marker not in value:
+        st.markdown(value)
+        return
+    question, raw_source = value.split(marker, 1)
+    st.markdown(question)
+    with st.expander("Attached public document excerpt"):
+        st.code(raw_source, language=None)
+
+
 if conversation:
     st.subheader(conversation["title"])
     st.caption("Specialism: " + MODES[conversation["mode"]])
@@ -321,7 +332,7 @@ if conversation:
     mode = conversation["mode"]
     for message in messages:
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            _render_chat_content(message["content"])
 else:
     st.subheader("Start a new conversation")
     mode = st.selectbox(
@@ -343,6 +354,54 @@ st.caption(
     "ALBA remembers the full thread in the workspace, but sends only recent "
     "turns within the AI context limit. Verify citations against official texts."
 )
+attachment_text = ""
+attachment_name = ""
+with st.expander("Add a public document to your question (optional)"):
+    st.caption(
+        "Use a public PDF, Word document or text file. Only a selected text "
+        "excerpt, not the original file, is sent to the AI."
+    )
+    doc_nonce = st.session_state.get("alba_doc_nonce", 0)
+    doc = st.file_uploader(
+        "Attach public legislation, directive or report",
+        type=["pdf", "docx", "txt", "md"],
+        key="alba_public_doc_" + str(doc_nonce),
+    )
+    if doc:
+        checked = screen_upload(
+            doc.name, doc.getvalue(),
+            public_legal=True, max_chars=150000,
+        )
+        if checked.blocked:
+            st.error(upload_block_message(checked.reason))
+        else:
+            if checked.warning:
+                st.warning(checked.warning)
+            if len(checked.text) > 3200:
+                st.info(
+                    "Long document: select the relevant provision below. "
+                    "ALBA will not silently send or summarise the entire text."
+                )
+                digest = hashlib.sha256(doc.getvalue()).hexdigest()[:12]
+                with st.expander("Read extracted public source"):
+                    st.text_area(
+                        "Full extracted text (read-only)",
+                        value=checked.text, height=260, disabled=True,
+                        key="alba_full_source_" + digest,
+                    )
+                attachment_text = st.text_area(
+                    "Source excerpt for your next question",
+                    value=checked.text[:3200], max_chars=3200,
+                    height=180, key="alba_source_selection_" + digest,
+                )
+            else:
+                attachment_text = checked.text
+                st.caption(
+                    "Document text is ready for your next question."
+                )
+            if attachment_text.strip():
+                attachment_name = doc.name
+
 account, api_key = (
     _secret("CLOUDFLARE_ACCOUNT_ID"), _secret("CLOUDFLARE_API_TOKEN"),
 )
@@ -377,15 +436,22 @@ st.caption(
     "your message contains only public or synthetic content and you authorise "
     "sending it to Cloudflare for an AI response. Do not send private records."
 )
+doc_context = (
+    "\n\n[PUBLIC DOCUMENT EXCERPT: " + attachment_name + "]\n"
+    + attachment_text + "\n[/PUBLIC DOCUMENT EXCERPT]"
+    if attachment_name else ""
+)
+available_chars = max(100, MAX_USER_CHARS - len(doc_context))
 prompt = st.chat_input(
-    "Ask ALBA anything about a public legal, EU or institutional topic…",
+    "Ask ALBA a question or continue the conversation…",
     key="alba_chat_prompt",
-    max_chars=MAX_USER_CHARS,
+    max_chars=available_chars,
     disabled=not (account and api_key),
 )
 
 if prompt:
-    st.session_state["alba_pending_chat_text"] = prompt
+    st.session_state["alba_pending_chat_text"] = prompt + doc_context
+    st.session_state["alba_pending_display_question"] = prompt
     st.session_state["alba_pending_chat_error"] = None
 
 pending = st.session_state.get("alba_pending_chat_text")
@@ -393,7 +459,7 @@ error = st.session_state.get("alba_pending_chat_error")
 retry = False
 if pending and error:
     with st.chat_message("user"):
-        st.markdown(pending)
+        _render_chat_content(pending)
     st.error(error)
     retry_col, discard_col = st.columns([1, 1])
     with retry_col:
@@ -419,7 +485,7 @@ if (prompt or retry) and pending:
     else:
         if not retry:
             with st.chat_message("user"):
-                st.markdown(pending)
+                _render_chat_content(pending)
         try:
             prepare_chat_messages(
                 mode=mode, history=messages, user_text=pending
@@ -443,7 +509,9 @@ if (prompt or retry) and pending:
         else:
             try:
                 if not active_id:
-                    title = pending.strip().replace("\n", " ")[:75]
+                    title = st.session_state.get(
+                        "alba_pending_display_question", pending
+                    ).strip().replace("\n", " ")[:75][:75]
                     active_id = store.create_conversation(
                         owner, mode=mode, project_id=new_project,
                         title=title,
@@ -452,6 +520,10 @@ if (prompt or retry) and pending:
                 st.session_state["alba_active_conversation"] = active_id
                 st.session_state["alba_pending_chat_text"] = None
                 st.session_state["alba_pending_chat_error"] = None
+                st.session_state["alba_pending_display_question"] = None
+                st.session_state["alba_doc_nonce"] = (
+                    st.session_state.get("alba_doc_nonce", 0) + 1
+                )
                 st.rerun()
             except Exception:
                 st.session_state["alba_pending_chat_error"] = (
