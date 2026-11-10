@@ -114,6 +114,49 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         self.assertIn("Benchmark / Acquis Progress Report", labels)
         self.assertTrue(any(str(x.label) == "4. Reporting language" for x in app.selectbox))
 
+    def test_eu_reporting_has_dedicated_page_in_alba_navigation(self):
+        source = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertIn('"pages/3_Legal_Drafting.py"', source)
+        self.assertIn('"pages/4_EU_Reporting.py"', source)
+        self.assertIn('title="EU Communication & Reporting"', source)
+
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "4_EU_Reporting.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any(
+            "EU Communication & Reporting" in item.value for item in app.title
+        ))
+        self.assertEqual(
+            list(app.selectbox[0].options),
+            [
+                "Information Note",
+                "Administrative Capacity Note",
+                "Benchmark / Acquis Progress Report",
+                "Negotiating Position – Section Draft",
+                "Reply to the European Commission",
+            ],
+        )
+        self.assertEqual(list(app.selectbox[1].options), ["English", "Albanian"])
+        self.assertTrue(any(
+            "Generate EU reporting draft" in str(x.label) for x in app.button
+        ))
+
+    def test_dedicated_eu_reporting_rejects_private_contacts_before_generation(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "4_EU_Reporting.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        app.text_area[0].set_value(
+            "Private contact: fictional.example@example.org"
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        errors = [str(x.value) for x in app.error]
+        self.assertTrue(any("ALBA blocked processing" in x for x in errors))
+        self.assertFalse(any("example.org" in x for x in errors))
+
     def test_social_campaign_generate_control_visible_only_on_social(self):
         app = AppTest.from_file(
             str(ROOT / "pages" / "2_Communication_Studio.py"),
