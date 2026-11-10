@@ -357,9 +357,9 @@ def qa_flags(source_text: str, output: str, format_id: str) -> list[str]:
         )
     if format_id == "newsletter":
         if not re.search(r"(?im)^(?:\*\*)?Subjekti\s*:", content):
-            flags.append("The newsletter needs a subject line (Subjekti:).")
+            flags.append("The newsletter is missing its expected subject line.")
         if not re.search(r"(?im)^(?:\*\*)?Teksti paraprak\s*:", content):
-            flags.append("The newsletter needs preview text (Teksti paraprak:).")
+            flags.append("The newsletter is missing its expected preview text.")
     if re.search(r"\[(?:për t['’]u konfirmuar|link|lidhja|data|emri)\]", content, re.I):
         flags.append("Some bracketed placeholders must be completed before publication.")
     return flags
