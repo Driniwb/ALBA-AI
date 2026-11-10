@@ -120,7 +120,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
             app.session_state["alba_pending_chat_text"],
             "Please check the synthetic capacity note.",
         )
-        self.assertTrue(any("429" in str(err.message) for err in app.error))
+        self.assertTrue(any("429" in str(err.value) for err in app.error))
         self.assertTrue(any(
             button.label == "Retry this question" for button in app.button
         ))
