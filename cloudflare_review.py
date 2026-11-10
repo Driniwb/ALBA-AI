@@ -16,7 +16,6 @@ from typing import Callable
 import requests
 
 from communication_studio import extract_ai_text
-from multi_model_review import review_risk, extract_alternative_wording
 from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields
 
 CLOUDFLARE_API_ROOT = "https://api.cloudflare.com/client/v4/accounts"
@@ -78,6 +77,44 @@ class CloudflareReviewResult:
     plan: CloudflareReviewPlan
     findings: dict[str, str] = field(default_factory=dict)
     errors: dict[str, str] = field(default_factory=dict)
+
+def review_risk(*, kind: str, source_text: str, draft_text: str,
+                eu_text: str = "", task: str = "") -> bool:
+    """Conservative task-based routing, not a learned quality score."""
+    if kind not in REVIEW_KINDS:
+        raise ValueError("Unrecognised document category.")
+    if kind == "legal":
+        if task in {"amend", "transpose"} or eu_text.strip():
+            return True
+        if len(source_text) + len(draft_text) >= 4600:
+            return True
+        pattern = r"\b(?:aneks(?:i|it|in)?|annex|sanksion(?:e|et)?|delegim|përafrim|transpozim|dispozit[aë]\s+kalimtare)\b"
+    else:
+        if task in {"administrative_capacity", "negotiating_position",
+                    "progress_report", "eu_letter"}:
+            return True
+        if len(source_text) + len(draft_text) >= 5000:
+            return True
+        pattern = r"\b(?:FTE|benchmark|acquis|inspektim(?:e|et)?|kapacitet(?:e|et)?|përputhshmëri\s+e\s+plotë|enforcement|milestones)\b"
+    return bool(re.search(pattern, source_text + "\n" + draft_text, re.I))
+
+
+def extract_alternative_wording(result: str) -> str:
+    """Only model-proposed alternative wording, no synthetic synthesis."""
+    if not result:
+        return ""
+    match = re.search(
+        r"(?ims)^### Minimal proposed corrections\s*\n"
+        r"(.*?)(?=^### Matters requiring expert verification\s*$|\Z)",
+        result,
+    )
+    if not match:
+        return ""
+    proposal = match.group(1).strip()
+    if proposal.casefold().strip(". ") in {"none", "asnjë", "nuk ka", "no change"}:
+        return ""
+    return proposal
+
 
 def _validate(kind: str, source: str, draft: str, eu: str) -> None:
     if kind not in REVIEW_KINDS:
