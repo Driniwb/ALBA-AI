@@ -100,6 +100,7 @@ def export_guest_workspace(
     project_index = {p["id"]: i for i, p in enumerate(projects)}
     collected = []
     count = 0
+    active_index = None
     for item in chats:
         messages = store.list_messages(owner, item["id"])
         if not messages:
@@ -109,20 +110,12 @@ def export_guest_workspace(
         if count > MAX_MESSAGES:
             raise ValueError("Browser history message limit reached.")
         backup = json.loads(backup_bytes(item, messages).decode("utf-8"))
+        if item["id"] == active_id:
+            active_index = len(collected)
         collected.append({
             "project": project_index.get(item["project_id"]),
             "chat": backup,
         })
-    active_index = next(
-        (i for i, c in enumerate(chats)
-         if c["id"] == active_id), None
-    )
-    # For unsaved/empty chats active_index is deliberately unset.
-    if active_index is not None and (
-        active_index >= len(collected)
-        or not store.list_messages(owner, chats[active_index]["id"])
-    ):
-        active_index = None
     snapshot = {
         "format": WORKSPACE_FORMAT,
         "version": WORKSPACE_VERSION,
