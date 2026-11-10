@@ -54,7 +54,7 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=25).run()
         app.text_area[0].set_value("Private contact: synthetic.person@example.org").run()
         self.assertEqual(len(app.exception), 0)
-        messages = [item.message for item in app.error]
+        messages = [str(item.value) for item in app.error]
         self.assertTrue(any("ALBA e bllokoi" in item for item in messages))
         self.assertFalse(any("example.org" in item for item in messages))
 
@@ -65,7 +65,7 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         ).run()
         app.text_area[0].set_value("Person: synthetic.person@example.org").run()
         self.assertEqual(len(app.exception), 0)
-        messages = [item.message for item in app.error]
+        messages = [str(item.value) for item in app.error]
         self.assertTrue(any("ALBA e bllokoi" in item for item in messages))
         self.assertFalse(any("example.org" in item for item in messages))
 
