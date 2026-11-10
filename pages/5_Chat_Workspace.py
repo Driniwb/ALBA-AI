@@ -13,6 +13,10 @@ import streamlit as st
 
 from chat_backend import (
     MAX_USER_CHARS, generate_chat_reply, prepare_chat_messages,
+    check_chat_connection,
+)
+from guest_browser_storage import (
+    initialize_browser_history, save_browser_history,
 )
 from chat_store import ChatStore, MODES
 from chat_auth import verified_chat_owner
@@ -122,17 +126,26 @@ if st.session_state.get("alba_scope") != scope:
     st.session_state["alba_scope"] = scope
     st.session_state["alba_active_conversation"] = None
 
+if not persistent:
+    initialize_browser_history(store, owner)
+
 if persistent:
     st.success(
-        "Saved workspace: conversations and projects are stored for your "
-        "signed-in account and can be resumed after returning to ALBA."
+        "Account history: conversations are saved to your configured "
+        "PostgreSQL database and are available when you sign in again."
+    )
+elif st.session_state.get("alba_browser_available"):
+    st.info(
+        "Saved in this browser: public/synthetic conversations will be restored "
+        "after refresh and future visits on this device, as long as this site's "
+        "browser storage is not cleared. This is NOT private cloud account "
+        "storage or cross-device synchronisation. Do not use shared computers "
+        "for sensitive material."
     )
 else:
-    st.info(
-        "Temporary workspace. Chats continue while this browser session is "
-        "open, but will disappear after refresh/restart or redeployment. "
-        "For permanent, private history configure OIDC login and "
-        "ALBA_DATABASE_URL (PostgreSQL) in Streamlit Cloud."
+    st.warning(
+        "Browser history storage is unavailable. This session is temporary. "
+        "Export important conversations using Download resumable chat (.json)."
     )
 
 if _oidc_configured():
@@ -330,60 +343,138 @@ st.caption(
     "ALBA remembers the full thread in the workspace, but sends only recent "
     "turns within the AI context limit. Verify citations against official texts."
 )
-confirm = st.checkbox(
-    "I confirm this conversation contains only public or synthetic material.",
+account, api_key = (
+    _secret("CLOUDFLARE_ACCOUNT_ID"), _secret("CLOUDFLARE_API_TOKEN"),
+)
+if not account or not api_key:
+    st.error(
+        "AI chat is not configured. Check CLOUDFLARE_ACCOUNT_ID and "
+        "CLOUDFLARE_API_TOKEN in Streamlit Cloud → App settings → Secrets."
+    )
+
+with st.expander("AI connection diagnostics", expanded=False):
+    st.caption(
+        "This tests Cloudflare with a synthetic phrase. "
+        "No uploaded document or conversation is transmitted."
+    )
+    if st.button("Test AI connection", key="alba_test_ai_connection"):
+        if not account or not api_key:
+            st.error("Cloudflare credentials are missing.")
+        else:
+            try:
+                with st.spinner("Checking Cloudflare connectivity..."):
+                    check_chat_connection(
+                        account_id=account, api_token=api_key,
+                    )
+                st.success("Cloudflare responded successfully. AI chat is available.")
+            except ValueError as exc:
+                st.error(str(exc))
+            except Exception:
+                st.error("Unexpected AI connection problem. Review Streamlit logs.")
+
+confirmed = st.checkbox(
+    "Enable AI chat (public or synthetic information only; "
+    "messages are sent to Cloudflare).",
     key="alba_chat_public_confirm",
 )
+if not confirmed:
+    st.caption(
+        "Enable AI chat above to send a question. Your message will not "
+        "be transmitted until this confirmation is checked."
+    )
 
 prompt = st.chat_input(
-    "Ask a question or continue this ALBA conversation…",
+    "Ask ALBA a question or continue the conversation…",
     key="alba_chat_prompt",
     max_chars=MAX_USER_CHARS,
+    disabled=not confirmed or not (account and api_key),
 )
 
 if prompt:
-    if not confirm:
-        st.warning("Confirm public/synthetic material before sending a message.")
-    elif scan_text_fields(prompt, public_legal=True).blocked:
-        st.error(BLOCK_NOTICE)
-    else:
-        account, api_key = (
-            _secret("CLOUDFLARE_ACCOUNT_ID"),
-            _secret("CLOUDFLARE_API_TOKEN"),
+    st.session_state["alba_pending_chat_text"] = prompt
+    st.session_state["alba_pending_chat_error"] = None
+
+pending = st.session_state.get("alba_pending_chat_text")
+error = st.session_state.get("alba_pending_chat_error")
+retry = False
+if pending and error:
+    with st.chat_message("user"):
+        st.markdown(pending)
+    st.error(error)
+    retry_col, discard_col = st.columns([1, 1])
+    with retry_col:
+        retry = st.button(
+            "Retry this question", key="alba_retry_chat",
+            disabled=not confirmed or not (account and api_key),
         )
-        if not account or not api_key:
-            st.error(
-                "Cloudflare is not configured. The message was not sent or saved."
+    with discard_col:
+        if st.button("Discard failed question", key="alba_discard_failed"):
+            st.session_state["alba_pending_chat_text"] = None
+            st.session_state["alba_pending_chat_error"] = None
+            st.rerun()
+
+if (prompt or retry) and pending:
+    if not confirmed:
+        st.session_state["alba_pending_chat_error"] = (
+            "Enable AI chat to send public or synthetic material."
+        )
+        st.warning(st.session_state["alba_pending_chat_error"])
+    elif scan_text_fields(pending, public_legal=True).blocked:
+        st.session_state["alba_pending_chat_error"] = BLOCK_NOTICE
+        st.error(BLOCK_NOTICE)
+    elif not account or not api_key:
+        st.session_state["alba_pending_chat_error"] = (
+            "Cloudflare credentials are not configured."
+        )
+        st.error(st.session_state["alba_pending_chat_error"])
+    else:
+        if not retry:
+            with st.chat_message("user"):
+                st.markdown(pending)
+        try:
+            prepare_chat_messages(
+                mode=mode, history=messages, user_text=pending
             )
-        else:
-            try:
-                # No chat is created until the AI responds successfully.
-                prepare_chat_messages(
-                    mode=mode, history=messages, user_text=prompt
-                )
+            with st.chat_message("assistant"):
                 with st.spinner("ALBA is responding..."):
                     reply = generate_chat_reply(
-                        mode=mode, history=messages, user_text=prompt,
+                        mode=mode, history=messages, user_text=pending,
                         account_id=account, api_token=api_key,
                     )
-            except ValueError as exc:
-                # Provider errors are generic; never include key material.
-                st.error(str(exc))
-            else:
-                try:
-                    if not active_id:
-                        title = prompt.strip().replace("\n", " ")[:75]
-                        active_id = store.create_conversation(
-                            owner, mode=mode, project_id=new_project,
-                            title=title,
-                        )
-                    store.append_exchange(owner, active_id, prompt, reply)
-                    st.session_state["alba_active_conversation"] = active_id
-                    st.rerun()
-                except Exception:
-                    st.error(
-                        "ALBA generated a response, but it could not be saved. "
-                        "Copy the response below before leaving this page."
+        except ValueError as exc:
+            # Preserve the user's exact question for a manual retry.
+            st.session_state["alba_pending_chat_error"] = str(exc)
+            st.error(str(exc))
+        except Exception:
+            st.session_state["alba_pending_chat_error"] = (
+                "The chat could not complete due to an unexpected service "
+                "problem. Retry this question or test the AI connection."
+            )
+            st.error(st.session_state["alba_pending_chat_error"])
+        else:
+            try:
+                if not active_id:
+                    title = pending.strip().replace("\n", " ")[:75]
+                    active_id = store.create_conversation(
+                        owner, mode=mode, project_id=new_project,
+                        title=title,
                     )
-                    with st.chat_message("assistant"):
-                        st.markdown(reply)
+                store.append_exchange(owner, active_id, pending, reply)
+                st.session_state["alba_active_conversation"] = active_id
+                st.session_state["alba_pending_chat_text"] = None
+                st.session_state["alba_pending_chat_error"] = None
+                st.rerun()
+            except Exception:
+                st.session_state["alba_pending_chat_error"] = (
+                    "The AI responded, but saving the conversation failed. "
+                    "Use the visible response below and retry after fixing storage."
+                )
+                st.error(st.session_state["alba_pending_chat_error"])
+                with st.chat_message("assistant"):
+                    st.markdown(reply)
+
+if not persistent:
+    save_browser_history(
+        store, owner,
+        active_id=st.session_state.get("alba_active_conversation"),
+    )
