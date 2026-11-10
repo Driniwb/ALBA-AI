@@ -72,16 +72,23 @@ def create_toc_using_template(
     for unit in units:
         table._tbl.append(deepcopy(prototype))
         row = table.rows[-1]
-        row.cells[0].text = unit.reference
-        row.cells[1].text = unit.text
+        row.cells[0].paragraphs[0].text = unit.reference
+        row.cells[1].paragraphs[0].text = unit.text
         for col in range(2, 7):
-            row.cells[col].text = ""
+            row.cells[col].paragraphs[0].text = ""
 
     # Keep the original title block, merge layout, and style.
     first = next((p for p in doc.paragraphs if p.text.strip()), None)
     if first is not None:
         first.text = directive_title + " (Tabelë përputhshmërie — draft teknik)"
     table.rows[0].cells[0].paragraphs[0].text = directive_title
+    if len(doc.paragraphs) > 1 and not doc.paragraphs[1].text.strip():
+        doc.paragraphs[1].text = (
+            "PROVË TEKNIKE: teksti i nxjerrë duhet krahasuar me burimin autentik; "
+            "ndarja e dispozitave dhe përputhshmëria juridike nuk janë verifikuar."
+        )
+    doc.core_properties.author = "ALBA AI (prototype)"
+    doc.core_properties.last_modified_by = ""
     right = table.rows[0].cells[2]
     for paragraph in right.paragraphs:
         if "Shkalla e përputhshmërisë:" in paragraph.text:
