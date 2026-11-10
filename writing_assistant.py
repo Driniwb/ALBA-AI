@@ -341,9 +341,17 @@ def consistency_flags(original, revised):
 # USER INTERFACE
 # ==========================================
 
+# These are language-editing contexts; substantive drafting belongs to
+# the specialised Legal Drafting, ToC Builder and EU Reporting pages.
+FORMAT_LABELS = {
+    "Legal or normative act": "Legal text (language review)",
+    "Table of Concordance (ToC)": "ToC comments (language review)",
+    "Report / information note": "General report (non-EU)",
+}
 document_type = st.selectbox(
     "Document format",
     list(DOCUMENT_TYPES.keys()),
+    format_func=lambda value: FORMAT_LABELS.get(value, value),
     key="alba_writing_document_format",
 )
 # Task = action; format = output. Avoid duplicate task names such as
