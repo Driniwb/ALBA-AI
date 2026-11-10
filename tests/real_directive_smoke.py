@@ -5,6 +5,7 @@ legislation.gov.uk. It is used only for **technical extraction testing**;
 not as legal authority or the version for an actual ToC.
 """
 from io import BytesIO
+from pathlib import Path
 from urllib.request import Request, urlopen
 from docx import Document
 from toc_builder import extract_document, split_provisions, to_word
@@ -36,9 +37,15 @@ def main():
         assert "Scope" in a1
         assert "Definitions" in a2
         assert "General provisions" in a3
-        word = to_word(rows[:4], "Directive 2008/68/EC — technical smoke test")
+        pilot = [row for row in rows if row.reference in {"Article 1", "Article 2", "Article 3"}]
+        assert [p.reference for p in pilot] == ["Article 1", "Article 2", "Article 3"]
+        word = to_word(pilot, "Directive 2008/68/EC (2019 consolidation) — technical test ONLY")
         output = Document(BytesIO(word))
-        assert len(output.tables[0].rows) == 5
+        assert len(output.tables[0].rows) == 4
+        assert [output.tables[0].cell(i, 0).text for i in range(1,4)] == ["Article 1", "Article 2", "Article 3"]
+        outdir = Path("artifacts")
+        outdir.mkdir(exist_ok=True)
+        (outdir / "ALBA_ToC_2008_68_Articles_1-3_TECHNICAL_TEST.docx").write_bytes(word)
         print("SUCCESS:", "PDF bytes=",len(content),"sections=",len(rows))
         print("Extracted Article 1/2/3 chars:",len(a1),len(a2),len(a3))
         print("Word bytes:",len(word))
