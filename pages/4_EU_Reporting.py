@@ -21,6 +21,7 @@ from communication_studio import (
 )
 from privacy_guard import BLOCK_NOTICE, combine_safe_text, scan_text_fields, screen_upload
 from ui_copy import friendly_error
+from review_ui import render_auto_review
 from ui_theme import apply_theme
 
 st.set_page_config(page_title="ALBA | EU Communication & Reporting",
@@ -204,3 +205,17 @@ if (
             file_name="ALBA_EU_Reporting_DRAFT.txt",
             mime="text/plain; charset=utf-8",
         )
+
+    render_auto_review(
+        kind="eu_reporting",
+        source_text=(
+            "Reporting institution (not independently verified): " + organisation +
+            "\nRecipient: " + audience +
+            "\nReporting scope: " + objective +
+            "\nVerified source evidence:\n" + source
+        ),
+        draft_text=revised,
+        task=report_format,
+        context_id="eu_reporting",
+        public_confirmed=confirm,
+    )
