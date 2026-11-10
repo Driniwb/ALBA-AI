@@ -123,11 +123,24 @@ def legal_review_flags(source: str, draft: str, mode: str) -> list[str]:
         issues.append("Expected normative-text section was not found.")
     if "### Çështje për verifikim dhe arsyetim" not in draft:
         issues.append("The legal verification section is missing.")
-    nums = re.compile(r"(?<![\w])\d+(?:[./-]\d+)*(?!\w)")
-    new_nums = list((Counter(nums.findall(draft)) - Counter(nums.findall(source))).elements())
+    # Review only the proposed normative text; the verification notes are not
+    # part of the proposed act and may quote deliberately omitted provisions.
+    normative = draft.split("### Çështje për verifikim dhe arsyetim", 1)[0]
+    nums = re.compile(r"(?<![\\w])\\d+(?:[./-]\\d+)*(?!\\w)")
+    new_nums = list((Counter(nums.findall(normative)) - Counter(nums.findall(source))).elements())
     if new_nums:
-        issues.append("Numbers or references requiring review: "+", ".join(new_nums[:10]))
+        issues.append("Numbers or references requiring review: " + ", ".join(new_nums[:10]))
     if mode == "transpose":
+        # Only a lexical omission alert, not a legal finding: national
+        # non-applicability decisions need an explicit human review.
+        annex = re.compile(r"\\b(?:Annex|Aneks(?:i|in|it)?)\\s+([IVX]+)\\b", re.I)
+        source_annexes = {x.upper() for x in annex.findall(source)}
+        drafted_annexes = {x.upper() for x in annex.findall(normative)}
+        for name in sorted(source_annexes - drafted_annexes):
+            issues.append(
+                f"EU Annex {name} occurs in the source but not the proposed "
+                "normative text; confirm whether exclusion or adaptation is justified."
+            )
         issues.append("Check every translated EU obligation and deviation against the authentic current acquis.")
     if mode == "amend":
         issues.append("Check each old/new provision pair and confirm no untouched clauses were modified.")
