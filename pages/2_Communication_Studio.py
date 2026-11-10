@@ -24,13 +24,13 @@ from communication_studio import (
 )
 
 st.set_page_config(
-    page_title="ALBA AI – Communication Studio",
+    page_title="ALBA | Communication Studio",
     page_icon="📣",
     layout="wide",
 )
 apply_theme("COMM")
 st.title("Communication Studio")
-st.caption("ALBA 3.5 · Institutional communications · Albanian-language drafts")
+st.caption("Institutional communications · Albanian-language drafts")
 st.warning(
     "Editorial prototype. Use public or synthetic materials only. "
     "Do not enter personal, confidential or internal information. "
@@ -47,10 +47,7 @@ except (OSError, ValueError, KeyError) as exc:
     st.error("The communication library could not be loaded. Please check the application configuration.")
     st.stop()
 
-with st.sidebar:
-    st.markdown("### ALBA AI")
-    st.caption("Writing · Concordance · Communication")
-    st.caption("Internal editorial guidance is applied automatically.")
+
 
 if "comm_mode" not in st.session_state:
     st.session_state["comm_mode"] = "create"
