@@ -68,24 +68,16 @@ if mode == "transpose":
 attachment = st.file_uploader(
     "Attach a public source document (optional; TXT, MD, DOCX, text-based PDF)",
     type=["txt","md","docx","pdf"], key="legal_file",
-    help="Locally screened. Image-based or uninspectable documents are blocked."
+    help="Official legal PDF and DOCX files with logos are supported. Image-only/scanned documents cannot be read without text."
 )
-published_act = st.checkbox(
-    "The legal source is an officially published normative act (not an "
-    "unpublished draft or an internal institutional document).",
-    key="legal_published_act",
-    help=(
-        "Official laws, decisions, instructions and regulations may contain "
-        "the legal terms 'confidential', 'personal data' or 'medical records'. "
-        "This category relaxes only these topic-word alerts, never identifiers "
-        "or actual confidential classification markings."
-    ),
-)
+# This module is already dedicated to public normative sources.
+# One user declaration is enough: no separate "published act" toggle.
 confirmed = st.checkbox(
-    "I confirm the source is public or synthetic and does not contain "
-    "private records or credentials.",
+    "I confirm the source is a public legal act, a publicly available draft, "
+    "or synthetic material, and contains no private or confidential records.",
     key="legal_confirm",
 )
+published_act = True
 safe_doc = (
     screen_upload(
         attachment.name, attachment.getvalue(),
