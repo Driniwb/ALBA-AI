@@ -1,4 +1,4 @@
-# ALBA AI 3.4 – Privacy preflight, Attachments, ToC and Communication Studio
+# ALBA AI 3.5 – Unified English interface, privacy checks and Albanian drafting
 
 ALBA AI is an experimental assistant for Albanian legal and institutional language.
 
@@ -78,3 +78,14 @@ Screening is implemented with local Python patterns for possible contacts, email
 - Existing ToC splitting and AI translation remain drafts requiring source-by-source expert verification.
 
 Run tests with \`python -m unittest discover -s tests -v\`. All privacy fixtures are synthetic. The app does not auto-publish communications or send any message.
+
+## ALBA 3.5 – unified English UI and visual system
+
+All three Streamlit pages now present **navigation, field labels, actions, warnings, upload prompts, privacy notices and status information in English**.
+The generated legal and institutional drafts remain **in Albanian**. UI language and document-output language are separate; original-source review remains available for legal verification.
+
+The main writing page no longer displays the raw reference library or retrieved rule IDs. Communication Studio does not display the active communication rules or source-library links. The writing backend still uses R-rules and format-specific C-rules internally. ToC retains its source-language and translation review functions.
+
+The common `ui_theme.py` and `.streamlit/config.toml` use the [2 Bit Matrix palette](https://lospec.com/palette-list/2-bit-matrix): `#f2fff2`, `#add9bc`, `#5b8c7c`, `#0d1a1a`, plus a restrained terracotta accent (`#d57847`). No images, external font files or trackers are introduced.
+
+Internal Albanian error messages are surfaced as English messages through `ui_copy.friendly_error` without displaying source snippets or compromising the preexisting privacy gate.

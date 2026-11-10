@@ -38,14 +38,14 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         ).run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(app.selectbox[0].value, "Press & Media")
-        self.assertIn("Njoftim për shtyp", app.selectbox[1].options)
+        self.assertIn("Press release", app.selectbox[1].options)
         app.selectbox[0].set_value("Social Media").run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(
             list(app.selectbox[1].options),
             ["Instagram caption", "LinkedIn post", "Facebook post", "X (Twitter) post"],
         )
-        app.radio[0].set_value("Përshtat për platformën e zgjedhur").run()
+        app.radio[0].set_value("Adapt for selected platform").run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(app.session_state["comm_mode"], "adapt")
 
@@ -55,7 +55,7 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         app.text_area[0].set_value("Private contact: synthetic.person@example.org").run()
         self.assertEqual(len(app.exception), 0)
         messages = [str(item.value) for item in app.error]
-        self.assertTrue(any("ALBA e bllokoi" in item for item in messages))
+        self.assertTrue(any("ALBA blocked processing" in item for item in messages))
         self.assertFalse(any("example.org" in item for item in messages))
 
     def test_communication_page_blocks_contact_details_without_echo(self):
@@ -66,7 +66,7 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         app.text_area[0].set_value("Person: synthetic.person@example.org").run()
         self.assertEqual(len(app.exception), 0)
         messages = [str(item.value) for item in app.error]
-        self.assertTrue(any("ALBA e bllokoi" in item for item in messages))
+        self.assertTrue(any("ALBA blocked processing" in item for item in messages))
         self.assertFalse(any("example.org" in item for item in messages))
 
 

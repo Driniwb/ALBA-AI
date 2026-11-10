@@ -4,34 +4,35 @@ import requests
 import csv
 import re
 from pathlib import Path
-from privacy_guard import BLOCK_NOTICE_SQ, combine_safe_text, scan_text, screen_upload
+from privacy_guard import BLOCK_NOTICE, combine_safe_text, scan_text, screen_upload
+from ui_theme import apply_theme
+from ui_copy import friendly_error
 
 # ==========================================
-# ALBA AI - Version 3.3
+# ALBA AI - Version 3.5
 # Cloudflare Workers AI
 # ==========================================
 
 st.set_page_config(
-    page_title="ALBA AI 3.3",
+    page_title="ALBA AI 3.5",
     page_icon="📘",
     layout="wide"
 )
 
-st.title("ALBA AI 3.3")
+apply_theme("EDITOR")
+st.title("ALBA AI 3.5")
 
 st.subheader(
     "AI Language Base for Albanian Legal and Institutional Writing"
 )
 
-st.info(
-    "AI-supported drafting, editing and terminology "
-    "review for Albanian institutional communication."
+st.caption(
+    "Draft, edit and review Albanian legal and institutional language "
+    "with a consistent, source-aware workflow."
 )
 
 st.caption(
-    "Use the sidebar for **ToC Builder** (legal-language tables) or "
-    "**Communication Studio** (press releases, statements, newsletters, "
-    "web articles, Instagram, LinkedIn, Facebook and X)."
+    "Explore **ToC Builder** and **Communication Studio** from the navigation."
 )
 
 st.warning(
@@ -123,28 +124,9 @@ def select_relevant_terms(text, limit=10):
     return matches[:limit]
 
 with st.sidebar:
-    st.header("Reference Library – 3.3")
-    st.metric("Sources and editorial notes", len(SOURCES))
-    st.metric("Editorial guidance rules", len(RULES))
-    st.metric("Candidate glossary entries", len(GLOSSARY))
-    st.caption(
-        "Only short paraphrased guidance is used. "
-        "The full manuals and research PDFs are not uploaded or searched. "
-        "The library also includes original ALBA editorial proposals, "
-        "which are not official rules or legal authorities. "
-        "All entries remain pending expert review."
-    )
-    for source in SOURCES:
-        with st.expander(source.get("title", "Reference")):
-            st.write(source.get("institution", ""))
-            st.caption(
-                source.get("reference_scope", "")
-                + " | Expert approval: "
-                + source.get("expert_approval", "pending")
-            )
-            source_url = source.get("url", "")
-            if source_url.startswith("https://"):
-                st.link_button("Source information / publication", source_url)
+    st.markdown("### ALBA AI")
+    st.caption("Writing · Concordance · Communication")
+    st.caption("Public or synthetic material only.")
 
 # ==========================================
 # TASKS
@@ -335,8 +317,7 @@ def revised_section(output):
 
 def consistency_flags(original, revised):
     if not revised:
-        return ["Seksioni i tekstit të rishikuar nuk u identifikua "
-                "automatikisht; bëj krahasim manual."]
+        return ["The revised-text section could not be identified automatically; compare manually."]
 
     flags = []
     numeric = re.compile(r"(?<!\w)\d+(?:[.,/]\d+)*(?!\w)")
@@ -346,10 +327,10 @@ def consistency_flags(original, revised):
     added_numbers = revised_numbers - original_numbers
     if removed_numbers or added_numbers:
         flags.append(
-            "Kontrollo numrat/datat: të hequr "
-            + (", ".join(sorted(removed_numbers)) or "asnjë")
-            + "; të shtuar "
-            + (", ".join(sorted(added_numbers)) or "asnjë")
+            "Check numbers and dates: removed "
+            + (", ".join(sorted(removed_numbers)) or "none")
+            + "; added "
+            + (", ".join(sorted(added_numbers)) or "none")
             + "."
         )
 
@@ -359,7 +340,7 @@ def consistency_flags(original, revised):
     )
     if removed_acronyms:
         flags.append(
-            "Akronime të origjinalit që nuk u gjetën në redaktim: "
+            "Acronyms from the source missing in the revision: "
             + ", ".join(sorted(removed_acronyms)) + "."
         )
 
@@ -374,7 +355,7 @@ def consistency_flags(original, revised):
     ]
     if new_claims:
         flags.append(
-            "Kontrollo terma që mund të ndryshojnë statusin juridik: "
+            "Review terms that may change legal status: "
             + ", ".join(new_claims) + "."
         )
     return flags
@@ -427,14 +408,14 @@ file_review = (
     if attachment is not None else None
 )
 if scan_text(user_text).blocked or (file_review and file_review.blocked):
-    st.error(BLOCK_NOTICE_SQ)
+    st.error(BLOCK_NOTICE)
     st.stop()
 if file_review:
     attachment_text = file_review.text
 try:
     submitted_text = combine_safe_text(user_text, attachment_text, max_chars=6000)
 except ValueError as exc:
-    st.error(str(exc))
+    st.error(friendly_error(exc))
     st.stop()
 if attachment is not None:
     st.caption("Attached text passed local checks; content is not previewed here.")
@@ -589,7 +570,7 @@ kërko kontroll njerëzor. Mos shpik referenca.
 
                     # Never render or download AI-generated sensitive content.
                     if scan_text(result).blocked:
-                        st.error(BLOCK_NOTICE_SQ)
+                        st.error(BLOCK_NOTICE)
                         st.stop()
 
                     st.success(
@@ -608,7 +589,7 @@ kërko kontroll njerëzor. Mos shpik referenca.
 
                     extracted = revised_section(result)
                     alerts = consistency_flags(submitted_text, extracted)
-                    with st.expander("Consistency checks (automatic)"):
+                    with st.expander("Quality checks"):
                         if alerts:
                             for item in alerts:
                                 st.warning(item)
@@ -618,77 +599,6 @@ kërko kontroll njerëzor. Mos shpik referenca.
                                 "selected status terms detected. This does "
                                 "not verify semantic or legal accuracy."
                             )
-
-                    cited = rule_ids_in_output(result)
-                    available = {
-                        rule.get("rule_id"): rule
-                        for rule in selected_rules
-                    }
-                    cited_valid = [
-                        available[rule_id] for rule_id in cited
-                        if rule_id in available
-                    ]
-                    unsupported = [
-                        rule_id for rule_id in cited
-                        if rule_id not in available
-                    ]
-
-                    with st.expander("Source traceability – citations in output"):
-                        if unsupported:
-                            st.warning(
-                                "Unverified rule identifiers cited by model: "
-                                + ", ".join(unsupported)
-                                + ". Do not rely on those citations."
-                            )
-                        if cited_valid:
-                            for rule in cited_valid:
-                                source = SOURCE_BY_ID.get(
-                                    rule.get("source_id"), {}
-                                )
-                                st.markdown(
-                                    "**[{id}] {guidance}**".format(
-                                        id=rule.get("rule_id", ""),
-                                        guidance=rule.get("guidance", "")
-                                    )
-                                )
-                                st.caption(
-                                    "{title} | {loc} | Editorial guidance "
-                                    "(not legal authority); approval pending".format(
-                                        title=source.get("title", "Source"),
-                                        loc=rule.get("source_location", "")
-                                    )
-                                )
-                                url = source.get("url", "")
-                                if url.startswith("https://"):
-                                    st.markdown(
-                                        "[Open source publication](" + url + ")"
-                                    )
-                        elif not unsupported:
-                            st.info(
-                                "The model did not cite a specific rule "
-                                "in its proposed changes."
-                            )
-
-                        st.caption(
-                            "Rule IDs and source locations are checked "
-                            "against the local library. This does not "
-                            "prove that the rule supports the change."
-                        )
-
-                    with st.expander("Other editorial guidance retrieved"):
-                        for rule in selected_rules:
-                            if rule.get("rule_id") not in cited:
-                                st.write(
-                                    "[" + rule.get("rule_id", "") + "] "
-                                    + rule.get("guidance", "")
-                                )
-                        if selected_terms:
-                            st.write("Candidate glossary terms (not approved):")
-                            for term in selected_terms:
-                                st.write(
-                                    term.get("english", "") + " / "
-                                    + term.get("albanian", "")
-                                )
 
                     st.warning(
                         "AI-generated draft. Guidance includes short "
@@ -805,6 +715,6 @@ kërko kontroll njerëzor. Mos shpik referenca.
 st.divider()
 
 st.caption(
-    "ALBA AI 3.2 | Cloudflare + Public Reference Library | "
+    "ALBA AI 3.5 | Albanian Drafting Assistant | "
     "Human Review Required"
 )

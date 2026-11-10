@@ -129,16 +129,16 @@ class CommunicationTests(unittest.TestCase):
             "### Për t'u verifikuar përpara publikimit\nAsnjë."
         )
         issues = qa_flags(source, output,"x")
-        self.assertTrue(any("Numra" in msg for msg in issues))
-        self.assertTrue(any("Lidhje" in msg for msg in issues))
+        self.assertTrue(any("numbers" in msg for msg in issues))
+        self.assertTrue(any("links" in msg for msg in issues))
         long_output = "### Materiali për publikim\n" + ("a"*281)
         self.assertTrue(any("280" in msg for msg in qa_flags("",long_output,"x")))
 
     def test_newsletter_subtitle_check(self):
         no_subject = "### Materiali për publikim\nPërshëndetje, miq."
         flags = qa_flags("Përshëndetje",no_subject,"newsletter")
-        self.assertTrue(any("Subjekti" in x for x in flags))
-        self.assertTrue(any("paraprak" in x for x in flags))
+        self.assertTrue(any("subject line" in x for x in flags))
+        self.assertTrue(any("preview text" in x for x in flags))
         complete = (
             "### Materiali për publikim\n"
             "Subjekti: Lajmet mujore\n"
@@ -146,7 +146,7 @@ class CommunicationTests(unittest.TestCase):
             "Përmbajtja: Informacion i verifikuar\n"
             "### Për t'u verifikuar përpara publikimit\nAsnjë."
         )
-        self.assertFalse(any("Subjekti" in x for x in qa_flags(
+        self.assertFalse(any("subject line" in x for x in qa_flags(
             "Raportet e fundit",complete,"newsletter"
         )))
 
