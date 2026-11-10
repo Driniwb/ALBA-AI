@@ -1,7 +1,8 @@
-"""Single opt-in Streamlit control for automatically routed ALBA AI reviews.
+"""ALBA automatic independent review within the existing Cloudflare account.
 
-The user never has to select an LLM, and no model is contacted merely by
-loading or editing a page. Results are independent proposals, not legal advice.
+No Google AI Studio or OpenRouter key, provider chooser, hidden retries,
+automatic edits or pay-as-you-go fallback. A single button and source-sharing
+confirmation activate independent Cloudflare-hosted model families.
 """
 from __future__ import annotations
 
@@ -10,29 +11,25 @@ import json
 
 import streamlit as st
 
-from multi_model_review import (
-    PROVIDERS, ReviewOutcome, extract_alternative_wording,
-    run_auto_review,
+from cloudflare_review import (
+    REVIEW_MODELS, CloudflareReviewResult, reviewer_alternatives,
+    run_cloudflare_independent_review,
 )
 from privacy_guard import BLOCK_NOTICE, scan_text_fields
 
 
-def _get_secret(name: str) -> str:
+def _secret(name: str) -> str:
     try:
-        val = st.secrets.get(name, "")
-        return val.strip() if isinstance(val, str) else ""
+        value = st.secrets.get(name, "")
+        return value.strip() if isinstance(value, str) else ""
     except Exception:
         return ""
 
 
-def _google_free_tier_acknowledged() -> bool:
-    """Only use Gemini when app owner explicitly confirms free-tier project.
-
-    Google does not expose project billing tier in generation responses;
-    this opt-in is an admin assertion, NOT a provider-side hard cost cap.
-    """
+def _confirmed_workers_free() -> bool:
+    """Must be positively set by administrator; paid accounts may accrue charges."""
     try:
-        return st.secrets.get("GEMINI_FREE_TIER_CONFIRMED", False) is True
+        return st.secrets.get("CLOUDFLARE_FREE_PLAN_CONFIRMED", False) is True
     except Exception:
         return False
 
@@ -40,24 +37,26 @@ def _google_free_tier_acknowledged() -> bool:
 def render_auto_review(*, kind: str, source_text: str, draft_text: str,
                        task: str, context_id: str, eu_text: str = "",
                        public_confirmed: bool) -> None:
-    """Add one review action with automatic routing and optional alternatives."""
     state = "alba_review_" + context_id
     state_key = state + "_fingerprint"
+
     st.divider()
     st.subheader("ALBA independent legal and evidence review")
     st.caption(
-        "ALBA automatically decides whether one or two checks are justified. "
-        "It uses available Google Gemini and/or NVIDIA Nemotron via OpenRouter, "
-        "without asking you to choose a model. No revisions are applied automatically."
+        "ALBA chooses one or two independent Cloudflare-hosted reviewers "
+        "automatically according to the document's legal complexity. "
+        "This reuses the existing Cloudflare configuration; no new API keys."
     )
     st.caption(
-        "External free tiers may log prompts and use content to improve models. "
-        "Never submit personal, non-public or confidential information. "
-        "Gemini is enabled only if the app administrator confirms a free-tier project."
+        "Cloudflare Workers Free includes a shared allocation of 10,000 "
+        "Neurons per day. Reviews use the same allocation as draft generation. "
+        "If your Cloudflare account is on a paid plan, overage charges can apply; "
+        "this feature is disabled unless the app administrator confirms Workers Free."
     )
+
     consent = st.checkbox(
-        "I authorize ALBA to send this public/synthetic source and draft to "
-        "Google Gemini and/or NVIDIA Nemotron via OpenRouter, as automatically selected.",
+        "I authorize ALBA to submit this public/synthetic source and current "
+        "draft to additional Cloudflare-hosted AI models for review.",
         key=state + "_consent",
     )
     if scan_text_fields(source_text, draft_text, eu_text).blocked:
@@ -71,84 +70,83 @@ def render_auto_review(*, kind: str, source_text: str, draft_text: str,
         "draft": draft_text, "eu": eu_text,
     }, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
 
-    # Withheld consent or changed material never exposes a prior review.
     if not consent or not public_confirmed:
         st.session_state.pop(state, None)
         st.session_state.pop(state_key, None)
 
     if st.button("Run ALBA independent review", key=state + "_run"):
-        if not consent or not public_confirmed:
-            st.warning("The public-material declaration and independent AI consent are required.")
+        if not public_confirmed or not consent:
+            st.warning("Confirm public/synthetic material and independent review consent.")
             return
-        gemini = _get_secret("GEMINI_API_KEY") if _google_free_tier_acknowledged() else ""
-        openrouter = _get_secret("OPENROUTER_API_KEY")
-        if not gemini and not openrouter:
+        if not _confirmed_workers_free():
             st.warning(
-                "No independent free-tier provider is configured. "
-                "Add OPENROUTER_API_KEY, or a free-tier GEMINI_API_KEY with "
-                "GEMINI_FREE_TIER_CONFIRMED=true in Streamlit secrets."
+                "For cost safety, set CLOUDFLARE_FREE_PLAN_CONFIRMED=true in "
+                "Streamlit secrets only after checking your account is on Workers Free."
             )
             return
+        account, token = (_secret("CLOUDFLARE_ACCOUNT_ID"),
+                          _secret("CLOUDFLARE_API_TOKEN"))
+        if not account or not token:
+            st.warning("Existing Cloudflare Workers AI credentials are missing.")
+            return
+
         try:
-            with st.spinner("Checking source fidelity and proposed legal/reporting statements..."):
-                result = run_auto_review(
-                    kind=kind, source_text=source_text,
-                    draft_text=draft_text, eu_text=eu_text, task=task,
-                    gemini_key=gemini, openrouter_key=openrouter,
+            with st.spinner("Reviewing evidence and legal fidelity within Cloudflare..."):
+                result = run_cloudflare_independent_review(
+                    kind=kind, source_text=source_text, draft_text=draft_text,
+                    eu_text=eu_text, task=task, account_id=account,
+                    api_token=token,
                 )
             st.session_state[state] = result
             st.session_state[state_key] = fingerprint
         except ValueError:
-            # Avoid exposing provider responses or the submitted text in UI.
-            st.error("Independent review was not possible; verify source length and privacy eligibility.")
+            st.error("Independent review could not run; check source eligibility and length.")
             return
         except Exception:
-            st.error("The independent review service is unavailable.")
+            st.error("Independent review is unavailable.")
             return
 
     result = st.session_state.get(state)
     if not (
-        consent and public_confirmed and isinstance(result, ReviewOutcome)
+        consent and public_confirmed and isinstance(result, CloudflareReviewResult)
         and st.session_state.get(state_key) == fingerprint
     ):
         return
 
-    successes = list(result.findings.items())
-    if successes:
+    available = list(result.findings.items())
+    if available:
         st.caption(
-            "Completed by: " + ", ".join(PROVIDERS[key] for key, _ in successes) +
-            ". Automatic routing: " + result.plan.rationale
+            "Reviewed by: " +
+            ", ".join(REVIEW_MODELS[k]["name"] for k, _ in available) +
+            ". ALBA selected the review depth automatically."
         )
-        if len(successes) > 1:
+        if len(available) > 1:
             st.info(
-                "Two independent assessments are shown separately. "
-                "Agreement is not proof; conflicting proposals remain for expert decision."
+                "Two independent assessments. Agreement is not proof, "
+                "and conflicting legal interpretations require expert judgement."
             )
-            panels = st.tabs([PROVIDERS[key] for key, _ in successes])
-            for panel, (provider, text) in zip(panels, successes):
+            tabs = st.tabs([REVIEW_MODELS[k]["name"] for k, _ in available])
+            for panel, (_, text) in zip(tabs, available):
                 with panel:
                     st.markdown(text)
         else:
-            st.markdown(successes[0][1])
-        proposals = [
-            (provider, extract_alternative_wording(text))
-            for provider, text in successes
+            st.markdown(available[0][1])
+
+        alternatives = [
+            (key, reviewer_alternatives(text))
+            for key, text in available
         ]
-        proposals = [(p, text) for p, text in proposals if text]
-        if proposals:
-            st.subheader("Alternative formulations for expert decision")
-            for provider, text in proposals:
-                with st.expander("Source-anchored proposals: " + PROVIDERS[provider]):
-                    st.markdown(text)
-            st.caption(
-                "ALBA does not choose or apply these formulations; verify against "
-                "the authentic legal or institutional source."
-            )
+        alternatives = [(key, value) for key, value in alternatives if value]
+        if alternatives:
+            st.subheader("Alternative formulations for expert review")
+            for key, value in alternatives:
+                with st.expander("Proposed by " + REVIEW_MODELS[key]["name"]):
+                    st.markdown(value)
+            st.caption("Alternatives are not merged or applied to the draft automatically.")
         else:
-            st.caption(
-                "No source-anchored alternative formulations were proposed."
-            )
-    for provider, reason in result.errors.items():
-        st.warning(PROVIDERS[provider] + ": " + reason)
-    if not successes:
-        st.warning("No independent assessment could be completed under the current free-tier limits.")
+            st.caption("No source-supported alternative formulation was identified.")
+
+    for key, reason in result.errors.items():
+        st.warning(REVIEW_MODELS[key]["name"] + ": " + reason)
+    if not available:
+        st.warning("No independent review could be completed within current free-tier limits.")
