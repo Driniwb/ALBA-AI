@@ -59,7 +59,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         app.secrets["CLOUDFLARE_API_TOKEN"] = "DEMO_TOKEN"
         app.run()
         self.assertEqual(len(app.exception), 0)
-                calls = []
+        calls = []
         def mock_post(url, **kwargs):
             calls.append(kwargs["json"]["messages"])
             return Generated()
