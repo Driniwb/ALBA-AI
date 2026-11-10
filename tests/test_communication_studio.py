@@ -6,6 +6,8 @@ import unittest
 from communication_studio import (
     FORMATS,
     SOCIAL_STYLES,
+    EU_REPORTING_FORMATS,
+    generate_social_bundle,
     applicable_rules,
     albanian_editorial_rules,
     build_messages,
@@ -52,7 +54,7 @@ class CommunicationTests(unittest.TestCase):
         validate_library(self.sources, self.rules)
 
     def test_rules_are_format_specific_not_all_30(self):
-        self.assertEqual(len(FORMATS), 8)
+        self.assertEqual(len(FORMATS), 13)
         ids = lambda k: [r["rule_id"] for r in applicable_rules(k, self.rules)]
         self.assertEqual(ids("instagram"), [
             "C01","C02","C03","C04","C05","C06","C07","C08",
@@ -63,6 +65,80 @@ class CommunicationTests(unittest.TestCase):
         self.assertIn("C18", ids("newsletter"))
         self.assertIn("C30", ids("x"))
         self.assertEqual(len(ids("x")), 13)
+
+    def test_five_eu_reporting_formats_and_language_control(self):
+        self.assertEqual(
+            EU_REPORTING_FORMATS,
+            frozenset({
+                "eu_letter", "information_note", "administrative_capacity",
+                "progress_report", "negotiating_position",
+            }),
+        )
+        base = dict(
+            format_id="administrative_capacity", mode="create",
+            source_text="Public synthetic assessment of one competent authority.",
+            organization="Ministry Demo", audience="European Commission",
+            objective="Summarise legally assigned competences and evidence",
+            visual_description="",
+            communication_rules=self.rules, albanian_rules=self.albanian,
+        )
+        output = build_messages(**base, output_language="en")
+        self.assertIn("Output the draft in English", output[0]["content"])
+        self.assertIn("FTE", output[0]["content"])
+        self.assertIn("operational implementation", output[0]["content"])
+        self.assertIn("Administrative Capacity Note", output[1]["content"])
+        self.assertIn("English", output[1]["content"])
+        sq = build_messages(**base, output_language="sq")
+        self.assertIn("Output the draft in Albanian", sq[0]["content"])
+        with self.assertRaises(ValueError):
+            build_messages(**{**base, "format_id":"facebook"}, output_language="en")
+
+    def test_eu_reporting_excludes_public_media_and_historic_language_rules(self):
+        messages = build_messages(
+            format_id="information_note", mode="review",
+            source_text="This is a synthetic public progress report with no private data.",
+            organization="Demo authority", audience="European Commission",
+            objective="Explain evidenced progress", visual_description="",
+            communication_rules=self.rules, albanian_rules=self.albanian,
+            output_language="en",
+        )
+        self.assertIn("REFERENCE APPROACH:", messages[1]["content"])
+        self.assertIn("English", messages[1]["content"])
+        self.assertNotIn("R17:", messages[1]["content"])
+        self.assertNotIn("C01:", messages[1]["content"])
+        self.assertNotIn("Shënim: R17", messages[1]["content"])
+
+    def test_social_bundle_generates_four_separate_platform_outputs(self):
+        seen = []
+        def fake_post(url, **kwargs):
+            user = kwargs["json"]["messages"][1]["content"]
+            seen.append(user)
+            return FakeResponse()
+        result = generate_social_bundle(
+            mode="create", source_text="Public transport consultation was held.",
+            organization="", audience="All residents",
+            objective="Information", visual_description="",
+            style_id="elevated", communication_rules=self.rules,
+            albanian_rules=self.albanian, account_id="FAKE", api_token="TOKEN",
+            post=fake_post,
+        )
+        self.assertEqual(set(result), {"instagram", "linkedin", "facebook", "x"})
+        self.assertEqual(len(seen), 4)
+        for platform in ("Instagram caption", "LinkedIn post", "Facebook post", "X (Twitter) post"):
+            self.assertTrue(any(platform in message for message in seen))
+        self.assertTrue(all("Stil editorial" in message for message in seen))
+
+    def test_eu_draft_extraction_excludes_verification_section(self):
+        example = (
+            "### Draft for transmission\n"
+            "The authority has submitted its assessment.\n"
+            "### Verification before submission\n"
+            "Confirm the staff and inspection data."
+        )
+        self.assertEqual(
+            extract_publishable_text(example),
+            "The authority has submitted its assessment."
+        )
 
     def test_albanian_rules_reused_from_existing_library(self):
         ids = [r["rule_id"] for r in albanian_editorial_rules(self.albanian)]
