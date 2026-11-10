@@ -50,17 +50,9 @@ def selected_public_attachment(
         st.stop()
 
     if len(result.text) <= available:
-        st.caption(
-            "The public document was read and checked. Its text will be "
-            "used only when you click Generate/Analyse."
-        )
         return result.text, fingerprint
 
-    st.info(
-        f"Public document read successfully ({len(result.text):,} characters). "
-        "Choose the relevant passage below. Only the selected excerpt, "
-        "not the entire document, will be sent for AI analysis."
-    )
+    st.caption("Long document: choose the section to analyse.")
     selection_key = state_prefix + "_selected_excerpt"
     identity_key = state_prefix + "_excerpt_signature"
     identity = f"{fingerprint}:{available}"
