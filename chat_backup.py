@@ -31,7 +31,7 @@ def validate_backup(payload: dict) -> dict:
                 title, public_legal=True
             ).blocked):
         raise ValueError("Invalid or unsafe chat title.")
-    if mode not in MODES:
+    if not isinstance(mode, str) or mode not in MODES:
         raise ValueError("Invalid chat specialist mode.")
     if (not isinstance(messages, list)
             or len(messages) == 0
