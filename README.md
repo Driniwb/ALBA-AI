@@ -70,11 +70,34 @@ All three Streamlit modules now use \`privacy_guard.py\` before AI processing:
 
 Screening is implemented with local Python patterns for possible contacts, emails, Albanian personal IDs, labeled names/birthdates, banking/credit-card numbers, passwords/API secrets, confidential/internal classification markers, personal addresses and certain health-record indicators. It stops the relevant workflow **before** Cloudflare calls and shows a *generic warning only*. AI-generated content is also screened before display and download. There is no bypass toggle in the prototype. The app does not echo matched values, snippets, file text or identifiers in the warning.
 
+### Published normative acts: easier upload (ALBA public-law mode)
+
+**Legal Drafting** has one public-source declaration; it no longer asks a
+second question about whether the act has been formally published. Published
+laws, VKMs, instructions, public consultation drafts, EU directives and
+regulations may use words such as *konfidencialitet*, *medical records* and
+*personal data* without being rejected just for discussing those legal
+concepts. The ToC builder uses the same public normative source screen.
+
+Readable legal PDF/DOCX documents with logos/illustrations are accepted,
+but image content is **not interpreted or sent to Cloudflare**. On long acts,
+the upload is read and the user selects a provision/section to send for AI
+analysis; the app does **not** silently submit a truncated entire law.
+Legal Drafting offers the full extracted text as a read-only reference.
+Current model context limits still require working article by article.
+
+The safeguard still rejects actual personal identifiers, private contacts,
+credentials, explicit confidential-document classifications and unsupported
+or scanned files, and shows a generic, actionable reason category rather
+than leaking a sensitive match. Attesting "public" does not make private
+documents lawful to share; this workflow is for **public/synthetic** material
+only, not internal government drafts, personal case files or private records.
+
 ### Security and transparency limits
 
 - **The file must be temporarily read by the Streamlit server to be screened.** "No AI processing" means the **blocked input is not transmitted to Cloudflare**; it does **not** mean the hosting platform has never received the uploaded bytes. The standard file uploader itself may display the filename to the submitting user. Do not upload confidential or personal information.
 - Heuristic text patterns **cannot reliably detect every person, sensitive fact or indirect identifier**, and they can flag benign text. This is a precaution, **not a certified GDPR compliance solution, redaction solution, DLP system or guarantee of data confidentiality**.
-- Encrypted, image-only/scanned, password-protected, embedded-image/embedded-object or otherwise uninspectable files are blocked rather than parsed partially. Attachments are limited to 4 MB and inspected locally in memory. Text sent to the AI is bounded per module.
+- Encrypted, image-only/scanned, password-protected and uninspectable files remain blocked. Published legal PDFs and DOCX files with logos/images are now accepted **when their text can be extracted**, with an explicit warning that non-text diagrams/annexes were not read by ALBA. Ordinary uploads are limited to 4 MB; public legal uploads are allowed up to 12 MB and 180 PDF pages. Documents with embedded executable objects remain blocked. Text sent to the AI is bounded per module.
 - File bytes are not intentionally stored in a database or GitHub repository by ALBA. The Streamlit app framework and host receive uploads and may have their own logging and retention practices; these have **not** been independently audited.
 - For the public pilot, users should still use **only public or synthetic examples**, with no identifying details. High-assurance use with confidential government or partner documents would require separate infrastructure, a fuller data-protection assessment, role-based controls, encryption, logging policy and explicit approval.
 - Existing ToC splitting and AI translation remain drafts requiring source-by-source expert verification.
