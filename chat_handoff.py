@@ -141,7 +141,7 @@ def suggest_handoff(query: str) -> Handoff | None:
         doc = (
             "Institutional email" if _has(r"email|e-mail", q)
             else "Meeting minutes" if _has(r"procesverbal|meeting minutes", q)
-            else "Official letter" if _has(r"official letter|shkres[eë]", q)
+            else "Official letter / institutional correspondence" if _has(r"official letter|shkres[eë]", q)
             else "Report / information note"
         )
         task = (
