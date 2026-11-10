@@ -37,7 +37,7 @@ def _has(pattern: str, value: str) -> bool:
 _TASK = (
     r"\b(?:draft|drafting|prepare|create|write|revise|review|edit|amend|correct|check|proofread|"
     r"translate|adapt|transpose|compile|generate|produce|redraft|"
-    r"hart(?:o|im|oni|oj|uar)?|p[eë]rgatit|p[eë]rpil|rishik|korrigj|"
+    r"hart(?:o|oni|oj|uar|im(?:i|in|it)?)?|p[eë]rgatit|p[eë]rpil|rishik|korrigj|"
     r"p[eë]rshtat|p[eë]rkthe|transpoz|p[eë]raf(?:ro|rim|ruar)|"
     r"ndrysho|plot[eë]so|shkruaj|gjenero|b[eë]j(?:m[eë])?|"
     r"formulo|riformulo)\b"
