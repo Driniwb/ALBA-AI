@@ -22,6 +22,23 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertTrue(any("Assistant specialism" in str(item.label)
                             for item in app.selectbox))
 
+    def test_guest_can_create_project_without_a_database_or_login(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        name = next(item for item in app.text_input
+                    if item.label == "New project")
+        name.set_value("Synthetic EU transport").run()
+        submit = next(button for button in app.button
+                      if button.label == "Create project")
+        submit.click().run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertIn("Synthetic EU transport", [
+            str(option) for box in app.selectbox for option in box.options
+        ])
+
     def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
         text = (ROOT / "app.py").read_text(encoding="utf-8")
         self.assertIn('"pages/5_Chat_Workspace.py"', text)
