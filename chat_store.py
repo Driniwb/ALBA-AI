@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import hashlib
 import re
 import sqlite3
+from urllib.parse import urlsplit, parse_qs
 from typing import Iterator
 from uuid import uuid4
 
@@ -101,8 +102,16 @@ class ChatStore:
         if self.kind == "postgresql":
             import psycopg
             from psycopg.rows import dict_row
+            # Do not silently permit plaintext PostgreSQL connections.
+            # Preserve stronger provider settings (verify-full / verify-ca).
+            sslmode = parse_qs(urlsplit(self.pg_dsn).query).get(
+                "sslmode", ["require"]
+            )[-1]
+            if sslmode not in {"require", "verify-ca", "verify-full"}:
+                raise ValueError("A TLS-protected PostgreSQL connection is required.")
             conn = psycopg.connect(
-                self.pg_dsn, connect_timeout=8, row_factory=dict_row
+                self.pg_dsn, connect_timeout=8, row_factory=dict_row,
+                sslmode=sslmode,
             )
         else:
             conn = sqlite3.connect(
@@ -126,6 +135,12 @@ class ChatStore:
 
     def _execute(self, conn, query: str, args: tuple = ()):
         return conn.execute(self._sql(query), args)
+
+    def healthcheck(self) -> bool:
+        """Verify that the database is reachable before announcing Saved mode."""
+        with self._connect() as db:
+            row = self._execute(db, "SELECT 1 AS available").fetchone()
+            return bool(row and row["available"] == 1)
 
     def initialize(self) -> None:
         message_pk = (
