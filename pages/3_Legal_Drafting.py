@@ -11,6 +11,7 @@ from privacy_guard import BLOCK_NOTICE, screen_upload, scan_text_fields, combine
 from legal_drafting import ACT_TYPES, DRAFT_MODES, build_legal_messages, generate_legal_draft, legal_review_flags
 from ui_theme import apply_theme
 from ui_copy import friendly_error
+from multi_model_review import generate_gemini_review
 
 st.set_page_config(page_title="ALBA | Legal Drafting", page_icon="⚖️",layout="wide")
 apply_theme("LEGAL")
@@ -140,3 +141,58 @@ if (st.session_state.get("legal_result_key") == fingerprint
         file_name="ALBA_Legal_Drafting_DRAFT.txt",
         mime="text/plain; charset=utf-8",
     )
+
+    st.divider()
+    st.subheader("Independent AI review – Google Gemini (optional)")
+    st.caption(
+        "Compare the Cloudflare/Gemma draft with an independent Gemini 2.5 Flash "
+        "review. Free-tier prompts and outputs may be used by Google to improve "
+        "products. Only public or synthetic sources; no automatic revisions."
+    )
+    gemini_consent = st.checkbox(
+        "I authorize sending this public/synthetic source, EU text and edited draft "
+        "to Google Gemini for an independent review.",
+        key="legal_gemini_consent",
+    )
+    independent_key = hashlib.sha256(
+        (fingerprint + "\\n" + reviewed).encode("utf-8")
+    ).hexdigest()
+    if st.button("Run independent Gemini review", key="legal_gemini_button"):
+        if not confirmed or not gemini_consent:
+            st.warning("Confirm the public material and separate Gemini review consent.")
+        else:
+            try:
+                google_key = st.secrets.get("GEMINI_API_KEY", "").strip()
+                if not google_key:
+                    st.warning("Set GEMINI_API_KEY in Streamlit secrets to enable free-tier review.")
+                else:
+                    context_source = (
+                        "Provided enabling basis (not independently verified): " + basis +
+                        "\\nDrafting objective: " + goal +
+                        "\\nOriginal national material:\\n" + source
+                    )
+                    with st.spinner("Comparing the draft independently with Gemini..."):
+                        review = generate_gemini_review(
+                            kind="legal", source_text=context_source,
+                            eu_text=eu_text, draft_text=reviewed,
+                            api_key=google_key,
+                        )
+                    st.session_state["legal_gemini_review"] = review
+                    st.session_state["legal_gemini_review_key"] = independent_key
+            except ValueError as error:
+                st.error(friendly_error(error, context="communication"))
+            except Exception:
+                st.error("Gemini configuration could not be read.")
+    if (
+        st.session_state.get("legal_gemini_review_key") == independent_key
+        and st.session_state.get("legal_gemini_review")
+        and gemini_consent and confirmed
+    ):
+        independent_review = st.session_state["legal_gemini_review"]
+        if scan_text_fields(independent_review).blocked:
+            st.session_state.pop("legal_gemini_review", None)
+            st.error(BLOCK_NOTICE)
+            st.stop()
+        st.text_area("Independent findings – for expert review only",
+                     value=independent_review, height=320,
+                     key="legal_gemini_display")
