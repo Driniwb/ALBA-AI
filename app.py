@@ -6,17 +6,17 @@ import re
 from pathlib import Path
 
 # ==========================================
-# ALBA AI - Version 3.2
+# ALBA AI - Version 3.3
 # Cloudflare Workers AI
 # ==========================================
 
 st.set_page_config(
-    page_title="ALBA AI 3.2",
+    page_title="ALBA AI 3.3",
     page_icon="📘",
     layout="wide"
 )
 
-st.title("ALBA AI 3.2")
+st.title("ALBA AI 3.3")
 
 st.subheader(
     "AI Language Base for Albanian Legal and Institutional Writing"
@@ -28,8 +28,9 @@ st.info(
 )
 
 st.caption(
-    "New: **ToC Builder** in the sidebar — seven-column Word concordance "
-    "table and literal English-to-Albanian legal translation."
+    "Use the sidebar for **ToC Builder** (legal-language tables) or "
+    "**Communication Studio** (press releases, statements, newsletters, "
+    "web articles, Instagram, LinkedIn, Facebook and X)."
 )
 
 st.warning(
@@ -121,7 +122,7 @@ def select_relevant_terms(text, limit=10):
     return matches[:limit]
 
 with st.sidebar:
-    st.header("Reference Library – 3.2")
+    st.header("Reference Library – 3.3")
     st.metric("Sources and editorial notes", len(SOURCES))
     st.metric("Editorial guidance rules", len(RULES))
     st.metric("Candidate glossary entries", len(GLOSSARY))
