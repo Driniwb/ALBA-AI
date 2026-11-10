@@ -377,7 +377,8 @@ user_text = st.text_area(
     "Enter your text",
     height=220,
     max_chars=4000,
-    placeholder="Enter a public or synthetic text..."
+    placeholder="Enter a public or synthetic text...",
+    key="alba_writing_source",
 )
 
 attachment = st.file_uploader(
