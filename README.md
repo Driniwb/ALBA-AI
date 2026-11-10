@@ -409,3 +409,24 @@ Cloudflare and headless Streamlit tests. It has not been verified with a
 real production Cloudflare token or with browser-localStorage JavaScript
 executing in the user's deployed browser. The AI connection diagnostics
 panel can distinguish those external-provider failures.
+
+### Clearer Writing Assistant and EU Reporting choices
+
+**Writing Assistant** now separates the document's format from the action
+being performed. Its task choices are editing Albanian, formal adaptation
+from English, terminology review, or drafting a document from supplied notes.
+"Draft an email" and "prepare meeting minutes" are no longer duplicated in
+the task field: choose **Institutional email** or **Meeting minutes** as the
+format and **Draft a document from notes** as the action instead. Legal acts
+and ToC documents remain available for *language review only* here; use
+their specialised modules for substantive drafting. Audience preferences
+are available under an optional section.
+
+**EU Communication & Reporting** is now the sole entry point for all five
+EU report/document formats. The duplicate category has been removed from
+Communication Studio without removing the underlying EU drafting APIs.
+Its two actions are **Prepare or adapt a document** (including an existing
+draft as a source) and **Review an existing draft**. Institution, recipient
+and objective fields remain supported under **Optional reporting details**.
+Existing source, language, public-data consent, evidence checks and
+Cloudflare generation logic are retained.

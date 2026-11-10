@@ -356,6 +356,17 @@ def build_messages(
     # EU reporting has its own evidence-based drafting framework. Public-media
     # C rules and Albanian spelling rules must not leak into English EU reports.
     eu_reporting = format_id in EU_REPORTING_FORMATS
+    if eu_reporting and mode == "create":
+        # The EU Reporting UI deliberately merges "create" and "adapt":
+        # distinguish the supplied evidence from an existing draft, without
+        # losing the source facts or the target report format.
+        mode_hint = (
+            "HARTIM OSE PËRSHTATJE: përgatit dokumentin në formatin objektiv "
+            "vetëm nga materialet e dhëna. Nëse burimi përmban një draft "
+            "ekzistues, përshtate sipas formatit të zgjedhur duke ruajtur "
+            "faktet, statusin ligjor, treguesit, angazhimet dhe çdo "
+            "kufizim të konfirmuar; mos krijo fakte apo kompetenca të reja."
+        )
     c_rules = [] if eu_reporting else applicable_rules(format_id, communication_rules)
     r_rules = [] if eu_reporting or output_language == "en" else albanian_editorial_rules(albanian_rules)
     c_text = "\n".join(

@@ -125,13 +125,10 @@ TASKS = {
         "Identifiko terminologjine e pasakte ose "
         "te paqarte juridike dhe administrative.",
 
-    "Draft an official email":
-        "Pergatit nje email zyrtar ne shqip "
-        "pa shtuar informacione te reja.",
-
-    "Prepare meeting minutes":
-        "Pergatit procesverbalin duke ndare "
-        "diskutimet, perfundimet dhe detyrat."
+    "Draft a document from notes":
+        "Harto tekstin sipas llojit te dokumentit te perzgjedhur "
+        "dhe vetem nga faktet, vendimet apo udhezimet e dhena. "
+        "Mos shpik informacion ose kompetenca."
 }
 
 
@@ -344,20 +341,37 @@ def consistency_flags(original, revised):
 # USER INTERFACE
 # ==========================================
 
+# These are language-editing contexts; substantive drafting belongs to
+# the specialised Legal Drafting, ToC Builder and EU Reporting pages.
+FORMAT_LABELS = {
+    "Legal or normative act": "Legal text (language review)",
+    "Table of Concordance (ToC)": "ToC comments (language review)",
+    "Report / information note": "General report (non-EU)",
+}
 document_type = st.selectbox(
-    "Document type",
-    list(DOCUMENT_TYPES.keys())
+    "Document format",
+    list(DOCUMENT_TYPES.keys()),
+    format_func=lambda value: FORMAT_LABELS.get(value, value),
+    key="alba_writing_document_format",
 )
-
-audience = st.selectbox(
-    "Intended audience",
-    list(AUDIENCES.keys())
-)
-
+# Task = action; format = output. Avoid duplicate task names such as
+# "Draft an official email" beside "Institutional email".
+# Legal acts and ToCs have specialist drafting modules; here they receive
+# language and terminology checks only.
+task_options = list(TASKS)
+if document_type in {"Legal or normative act", "Table of Concordance (ToC)"}:
+    task_options.remove("Draft a document from notes")
 task = st.selectbox(
-    "Select the type of assistance",
-    list(TASKS.keys())
+    "What do you want to do?",
+    task_options,
+    key="alba_writing_action",
 )
+
+with st.expander("Optional writing preferences"):
+    audience = st.selectbox(
+        "Intended audience", list(AUDIENCES.keys()),
+        key="alba_writing_audience",
+    )
 
 user_text = st.text_area(
     "Enter your text",
@@ -444,7 +458,7 @@ if st.button("Analyse text", type="primary"):
         if task in {
             "Improve Albanian institutional language",
             "Adapt English into formal Albanian",
-            "Draft an official email",
+            "Draft a document from notes",
         } and not any(r.get("rule_id") == "R17" for r in selected_rules):
             baseline = next(
                 (r for r in RULES if r.get("rule_id") == "R17"), None

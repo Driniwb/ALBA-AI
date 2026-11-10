@@ -101,18 +101,20 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         self.assertIn("Ministerial instruction (udhëzim)", app.selectbox[0].options)
         self.assertIn("Regulation / technical rules (rregullore)", app.selectbox[0].options)
 
-    def test_eu_reporting_formats_and_language_menu(self):
+    def test_eu_reporting_not_duplicated_in_communication_studio(self):
         app = AppTest.from_file(
             str(ROOT / "pages" / "2_Communication_Studio.py"),
             default_timeout=25,
         ).run()
-        app.selectbox[0].set_value("EU Communication & Reporting").run()
         self.assertEqual(len(app.exception), 0)
-        labels = app.selectbox[1].options
-        self.assertIn("Administrative Capacity Note", labels)
-        self.assertIn("Information Note", labels)
-        self.assertIn("Benchmark / Acquis Progress Report", labels)
-        self.assertTrue(any(str(x.label) == "4. Reporting language" for x in app.selectbox))
+        self.assertEqual(
+            list(app.selectbox[0].options),
+            ["Press & Media", "Newsletter & Web", "Social Media"],
+        )
+        self.assertNotIn("EU Communication & Reporting", app.selectbox[0].options)
+        self.assertFalse(any(
+            "Reporting language" in str(box.label) for box in app.selectbox
+        ))
 
     def test_eu_reporting_has_dedicated_page_in_alba_navigation(self):
         source = (ROOT / "app.py").read_text(encoding="utf-8")
