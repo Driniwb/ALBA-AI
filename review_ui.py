@@ -59,7 +59,7 @@ def render_auto_review(*, kind: str, source_text: str, draft_text: str,
         "draft to additional Cloudflare-hosted AI models for review.",
         key=state + "_consent",
     )
-    if scan_text_fields(source_text, draft_text, eu_text).blocked:
+    if scan_text_fields(source_text, draft_text, eu_text, public_legal=(kind == "legal")).blocked:
         st.session_state.pop(state, None)
         st.session_state.pop(state_key, None)
         st.error(BLOCK_NOTICE)

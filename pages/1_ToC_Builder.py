@@ -19,7 +19,7 @@ from toc_template import built_in_blank_toc, create_toc_using_template
 from toc_translation import translate_unit, translated_provisions
 from toc_units import first_n_articles
 from toc_language import detect_toc_language
-from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload
+from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from ui_theme import apply_theme
 from ui_copy import friendly_error
 
@@ -110,12 +110,14 @@ if not confirmed:
 # Uploaded bytes are not sent to Cloudflare. Block files with uninspectable
 # pages, embedded images, sensitive markers or personal identifiers.
 toc_file_check = screen_upload(
-    source.name, source.getvalue(), max_chars=150000
+    source.name, source.getvalue(), max_chars=250000, public_legal=True
 )
 template_file_check = (
     screen_upload(template.name, template.getvalue(), max_chars=50000)
     if template is not None else None
 )
+if toc_file_check.warning:
+    st.warning(toc_file_check.warning)
 if (
     toc_file_check.blocked
     or (template_file_check is not None and template_file_check.blocked)
@@ -123,7 +125,10 @@ if (
 ):
     st.session_state.pop("toc_translations", None)
     st.session_state.pop("toc_checks", None)
-    st.error(BLOCK_NOTICE)
+    st.error(
+        upload_block_message(toc_file_check.reason)
+        if toc_file_check.blocked else BLOCK_NOTICE
+    )
     st.stop()
 
 try:
@@ -259,7 +264,7 @@ if st.button(
         try:
             with st.spinner("Translating: " + unit.reference):
                 result, warnings = translate_unit(unit, account_id, api_token)
-            if scan_text_fields(result).blocked:
+            if scan_text_fields(result, public_legal=True).blocked:
                 raise ValueError(BLOCK_NOTICE)
             translated[unit.reference] = result
             checks[unit.reference] = warnings
@@ -272,7 +277,7 @@ if st.button(
     st.rerun()
 
 # Do not display previously generated content if it fails a fresh check.
-if any(scan_text_fields(value).blocked for value in translated.values()):
+if any(scan_text_fields(value, public_legal=True).blocked for value in translated.values()):
     st.session_state["toc_translations"] = {}
     st.error(BLOCK_NOTICE)
     st.stop()
@@ -291,7 +296,7 @@ if reviewed:
         st.session_state[edit_key] = translated[current]
     edited = st.text_area("Albanian translation (editable)", key=edit_key, height=180)
     if st.button("Save translation edit"):
-        if scan_text_fields(edited).blocked:
+        if scan_text_fields(edited, public_legal=True).blocked:
             st.error(BLOCK_NOTICE)
         elif not edited.strip():
             st.error("Translation cannot be empty.")

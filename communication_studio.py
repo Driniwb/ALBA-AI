@@ -428,6 +428,7 @@ def generate_communication(
     account_id: str,
     api_token: str,
     post: Callable | None = None,
+    public_legal_source: bool = False,
 ) -> str:
     """External model call only on explicit user action, never when loading."""
     if not account_id.strip() or not api_token.strip():
@@ -441,7 +442,7 @@ def generate_communication(
                 r"<SOURCE>\n(.*?)\n</SOURCE>", item.get("content", ""),
                 flags=re.DOTALL,
             )
-            if not match or scan_text_fields(match.group(1)).blocked:
+            if not match or scan_text_fields(match.group(1), public_legal=public_legal_source).blocked:
                 raise ValueError(BLOCK_NOTICE_SQ)
     client = post or requests.post
     try:
@@ -464,7 +465,7 @@ def generate_communication(
                 f"Cloudflare nuk e përfundoi kërkesën (HTTP {response.status_code})."
             )
         generated = extract_ai_text(response.json())
-        if scan_text_fields(generated).blocked:
+        if scan_text_fields(generated, public_legal=public_legal_source).blocked:
             raise ValueError(BLOCK_NOTICE_SQ)
         return generated
     except requests.exceptions.Timeout as exc:

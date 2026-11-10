@@ -7,7 +7,10 @@ from __future__ import annotations
 import hashlib
 import json
 import streamlit as st
-from privacy_guard import BLOCK_NOTICE, screen_upload, scan_text_fields, combine_safe_text
+from privacy_guard import (
+    BLOCK_NOTICE, screen_upload, scan_text_fields, combine_safe_text,
+    upload_block_message,
+)
 from legal_drafting import ACT_TYPES, DRAFT_MODES, build_legal_messages, generate_legal_draft, legal_review_flags
 from ui_theme import apply_theme
 from ui_copy import friendly_error
@@ -65,26 +68,81 @@ if mode == "transpose":
 attachment = st.file_uploader(
     "Attach a public source document (optional; TXT, MD, DOCX, text-based PDF)",
     type=["txt","md","docx","pdf"], key="legal_file",
-    help="Locally screened. Image-based or uninspectable documents are blocked."
+    help="Official legal PDF and DOCX files with logos are supported. Image-only/scanned documents cannot be read without text."
 )
+# This module is already dedicated to public normative sources.
+# One user declaration is enough: no separate "published act" toggle.
 confirmed = st.checkbox(
-    "I confirm that the material is public or synthetic and contains no personal or confidential information.",
+    "I confirm the source is a public legal act, a publicly available draft, "
+    "or synthetic material, and contains no private or confidential records.",
     key="legal_confirm",
 )
+published_act = True
 safe_doc = (
-    screen_upload(attachment.name, attachment.getvalue(), max_chars=6500)
+    screen_upload(
+        attachment.name, attachment.getvalue(),
+        max_chars=200000, public_legal=published_act,
+    )
     if attachment is not None else None
 )
-if scan_text_fields(st.session_state.get("legal_source", ""),basis,goal,eu_text).blocked or (safe_doc and safe_doc.blocked):
-    st.session_state.pop("legal_result",None)
-    st.session_state.pop("legal_result_key",None)
+if safe_doc is not None and safe_doc.blocked:
+    st.session_state.pop("legal_result", None)
+    st.session_state.pop("legal_result_key", None)
+    st.error(upload_block_message(safe_doc.reason))
+    st.stop()
+if safe_doc and safe_doc.warning:
+    st.warning(safe_doc.warning)
+if (
+    scan_text_fields(
+        st.session_state.get("legal_source", ""), eu_text,
+        public_legal=published_act,
+    ).blocked
+    or scan_text_fields(basis, goal, public_legal=published_act).blocked
+):
+    st.session_state.pop("legal_result", None)
+    st.session_state.pop("legal_result_key", None)
     st.error(BLOCK_NOTICE)
     st.stop()
+
+typed_source = st.session_state.get("legal_source", "")
+selected_upload = safe_doc.text if safe_doc else ""
+if safe_doc:
+    remaining = 10500 - len(typed_source) - len(eu_text) - 50
+    if len(safe_doc.text) > remaining:
+        if remaining < 300:
+            st.error(
+                "The manually supplied source and EU provision already use "
+                "the available context. Shorten those fields to select a section."
+            )
+            st.stop()
+        st.info(
+            f"The act was successfully read ({len(safe_doc.text):,} characters). "
+            "ALBA cannot reliably analyse an entire long legal act in one "
+            "request. Choose the relevant articles below. The field initially "
+            "contains the beginning of the act; it is NOT the full document."
+        )
+        file_signature = hashlib.sha256(
+            attachment.getvalue()
+        ).hexdigest()
+        source_signature = file_signature + ":" + str(remaining)
+        if st.session_state.get("legal_last_source_signature") != source_signature:
+            st.session_state["legal_selected_excerpt"] = safe_doc.text[:remaining]
+            st.session_state["legal_last_source_signature"] = source_signature
+        with st.expander("Read extracted document text", expanded=False):
+            st.text_area(
+                "Extracted source (read-only; copy the article you need)",
+                value=safe_doc.text, height=340, disabled=True,
+                key="legal_full_extracted_text_" + file_signature[:12],
+            )
+        selected_upload = st.text_area(
+            "Selected article(s) or sections for AI analysis",
+            key="legal_selected_excerpt", height=260,
+            max_chars=remaining,
+        )
 try:
     source = combine_safe_text(
-        st.session_state.get("legal_source",""),
-        safe_doc.text if safe_doc else "",
-        max_chars=10500,
+        typed_source, selected_upload, max_chars=10500,
+        public_legal=published_act,
     )
 except ValueError as error:
     st.error(friendly_error(error))
@@ -110,7 +168,7 @@ if st.button("Generate legal draft", type="primary"):
             )
             with st.spinner("Drafting the Albanian legal text..."):
                 result = generate_legal_draft(messages,account,token)
-            if scan_text_fields(result).blocked:
+            if scan_text_fields(result, public_legal=True).blocked:
                 st.error(BLOCK_NOTICE)
                 st.stop()
             st.session_state["legal_result"] = result
@@ -127,7 +185,7 @@ if (st.session_state.get("legal_result_key") == fingerprint
         height=420, key="legal_result",
     )
     reviewed = st.session_state.get("legal_result","")
-    if scan_text_fields(reviewed).blocked:
+    if scan_text_fields(reviewed, public_legal=True).blocked:
         st.session_state.pop("legal_result",None)
         st.error(BLOCK_NOTICE)
         st.stop()
