@@ -42,6 +42,9 @@ class PrivacyGuardTests(unittest.TestCase):
             "Phone: +355 69 123 4567",
             "Telefon: 0691234567",
             "NID: K12345678Z",
+            "Emri: Person Shembull",
+            "Datëlindja: 01.01.1990",
+            "Llogaria ime bankare: 123456789",
             "Passport number: AB765432",
             "IBAN AL47 2121 1009 0000 0002 3569 8741",
             "Fjalëkalim: sensitivepassword123",
@@ -120,6 +123,68 @@ class PrivacyGuardTests(unittest.TestCase):
             combine_safe_text("Public material", "Email: person@example.com")
         with self.assertRaisesRegex(ValueError, "shumë i gjatë"):
             combine_safe_text("a"*300, max_chars=200)
+
+    def test_model_backends_reject_sensitive_text_before_http(self):
+        from communication_studio import (
+            build_messages, generate_communication, load_library,
+        )
+        from toc_builder import Provision
+        from toc_translation import translate_unit
+        sources, rules, albanian = load_library()
+        network_calls = []
+
+        def forbidden_post(*args, **kwargs):
+            network_calls.append(True)
+            raise AssertionError("Network must not be used for sensitive text")
+
+        with self.assertRaisesRegex(ValueError, "ALBA e bllokoi"):
+            build_messages(
+                format_id="linkedin",
+                mode="create",
+                source_text="Email: person@example.com",
+                organization="Organizata",
+                audience="Public",
+                objective="Informim",
+                visual_description="",
+                communication_rules=rules,
+                albanian_rules=albanian,
+            )
+        with self.assertRaisesRegex(ValueError, "ALBA e bllokoi"):
+            translate_unit(
+                Provision("1.1", "Telefon: +355 69 123 4567"),
+                "FAKE_ACCOUNT", "FAKE_TOKEN", post=forbidden_post,
+            )
+        self.assertEqual(network_calls, [])
+
+    def test_communication_model_output_is_screened_before_display(self):
+        from communication_studio import (
+            build_messages, generate_communication, load_library,
+        )
+        sources, rules, albanian = load_library()
+        request = build_messages(
+            format_id="facebook",
+            mode="create",
+            source_text="An event about public transport will take place.",
+            organization="", audience="", objective="", visual_description="",
+            communication_rules=rules,
+            albanian_rules=albanian,
+        )
+        class SensitiveResponse:
+            status_code = 200
+
+            def json(self):
+                return {
+                    "success": True,
+                    "result": {"response": (
+                        "### Materiali për publikim\\n"
+                        "Kontakt privat: private.person@example.org"
+                    )},
+                }
+        with self.assertRaisesRegex(ValueError, "ALBA e bllokoi"):
+            generate_communication(
+                request, "FAKE_ACCOUNT", "FAKE_TOKEN",
+                post=lambda *args, **kwargs: SensitiveResponse(),
+            )
 
     def test_results_have_no_match_or_offsets(self):
         result = scan_text_fields(
