@@ -162,8 +162,12 @@ class AuditTests(unittest.TestCase):
         self.assertIn("store.healthcheck()", src)
         self.assertIn("st.stop()", src)
         self.assertIn("verified_chat_owner(", src)
-        self.assertIn("Restore conversation from backup", src)
-        self.assertIn("Download resumable chat (.json)", src)
+        # Backup format remains supported by the storage layer, but no
+        # additional backup/import settings clutter the chat interface.
+        self.assertNotIn("Restore conversation from backup", src)
+        self.assertNotIn("Download resumable chat (.json)", src)
+        self.assertIn("Move to project", src)
+        self.assertIn("Attach a public document", src)
 
 
 if __name__ == "__main__":
