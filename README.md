@@ -430,3 +430,24 @@ draft as a source) and **Review an existing draft**. Institution, recipient
 and objective fields remain supported under **Optional reporting details**.
 Existing source, language, public-data consent, evidence checks and
 Cloudflare generation logic are retained.
+
+
+### Simplified conversational handoff
+
+Chat Workspace now shows only New Chat, recent conversation history, a
+message composer, optional public-document attachment, and **Move to project**
+(with a Create project option inside the same control). Long-form history
+management, backup import/export, language mode selection and connection
+diagnostics are no longer on the chat screen; existing backend safety and
+storage logic is unchanged. Other ALBA modules remain available in the
+main navigation.
+
+When the latest chat request explicitly asks for a specialised document
+or workflow, ALBA offers one discreet **Continue in [module]** action.
+Clicking this action opens the relevant existing form and carries forward
+the question and selected public source excerpt (within that form's context
+limit). This supports Legal Drafting, EU Reporting, Communication Studio,
+Writing Assistant and ToC Builder. The ToC Builder still requires the user
+to select an actual directive file; Streamlit file uploads cannot be moved
+silently between pages. A general informational question never forces a
+redirect. Navigation is user-initiated, not an extra Cloudflare API call.

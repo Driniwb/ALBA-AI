@@ -13,21 +13,19 @@ import streamlit as st
 
 from chat_backend import (
     MAX_USER_CHARS, generate_chat_reply, prepare_chat_messages,
-    check_chat_connection,
 )
 from guest_browser_storage import (
     initialize_browser_history, save_browser_history,
 )
 from chat_store import ChatStore, MODES
 from chat_auth import verified_chat_owner
-from chat_backup import backup_bytes, parse_backup_file
+from chat_handoff import suggest_handoff, prepare_handoff
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from ui_theme import apply_theme
 
 st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
 apply_theme("WORKSPACE")
-st.title("Chat Workspace")
-st.caption("Ask questions, work with documents, and continue earlier chats.")
+st.title("ALBA")
 
 
 def _secret(name: str) -> str:
@@ -97,8 +95,6 @@ def _store_for_page() -> tuple[ChatStore, str, bool]:
             st.stop()
         return store, owner, True
 
-    if owner and not dsn:
-        st.caption("Account sync isn't configured; using browser history.")
     if "alba_demo_store" not in st.session_state:
         st.session_state["alba_demo_store"] = ChatStore.session_memory()
         # Random session-only owner prevents cross-session guest access.
@@ -121,12 +117,8 @@ if st.session_state.get("alba_scope") != scope:
 if not persistent:
     initialize_browser_history(store, owner)
 
-if persistent:
-    st.caption("History saved to your account.")
-elif st.session_state.get("alba_browser_available"):
-    st.caption("History saved in this browser only.")
-else:
-    st.warning("Browser saving unavailable. Export chats to keep them.")
+if not persistent and not st.session_state.get("alba_browser_available"):
+    st.warning("Browser saving unavailable. Your chats may not persist.")
 
 if _oidc_configured():
     with st.sidebar:
@@ -137,87 +129,26 @@ if _oidc_configured():
             st.login()
 
 with st.sidebar:
-    st.divider()
-    st.subheader("Conversations")
     if st.button("＋ New chat", key="alba_new_chat", use_container_width=True):
         st.session_state["alba_active_conversation"] = None
+        st.session_state["alba_pending_chat_text"] = None
+        st.session_state["alba_pending_chat_error"] = None
         st.rerun()
 
-    with st.expander("Projects", expanded=False):
-        project_name = st.text_input(
-            "New project", placeholder="e.g. Chapter 14 – Transport",
-            max_chars=75, key="alba_project_name",
-        )
-        if st.button("Create project", key="alba_create_project"):
-            try:
-                store.create_project(owner, project_name)
-                st.rerun()
-            except ValueError:
-                st.warning("Enter a project name (up to 75 characters).")
-
-    projects = store.list_projects(owner)
-    names = {p["id"]: p["name"] for p in projects}
-    if projects:
-        with st.expander("Manage existing projects"):
-            project_to_remove = st.selectbox(
-                "Project to remove", [p["id"] for p in projects],
-                format_func=lambda key: names.get(key, "Project"),
-                key="alba_delete_project_selected",
-            )
-            if st.button("Remove project", key="alba_remove_project_start"):
-                st.session_state["alba_remove_project_pending"] = project_to_remove
-            if st.session_state.get("alba_remove_project_pending") == project_to_remove:
-                st.caption("Chats remain under No project.")
-                if st.button(
-                    "Confirm remove project", key="alba_remove_project_confirm"
-                ):
-                    store.delete_project(owner, project_to_remove)
-                    st.session_state["alba_remove_project_pending"] = None
-                    st.rerun()
-    with st.expander("Restore conversation from backup"):
-        uploaded_backup = st.file_uploader(
-            "ALBA chat backup (.json)", type=["json"],
-            key="alba_restore_chat_file",
-            help="A JSON chat backup exported from ALBA; not an arbitrary document.",
-        )
-        backup_public = st.checkbox(
-            "I confirm the backup contains public or synthetic content only.",
-            key="alba_restore_public_confirm",
-        )
-        if st.button("Restore chat", key="alba_restore_chat_button"):
-            if not uploaded_backup or not backup_public:
-                st.warning("Select an ALBA JSON backup and confirm public content.")
-            else:
-                try:
-                    recovered = parse_backup_file(uploaded_backup.getvalue())
-                    recovered_id = store.import_conversation_backup(owner, recovered)
-                    st.session_state["alba_active_conversation"] = recovered_id
-                    st.rerun()
-                except ValueError:
-                    st.error(
-                        "The backup is incomplete, unsupported or contains "
-                        "material that is not eligible for this public pilot."
-                    )
-                except Exception:
-                    st.error("Could not restore the chat. The backup was not changed.")
-
+    st.subheader("Chats")
     conversations = store.list_conversations(owner)
-
     for chat in conversations[:45]:
         current = chat["id"] == st.session_state["alba_active_conversation"]
-        prefix = (names.get(chat["project_id"], "General") + " · ")
-        label = prefix + chat["title"]
         if st.button(
-            label[:90], key="alba_open_" + chat["id"],
+            chat["title"][:65],
+            key="alba_open_" + chat["id"],
             use_container_width=True,
             type="primary" if current else "secondary",
         ):
             st.session_state["alba_active_conversation"] = chat["id"]
+            st.session_state["alba_pending_chat_text"] = None
+            st.session_state["alba_pending_chat_error"] = None
             st.rerun()
-    if len(conversations) > 45:
-        st.caption("Showing 45 most recent chats.")
-    if not conversations:
-        st.caption("No previous conversations in this workspace.")
 
 active_id = st.session_state.get("alba_active_conversation")
 conversation = (
@@ -226,9 +157,6 @@ conversation = (
 if active_id and conversation is None:
     st.session_state["alba_active_conversation"] = None
     active_id = None
-
-project_ids = [None] + [p["id"] for p in projects]
-project_label = lambda value: "No project" if value is None else names.get(value, "Project")
 
 def _render_chat_content(value: str) -> None:
     marker = "\n\n[PUBLIC DOCUMENT EXCERPT: "
@@ -243,86 +171,63 @@ def _render_chat_content(value: str) -> None:
 
 if conversation:
     st.subheader(conversation["title"])
-    st.caption(MODES[conversation["mode"]])
-    actions, move, export = st.columns([2, 2, 2])
-    with actions:
-        new_title = st.text_input(
-            "Rename conversation", value=conversation["title"],
-            max_chars=90, key="alba_rename_title_" + active_id,
+    mode = conversation["mode"]
+    with st.popover("Move to project", icon=":material/folder_open:"):
+        projects = store.list_projects(owner)
+        names = {item["id"]: item["name"] for item in projects}
+        choices = [None] + [item["id"] for item in projects] + ["__new__"]
+        project_index = (
+            choices.index(conversation["project_id"])
+            if conversation["project_id"] in choices else 0
         )
-        if st.button("Save title", key="alba_rename_" + active_id):
-            if store.rename_conversation(owner, active_id, new_title):
+        target = st.selectbox(
+            "Project", choices, index=project_index,
+            format_func=lambda item: (
+                "Create new project" if item == "__new__"
+                else ("No project" if item is None else names.get(item, "Project"))
+            ),
+            key="alba_project_target_" + active_id,
+        )
+        if target == "__new__":
+            new_name = st.text_input(
+                "Project name", key="alba_new_project_name_" + active_id,
+                max_chars=75,
+            )
+            if st.button("Create and move", key="alba_create_move_" + active_id):
+                try:
+                    created = store.create_project(owner, new_name)
+                    store.set_conversation_project(owner, active_id, created)
+                    st.rerun()
+                except ValueError:
+                    st.error("Enter a valid project name.")
+        elif target != conversation["project_id"]:
+            if st.button("Move", key="alba_move_" + active_id):
+                store.set_conversation_project(owner, active_id, target)
                 st.rerun()
-    with move:
-        index = (
-            project_ids.index(conversation["project_id"])
-            if conversation["project_id"] in project_ids else 0
-        )
-        chosen_project = st.selectbox(
-            "Project", project_ids, index=index, format_func=project_label,
-            key="alba_move_project_" + active_id,
-        )
-        if st.button("Move chat", key="alba_move_" + active_id):
-            store.set_conversation_project(owner, active_id, chosen_project)
-            st.rerun()
 
     messages = store.list_messages(owner, active_id)
-    with export:
-        transcript = "# " + conversation["title"] + "\n\n" + "\n\n".join(
-            ("## " + ("You" if msg["role"] == "user" else "ALBA") + "\n\n"
-             + msg["content"])
-            for msg in messages
-        )
-        st.download_button(
-            "Export transcript (.md)", transcript.encode("utf-8"),
-            file_name="ALBA_Chat_Transcript.md", mime="text/markdown",
-            key="alba_export_" + active_id,
-        )
-        try:
-            resumable_backup = backup_bytes(conversation, messages)
-        except ValueError:
-            st.caption(
-                "This conversation is too long or includes content that cannot "
-                "be exported as a portable public-only backup."
-            )
-        else:
-            st.download_button(
-                "Download resumable chat (.json)", resumable_backup,
-                file_name="ALBA_Chat_Backup.json",
-                mime="application/json",
-                key="alba_backup_" + active_id,
-                help="Restore this file later to continue the chat in a new session.",
-            )
-        if st.button("Delete conversation", key="alba_delete_start_" + active_id):
-            st.session_state["alba_delete_confirm"] = active_id
-
-    if st.session_state.get("alba_delete_confirm") == active_id:
-        st.warning("Delete this conversation and every message in it?")
-        if st.button("Confirm permanent deletion", key="alba_delete_confirm_button"):
-            store.delete_conversation(owner, active_id)
-            st.session_state["alba_active_conversation"] = None
-            st.session_state["alba_delete_confirm"] = None
-            st.rerun()
-        if st.button("Cancel", key="alba_delete_cancel_button"):
-            st.session_state["alba_delete_confirm"] = None
-            st.rerun()
-    mode = conversation["mode"]
     for message in messages:
         with st.chat_message(message["role"]):
             _render_chat_content(message["content"])
+
+    # If the last user turn requests a specialised ALBA workflow, offer
+    # exactly one direct handoff. General questions stay in the conversation.
+    latest_question = next(
+        (item["content"] for item in reversed(messages)
+         if item["role"] == "user"),
+        "",
+    )
+    recommended = suggest_handoff(latest_question)
+    if recommended and st.button(
+        "Continue in " + recommended.label,
+        key="alba_handoff_" + active_id + "_" + str(len(messages)),
+    ):
+        prepare_handoff(recommended, latest_question, st.session_state)
+        st.switch_page(recommended.page)
 else:
-    st.subheader("Start a new conversation")
-    mode = st.selectbox(
-        "Assistant specialism", list(MODES),
-        format_func=lambda value: MODES[value],
-        key="alba_chat_mode",
-    )
-    new_project = st.selectbox(
-        "Add to project", project_ids, format_func=project_label,
-        key="alba_new_project",
-    )
+    st.subheader("How can I help?")
+    mode = "general"
     messages = []
-    st.caption("Example: Compare this VKM provision with the EU directive.")
 
 attachment_text = ""
 attachment_name = ""
@@ -371,25 +276,6 @@ if not account or not api_key:
         "CLOUDFLARE_API_TOKEN in Streamlit Cloud → App settings → Secrets."
     )
 
-with st.expander("Connection settings"):
-    if st.button("Test AI connection", key="alba_test_ai_connection"):
-        if not account or not api_key:
-            st.error("Cloudflare credentials are missing.")
-        else:
-            try:
-                with st.spinner("Checking Cloudflare connectivity..."):
-                    check_chat_connection(
-                        account_id=account, api_token=api_key,
-                    )
-                st.success("AI connection working.")
-            except ValueError as exc:
-                st.error(str(exc))
-            except Exception:
-                st.error("Unexpected AI connection problem. Review Streamlit logs.")
-
-st.caption(
-    "Public or synthetic content only. Sending a message shares it with Cloudflare."
-)
 doc_context = (
     "\n\n[PUBLIC DOCUMENT EXCERPT: " + attachment_name + "]\n"
     + attachment_text + "\n[/PUBLIC DOCUMENT EXCERPT]"
@@ -467,7 +353,7 @@ if (prompt or retry) and pending:
                         "alba_pending_display_question", pending
                     ).strip().replace("\n", " ")[:75][:75]
                     active_id = store.create_conversation(
-                        owner, mode=mode, project_id=new_project,
+                        owner, mode=mode, project_id=None,
                         title=title,
                     )
                 store.append_exchange(owner, active_id, pending, reply)
