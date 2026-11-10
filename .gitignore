@@ -1,0 +1,15 @@
+# Never publish secrets, session transcripts or database files.
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+local_data/
