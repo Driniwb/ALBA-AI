@@ -98,7 +98,7 @@ def translate_unit(
     post: Callable | None = None,
 ) -> tuple[str, list[str]]:
     """Translate one selected EU unit with bounded input and safe errors."""
-    if scan_text_fields(unit.reference, unit.text).blocked:
+    if scan_text_fields(unit.reference, unit.text, public_legal=True).blocked:
         raise ValueError(BLOCK_NOTICE_SQ)
     if not account_id.strip() or not api_token.strip():
         raise ValueError("Konfigurimi i Cloudflare Workers AI mungon.")
@@ -142,7 +142,7 @@ def translate_unit(
         raise ValueError("Problem lidhjeje me shërbimin AI.") from exc
     except (TypeError, KeyError) as exc:
         raise ValueError("Përgjigjja e modelit nuk mund të interpretohet.") from exc
-    if scan_text_fields(translated).blocked:
+    if scan_text_fields(translated, public_legal=True).blocked:
         raise ValueError(BLOCK_NOTICE_SQ)
     return translated, translation_warnings(unit.text, translated)
 
