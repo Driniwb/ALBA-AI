@@ -362,9 +362,11 @@ login are still separate production-acceptance tests.
 
 ### Chat usability and browser persistence fix
 
-- The Ask ALBA composer clearly indicates its public-data consent condition
-  and disables submission until confirmed. A missing Cloudflare key is flagged
-  before an attempted request.
+- **Ask ALBA is conversational and ready to use** as soon as the existing
+  Cloudflare credentials are available. Pressing Send is the explicit
+  user action authorising processing of public or synthetic material;
+  there is no separate checkbox blocking the composer. A missing
+  Cloudflare key is flagged clearly before an attempted request.
 - **Test AI connection** sends only a short synthetic ping to Cloudflare;
   it does not send an uploaded document or conversation history.
 - Failed questions remain visible with **Retry this question** and **Discard**
@@ -381,3 +383,29 @@ login are still separate production-acceptance tests.
 - Streamlit 1.60 or newer is now required for this browser component.
   This does not introduce React, FastAPI, additional AI API credentials or
   a hosted database for same-browser usage.
+
+### Natural conversations and public source attachments
+
+ALBA Chat Workspace now answers ordinary legal and institutional questions
+directly rather than always insisting on a source file or returning only
+verification warnings. For generic explanations, general model knowledge
+may be used; authoritative, precise legal citations still require checking
+official versions. The assistant continues the current thread using the last
+relevant exchanges. Specialisms remain optional, and the general assistant
+handles legal drafting, policy, reporting and communication requests.
+
+For document-grounded questions, open **Add a public document to your
+question (optional)** and attach a readable public PDF, DOCX, TXT or MD.
+For longer documents select up to 3,200 characters of relevant provisions.
+Only the screened excerpt is appended to the question and sent to Cloudflare;
+the original file is never uploaded to the model by this feature. The
+attached excerpt is retained as part of the conversation and can inform
+follow-ups while it remains in the context budget. The file selector resets
+after a successful answer to prevent inadvertent duplicate submissions.
+PDF images and scanned pages are still not interpreted here.
+
+**Live validation remains necessary:** The new behaviour has simulated
+Cloudflare and headless Streamlit tests. It has not been verified with a
+real production Cloudflare token or with browser-localStorage JavaScript
+executing in the user's deployed browser. The AI connection diagnostics
+panel can distinguish those external-provider failures.
