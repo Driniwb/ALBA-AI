@@ -18,7 +18,7 @@ class EnglishInterfaceTests(unittest.TestCase):
             with self.subTest(path=path):
                 text = (ROOT / path).read_text(encoding="utf-8")
                 self.assertIn("apply_theme(", text)
-        for color in ("#f2fff2", "#add9bc", "#5b8c7c", "#0d1a1a"):
+        for color in ("#f4eedb", "#a9c9b4", "#608f82", "#161d1a", "#e3ac57"):
             self.assertIn(color, _CSS)
 
     def test_internal_rules_are_hidden_not_deleted(self):
