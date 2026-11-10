@@ -242,7 +242,7 @@ def _read_pdf(data: bytes, *, public_legal: bool = False) -> tuple[str, bool]:
     return "\n\n".join(text_parts), has_images
 
 
-def _read_docx(data: bytes) -> str:
+def _read_docx(data: bytes, *, public_legal: bool = False) -> tuple[str, bool]:
     with ZipFile(BytesIO(data)) as archive:
         members = archive.infolist()
         names = {m.filename for m in members}
@@ -250,6 +250,7 @@ def _read_docx(data: bytes) -> str:
             raise ValueError("invalid_docx")
         if sum(m.file_size for m in members) > MAX_UNCOMPRESSED_BYTES:
             raise ValueError("uncompressed_limit")
+        contains_media = False
         for m in members:
             if (
                 m.file_size > MAX_UNCOMPRESSED_BYTES
@@ -258,8 +259,15 @@ def _read_docx(data: bytes) -> str:
             ):
                 raise ValueError("decompression_risk")
             lower = m.filename.lower()
+            if lower.startswith("word/media/"):
+                if not public_legal or not lower.endswith(
+                    (".png", ".jpg", ".jpeg", ".gif", ".bmp",
+                     ".tif", ".tiff", ".emf", ".wmf")
+                ):
+                    raise ValueError("embedded_media_or_code")
+                contains_media = True
             if (
-                lower.startswith(("word/media/", "word/embeddings/", "word/activex/"))
+                lower.startswith(("word/embeddings/", "word/activex/"))
                 or lower.endswith((".bin", ".exe", ".js", ".vbs"))
             ):
                 raise ValueError("embedded_media_or_code")
@@ -282,7 +290,7 @@ def _read_docx(data: bytes) -> str:
         result = "\n".join(collected)
         if not result.strip():
             raise ValueError("no_text")
-        return result
+        return result, contains_media
 
 
 def screen_upload(
@@ -325,7 +333,12 @@ def screen_upload(
         else:
             if not data.startswith(b"PK"):
                 raise ValueError("invalid_docx")
-            text = _read_docx(data)
+            text, has_media = _read_docx(data, public_legal=public_legal)
+            if has_media:
+                warning = (
+                    "DOCX has images that ALBA did not read. "
+                    "Only extracted text will be used; verify any diagram or annex."
+                )
         if len(text) > max_chars:
             return AttachmentResult(True, reason="too_much_text")
         if scan_text(text, public_legal=public_legal).blocked:
