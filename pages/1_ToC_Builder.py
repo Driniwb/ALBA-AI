@@ -18,40 +18,42 @@ from toc_builder import (
 from toc_template import built_in_blank_toc, create_toc_using_template
 from toc_translation import translate_unit, translated_provisions
 from toc_units import first_n_articles
-from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields, screen_upload
+from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload
+from ui_theme import apply_theme
+from ui_copy import friendly_error
 
 st.set_page_config(
     page_title="ALBA AI – ToC Builder",
     page_icon="📄",
     layout="wide",
 )
-st.title("ALBA AI – ToC Builder")
-st.caption("Version 3.2 · Provë publike · Direktiva EN → shqip juridike literale · Word")
+apply_theme("TOC")
+st.title("ToC Builder")
+st.caption("ALBA 3.5 · Legal concordance · Literal English-to-Albanian translation · Word")
 
 st.warning(
-    "Ky funksion është prototip për redaktim juridik, JO transpozim automatik. "
-    "Përdorni vetëm dokumente publike ose sintetike, pa të dhëna personale, "
-    "materiale të brendshme apo dokumente konfidenciale."
+    "Experimental legal drafting tool, not an automatic transposition assessment. "
+    "Use public or synthetic documents only. Do not upload personal, internal or confidential material."
 )
 st.write(
-    "Ngarkoni direktivën në PDF me tekst ose Word. ALBA nxjerr njësitë "
-    "normative, i përkthen me rendin dhe referencat sa më besnikërisht në "
-    "shqip dhe krijon ToC në Word me 7 kolona. Legjislacioni shqiptar, "
-    "vlerësimi i përputhshmërisë dhe komentet mbeten bosh."
+    "Upload a text-based EU directive in PDF or Word. ALBA extracts individual "
+    "provisions and prepares a seven-column concordance table in Word. "
+    "The Albanian translation is a draft for expert review; national-law mappings "
+    "and compliance assessments stay blank."
 )
 
 source = st.file_uploader(
-    "1. Direktiva në anglisht (.pdf me tekst ose .docx)",
+    "1. Directive in English (text-based PDF or DOCX)",
     type=["pdf", "docx"],
     key="toc_source_file",
 )
 template = st.file_uploader(
-    "2. Modeli bosh ToC në Word (.docx) – opsional",
+    "2. Blank Word ToC template (DOCX) – optional",
     type=["docx"],
     key="toc_blank_template_file",
     help=(
-        "Për të njëjtin formatim si modeli juaj, ngarkoni Word-in bosh. "
-        "Pa këtë skedar, ALBA përdor një model sintetik me të njëjtat 7 kolona."
+        "Upload your blank Word template to retain its layout. "
+        "Otherwise ALBA creates a sample seven-column template."
     ),
 )
 @st.cache_data(show_spinner=False)
@@ -61,7 +63,7 @@ def cached_alba_blank_template():
 
 template_bytes = template.getvalue() if template else cached_alba_blank_template()
 st.download_button(
-    "Shkarko modelin bosh ALBA (7 kolona)",
+    "Download blank ToC template (7 columns)",
     data=cached_alba_blank_template(),
     file_name="ALBA_ToC_model_bosh_7_kolona.docx",
     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -70,40 +72,39 @@ st.download_button(
 c1, c2 = st.columns([2, 1])
 with c1:
     title = st.text_input(
-        "Titulli i direktivës në ToC",
+        "Directive title in the ToC",
         value="Direktiva 2008/68/KE",
         max_chars=200,
     )
 with c2:
     article_count = st.selectbox(
-        "Nenet për këtë provë",
+        "Articles to include in this pilot",
         [1, 2, 3],
         index=0,
-        help="Kufizuar në nenet 1–3 për kontrollin fillestar.",
+        help="This pilot handles Articles 1–3 only.",
     )
 mode = st.radio(
-    "Teksti në kolonën 2 të ToC",
-    ["Përkthim literal në shqip (AI)", "Teksti origjinal, pa përkthim"],
+    "Content of column 2",
+    ["Literal Albanian translation (AI)", "Original text (no translation)"],
     horizontal=True,
 )
 cleanup = st.checkbox(
-    "Pastro shënimet e botimit dhe ndarjet teknike të rreshtave në PDF",
+    "Clean PDF page markers and line-break artifacts",
     value=True,
     help=(
-        "Pastrimi është mekanik, nuk e bën tekstin autentik. "
-        "Kontrolloni PDF-në origjinale."
+        "Mechanical cleanup does not certify the accuracy of the text. "
+        "Always verify the original publication."
     ),
 )
 confirmed = st.checkbox(
-    "Konfirmoj se të dy dokumentet janë publike ose sintetike dhe "
-    "nuk përmbajnë informacion konfidencial."
+    "I confirm these files are public or synthetic and contain no confidential information."
 )
 
 if source is None:
-    st.info("Ngarkoni një direktivë për të filluar.")
+    st.info("Upload a directive to begin.")
     st.stop()
 if not confirmed:
-    st.info("Konfirmoni kushtet e përdorimit për të përpunuar dokumentin.")
+    st.info("Confirm the safe-use statement to proceed.")
     st.stop()
 
 # Local preflight covers the *entire* document and blank Word template.
@@ -123,61 +124,67 @@ if (
 ):
     st.session_state.pop("toc_translations", None)
     st.session_state.pop("toc_checks", None)
-    st.error(BLOCK_NOTICE_SQ)
+    st.error(BLOCK_NOTICE)
     st.stop()
 
 try:
     extracted = extract_document(source.name, source.getvalue())
     units = first_n_articles(extracted.text, article_count)
     found = pdf_extraction_flags("\n".join(unit.text for unit in units))
-    for item in extracted.warnings:
-        st.warning(item)
-    for item in found:
-        st.warning(item)
+    if extracted.warnings:
+        st.warning(
+            "Automatic text extraction may change line order, footnotes or numbering. "
+            "Check each provision against the official document."
+        )
+    if found:
+        st.warning(
+            "Possible PDF page markers or split words were detected. "
+            "Review the extracted text before using it."
+        )
     if source.name.lower().endswith(".pdf") and cleanup:
         units = [
             Provision(unit.reference, normalise_pdf_display(unit.text))
             for unit in units
         ]
     if not units or any(not unit.text.strip() for unit in units):
-        raise ValueError("Nuk u nxorën dispozita të përdorshme.")
+        raise ValueError("No usable provisions could be extracted.")
     if len(set(u.reference for u in units)) != len(units):
-        raise ValueError("Referencat e dispozitave rezultojnë të përsëritura.")
+        raise ValueError("Duplicate provision references were found.")
     # Validate format without touching any file on disk.
     from toc_template import validate_blank_template
     validate_blank_template(template_bytes)
 except (ValueError, AssertionError) as error:
-    st.error(str(error))
+    st.error(friendly_error(error, context="toc"))
     st.stop()
 
-st.subheader("Njësitë e nxjerra")
-st.metric("Rreshta të ToC-së", len(units))
+st.subheader("Extracted provisions")
+st.metric("ToC rows", len(units))
 st.dataframe(
     [
         {
-            "Neni / nënndarja": u.reference,
-            "Karaktere": len(u.text),
-            "Fillimi i tekstit burimor": u.text[:120],
+            "Article / subdivision": u.reference,
+            "Characters": len(u.text),
+            "Source text preview": u.text[:120],
         }
         for u in units
     ],
     hide_index=True,
     use_container_width=True,
 )
-with st.expander("Kontrollo tekstin e njësisë së parë"):
+with st.expander("Preview first extracted provision"):
     st.text(units[0].text[:3800])
 
-if mode == "Teksti origjinal, pa përkthim":
+if mode == "Original text (no translation)":
     try:
         docx = create_toc_using_template(template_bytes, units, title.strip())
         st.download_button(
-            "Shkarko ToC në Word (tekst origjinal)",
+            "Download ToC in Word (original text)",
             data=docx,
             file_name="ALBA_ToC_tekst_origjinal_DRAFT.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
     except (ValueError, AssertionError) as error:
-        st.error(str(error))
+        st.error(friendly_error(error, context="toc"))
     st.stop()
 
 try:
@@ -189,8 +196,8 @@ except Exception:
 
 if not api_token or not account_id:
     st.error(
-        "Cloudflare Workers AI nuk është konfiguruar për përkthimin. "
-        "Modeli ToC pa përkthim mbetet i disponueshëm."
+        "Cloudflare Workers AI is not configured for translation. "
+        "You can still export the ToC with original-language text."
     )
     st.stop()
 
@@ -209,21 +216,21 @@ translated = st.session_state["toc_translations"]
 checks = st.session_state["toc_checks"]
 pending = [u for u in units if not translated.get(u.reference, "").strip()]
 
-st.subheader("Përkthimi literal anglisht–shqip")
+st.subheader("Literal English-to-Albanian translation")
 st.caption(
-    "Përkthimi kryhet njësi për njësi, për të kontrolluar më lehtë "
-    "numërtimin, termat dhe mungesat. Është përkthim AI, jo përkthim autentik."
+    "Translation runs provision by provision for easier review of numbering, "
+    "terminology and completeness. AI translation is not authoritative."
 )
 st.progress((len(units) - len(pending)) / len(units))
-st.write(f"Të përkthyera: **{len(units) - len(pending)} / {len(units)}**")
+st.write(f"Translated: **{len(units) - len(pending)} / {len(units)}**")
 batch = st.selectbox(
-    "Sa njësi të përkthehen me një klikim?",
+    "Provisions to translate per click",
     [1, 2, 3, 4],
     index=2,
 )
 
 if st.button(
-    "Përkthe njësitë e radhës në shqip",
+    "Translate next provisions into Albanian",
     type="primary",
     disabled=not pending,
 ):
@@ -231,7 +238,7 @@ if st.button(
     progress = st.progress(0.0)
     for i, unit in enumerate(work, start=1):
         try:
-            with st.spinner("Përkthim: " + unit.reference):
+            with st.spinner("Translating: " + unit.reference):
                 result, warnings = translate_unit(unit, account_id, api_token)
             if scan_text_fields(result).blocked:
                 raise ValueError(BLOCK_NOTICE_SQ)
@@ -248,40 +255,40 @@ if st.button(
 # Do not display previously generated content if it fails a fresh check.
 if any(scan_text_fields(value).blocked for value in translated.values()):
     st.session_state["toc_translations"] = {}
-    st.error(BLOCK_NOTICE_SQ)
+    st.error(BLOCK_NOTICE)
     st.stop()
 
 reviewed = [u for u in units if translated.get(u.reference)]
 if reviewed:
     current = st.selectbox(
-        "Shqyrto ose korrigjo një njësi të përkthyer",
+        "Review or edit a translated provision",
         options=[u.reference for u in reviewed],
         key="toc_review_reference",
     )
     original = next(u.text for u in units if u.reference == current)
-    st.text_area("Origjinali (vetëm për krahasim)", original, height=160, disabled=True)
+    st.text_area("Original (read-only)", original, height=160, disabled=True)
     edit_key = "toc_review_edit_" + fingerprint + "_" + current
     if edit_key not in st.session_state:
         st.session_state[edit_key] = translated[current]
-    edited = st.text_area("Përkthimi në shqip (mund ta korrigjoni)", key=edit_key, height=180)
-    if st.button("Ruaj korrigjimin për këtë njësi"):
+    edited = st.text_area("Albanian translation (editable)", key=edit_key, height=180)
+    if st.button("Save translation edit"):
         if scan_text_fields(edited).blocked:
-            st.error(BLOCK_NOTICE_SQ)
+            st.error(BLOCK_NOTICE)
         elif not edited.strip():
-            st.error("Përkthimi nuk mund të jetë bosh.")
+            st.error("Translation cannot be empty.")
         else:
             from toc_translation import translation_warnings
             translated[current] = edited
             checks[current] = translation_warnings(original, edited)
             st.session_state["toc_translations"] = translated
             st.session_state["toc_checks"] = checks
-            st.success("Korrigjimi u ruajt për këtë sesion.")
+            st.success("Your change has been saved for this session.")
     flagged = {
         k: v for k, v in checks.items()
         if v and k in [u.reference for u in units]
     }
     if flagged:
-        with st.expander("Kontrolle të numrave dhe terminologjisë"):
+        with st.expander("Number and terminology checks"):
             for ref, alerts in flagged.items():
                 for alert in alerts:
                     st.warning(ref + ": " + alert)
@@ -293,21 +300,19 @@ if all(translated.get(u.reference, "").strip() for u in units):
             template_bytes, translated_units, title.strip()
         )
         st.download_button(
-            "Shkarko ToC në shqip – Word (.docx)",
+            "Download Albanian ToC – Word (.docx)",
             data=docx,
             file_name="ALBA_ToC_PERKTHIM_LITERAL_SQ_DRAFT.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             type="primary",
         )
         st.warning(
-            "Kontrollo çdo nen dhe nënndarje kundrejt PDF-së origjinale. "
-            "Përkthimi AI dhe ndarja automatike nuk janë verifikuar juridikisht; "
-            "sidomos pas listave me shkronja mund të nevojitet ndarje manuale."
+            "Compare every provision with the official source. Automated splitting "
+            "and translation require expert verification; especially check lettered lists."
         )
     except (ValueError, AssertionError) as error:
-        st.error(str(error))
+        st.error(friendly_error(error, context="toc"))
 else:
     st.info(
-        "Për të krijuar dokumentin në shqip, përfundoni përkthimin e "
-        "të gjitha njësive të zgjedhura."
+        "Translate all selected provisions before exporting the Albanian Word ToC."
     )
