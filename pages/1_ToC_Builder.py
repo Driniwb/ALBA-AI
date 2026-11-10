@@ -53,10 +53,15 @@ template = st.file_uploader(
         "Pa këtë skedar, ALBA përdor një model sintetik me të njëjtat 7 kolona."
     ),
 )
-template_bytes = template.getvalue() if template else built_in_blank_toc()
+@st.cache_data(show_spinner=False)
+def cached_alba_blank_template():
+    # Keep byte-for-byte stable across Streamlit reruns and translation steps.
+    return built_in_blank_toc()
+
+template_bytes = template.getvalue() if template else cached_alba_blank_template()
 st.download_button(
     "Shkarko modelin bosh ALBA (7 kolona)",
-    data=built_in_blank_toc(),
+    data=cached_alba_blank_template(),
     file_name="ALBA_ToC_model_bosh_7_kolona.docx",
     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 )
