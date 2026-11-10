@@ -59,8 +59,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         app.secrets["CLOUDFLARE_API_TOKEN"] = "DEMO_TOKEN"
         app.run()
         self.assertEqual(len(app.exception), 0)
-        app.checkbox(key="alba_chat_public_confirm").check().run()
-        calls = []
+                calls = []
         def mock_post(url, **kwargs):
             calls.append(kwargs["json"]["messages"])
             return Generated()
@@ -104,8 +103,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         app.secrets["CLOUDFLARE_API_TOKEN"] = "SYNTHETIC_KEY"
         app.run()
         self.assertEqual(len(app.exception), 0)
-        app.checkbox(key="alba_chat_public_confirm").check().run()
-
+        
         calls = []
         def rate_limit_post(url, **kwargs):
             calls.append(url)
@@ -131,7 +129,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertEqual(len(app.chat_message), 2)
         self.assertIsNone(app.session_state["alba_pending_chat_text"])
 
-    def test_chat_composer_is_disabled_until_consent_is_given(self):
+    def test_composer_is_ready_without_a_separate_consent_checkbox(self):
         app = AppTest.from_file(
             str(ROOT / "pages" / "5_Chat_Workspace.py"),
             default_timeout=25,
@@ -140,9 +138,13 @@ class ChatWorkspaceUITests(unittest.TestCase):
         app.secrets["CLOUDFLARE_API_TOKEN"] = "SYNTHETIC_KEY"
         app.run()
         self.assertEqual(len(app.exception), 0)
-        self.assertTrue(app.chat_input[0].disabled)
-        app.checkbox(key="alba_chat_public_confirm").check().run()
         self.assertFalse(app.chat_input[0].disabled)
+        self.assertFalse(any(
+            check.key == "alba_chat_public_confirm" for check in app.checkbox
+        ))
+        source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(encoding="utf-8")
+        self.assertIn("By pressing Send", source)
+
 
     def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
         text = (ROOT / "app.py").read_text(encoding="utf-8")
