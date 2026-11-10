@@ -37,7 +37,7 @@ st.warning(
     "Use public or synthetic documents only. Do not upload personal, internal or confidential material."
 )
 st.write(
-    "Upload a text-based directive in PDF or Word. ALBA identifies the source "
+    "Upload a readable public directive in PDF or Word, including files with logos. ALBA identifies the source "
     "language locally: English is translated into Albanian; Albanian is preserved. "
     "The seven-column Word ToC leaves national-law mappings and compliance assessments blank."
 )
@@ -113,7 +113,7 @@ toc_file_check = screen_upload(
     source.name, source.getvalue(), max_chars=250000, public_legal=True
 )
 template_file_check = (
-    screen_upload(template.name, template.getvalue(), max_chars=50000)
+    screen_upload(template.name, template.getvalue(), max_chars=50000, public_legal=True)
     if template is not None else None
 )
 if toc_file_check.warning:
@@ -121,7 +121,7 @@ if toc_file_check.warning:
 if (
     toc_file_check.blocked
     or (template_file_check is not None and template_file_check.blocked)
-    or scan_text_fields(title).blocked
+    or scan_text_fields(title, public_legal=True).blocked
 ):
     st.session_state.pop("toc_translations", None)
     st.session_state.pop("toc_checks", None)
