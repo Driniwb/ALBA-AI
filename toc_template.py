@@ -9,6 +9,8 @@ from io import BytesIO
 import re
 
 from docx import Document
+from docx.shared import Cm, Pt
+from docx.enum.section import WD_ORIENT
 
 from toc_builder import Provision
 
@@ -18,6 +20,56 @@ EXPECTED = (
     "Përmbajtja", "Përputhshmëria", "Komente",
 )
 
+
+
+def built_in_blank_toc() -> bytes:
+    """Public, synthetic seven-column ALBA template with familiar headings.
+
+    This approximates the blank model layout but never reproduces the
+    user-provided blank document. Upload that DOCX for exact styling.
+    """
+    doc = Document()
+    sect = doc.sections[0]
+    sect.orientation = WD_ORIENT.LANDSCAPE
+    sect.page_width = Cm(29.7)
+    sect.page_height = Cm(21.0)
+    sect.left_margin = sect.right_margin = Cm(1.25)
+    sect.top_margin = sect.bottom_margin = Cm(1.5)
+    doc.add_paragraph("Direktiva ....... (Tabelë përputhshmërie)")
+    doc.add_paragraph("")
+    table = doc.add_table(rows=4, cols=7)
+    table.style = "Table Grid"
+    table.autofit = False
+    widths = [Cm(v) for v in (1.9, 7.0, 1.5, 1.9, 6.9, 1.8, 6.1)]
+    for row in table.rows:
+        for i, cell in enumerate(row.cells):
+            cell.width = widths[i]
+    top = table.rows[0]
+    top.cells[0].merge(top.cells[1]).text = "Direktiva ......."
+    top.cells[2].merge(top.cells[6]).text = (
+        "Legjislacioni shqiptar i propozuar (titulli i projektaktit)\n"
+        "1.1. ........\n"
+        "F – Plotësisht e harmonizuar\n"
+        "P – Pjesërisht e harmonizuar\n"
+        "N – Pa Harmonizuar\n"
+        "N/A – jo relevante për përafrim\n"
+        "Shkalla e përputhshmërisë: [për vlerësim juridik]"
+    )
+    for cell, value in zip(table.rows[1].cells, map(str, range(1, 8))):
+        cell.text = value
+    for cell, title in zip(table.rows[2].cells, EXPECTED):
+        cell.text = title
+        for run in cell.paragraphs[0].runs:
+            run.bold = True
+            run.font.size = Pt(8)
+    for row in table.rows:
+        for cell in row.cells:
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    run.font.size = Pt(8)
+    out = BytesIO()
+    doc.save(out)
+    return out.getvalue()
 
 def validate_blank_template(template: bytes) -> None:
     if not isinstance(template, bytes) or not template:
