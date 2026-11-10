@@ -233,6 +233,7 @@ def apply_theme(section: str = "WORKSPACE") -> None:
         "EDITOR": "WRITING ASSISTANT",
         "TOC": "TABLE OF CONCORDANCE",
         "COMM": "COMMUNICATION STUDIO",
+        "LEGAL": "LEGAL DRAFTING",
     }.get(section, "WORKSPACE")
     st.markdown(
         '<div class="alba-hero"><div class="alba-overline">'
