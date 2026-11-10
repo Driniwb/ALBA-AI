@@ -8,9 +8,32 @@ from io import BytesIO
 from pathlib import Path
 from urllib.request import Request, urlopen
 from docx import Document
-from toc_builder import extract_document, split_provisions, to_word
+from toc_builder import extract_document, split_provisions
+from toc_units import first_n_articles
+from toc_template import create_toc_using_template
 
 URL = "https://www.legislation.gov.uk/eudr/2008/68/pdfs/eudr_20080068_2019-06-27_en.pdf"
+
+def _synthetic_blank_template():
+    """A generic seven-column stand-in, NOT the user's ToC file."""
+    doc = Document()
+    doc.add_paragraph("Direktiva ...... (Tabelë përputhshmërie)")
+    table = doc.add_table(rows=4, cols=7)
+    table.rows[0].cells[0].merge(table.rows[0].cells[1]).text = "Direktiva ......"
+    table.rows[0].cells[2].merge(table.rows[0].cells[6]).text = (
+        "Legjislacioni shqiptar i propozuar (titulli i projektaktit)\n"
+        "Shkalla e përputhshmërisë: F (e plotë)"
+    )
+    for cell, value in zip(table.rows[1].cells, map(str,range(1,8))):
+        cell.text = value
+    labels = ("Neni","Teksti","Referenca","Neni","Përmbajtja",
+              "Përputhshmëria","Komente")
+    for cell, value in zip(table.rows[2].cells, labels):
+        cell.text = value
+    out = BytesIO()
+    doc.save(out)
+    return out.getvalue()
+
 
 def main():
     try:
@@ -37,19 +60,26 @@ def main():
         assert "Scope" in a1
         assert "Definitions" in a2
         assert "General provisions" in a3
-        pilot = [row for row in rows if row.reference in {"Article 1", "Article 2", "Article 3"}]
-        assert [p.reference for p in pilot] == ["Article 1", "Article 2", "Article 3"]
-        word = to_word(pilot, "Directive 2008/68/EC (2019 consolidation) — technical test ONLY")
+        pilot = first_n_articles(extracted.text, count=3)
+        assert len(pilot) >= 3
+        word = create_toc_using_template(
+            _synthetic_blank_template(), pilot,
+            "Directive 2008/68/EC (2019 consolidation) — TECHNICAL TEST",
+        )
         output = Document(BytesIO(word))
-        assert len(output.tables[0].rows) == 4
-        assert [output.tables[0].cell(i, 0).text for i in range(1,4)] == ["Article 1", "Article 2", "Article 3"]
+        assert len(output.tables[0].columns) == 7
+        assert len(output.tables[0].rows) == len(pilot) + 3
+        assert all(not output.tables[0].rows[i].cells[k].text
+                   for i in range(3,len(output.tables[0].rows))
+                   for k in range(2,7))
         outdir = Path("artifacts")
         outdir.mkdir(exist_ok=True)
-        (outdir / "ALBA_ToC_2008_68_Articles_1-3_TECHNICAL_TEST.docx").write_bytes(word)
+        (outdir / "ALBA_ToC_2008_68_Articles_1-3_7COL_DEMO.docx").write_bytes(word)
+        print("Granular ToC units for Articles 1-3:",len(pilot))
         print("SUCCESS:", "PDF bytes=",len(content),"sections=",len(rows))
         print("Extracted Article 1/2/3 chars:",len(a1),len(a2),len(a3))
         print("Word bytes:",len(word))
-        print("Notice: this validates article boundaries, not sub-point row separation or literal fidelity.")
+        print("Notice: structural extraction only. Literal legal fidelity and sentence-level units require manual verification.")
         for item in extracted.warnings:
             print("WARNING:",item)
     except Exception as exc:
