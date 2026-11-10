@@ -27,12 +27,7 @@ from ui_theme import apply_theme
 st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
 apply_theme("WORKSPACE")
 st.title("Chat Workspace")
-st.caption("Multi-turn legal and institutional AI · Projects · Conversation history")
-st.warning(
-    "Public or synthetic material only. Do not paste confidential government "
-    "drafts, personal records, private contacts or credentials. Chat responses "
-    "are not certified legal advice or EU acquis conformity assessments."
-)
+st.caption("Ask questions, work with documents, and continue earlier chats.")
 
 
 def _secret(name: str) -> str:
@@ -103,10 +98,7 @@ def _store_for_page() -> tuple[ChatStore, str, bool]:
         return store, owner, True
 
     if owner and not dsn:
-        st.warning(
-            "You are signed in, but persistent chat storage has not been "
-            "configured. This session is temporary and will not be saved."
-        )
+        st.caption("Account sync isn't configured; using browser history.")
     if "alba_demo_store" not in st.session_state:
         st.session_state["alba_demo_store"] = ChatStore.session_memory()
         # Random session-only owner prevents cross-session guest access.
@@ -130,23 +122,11 @@ if not persistent:
     initialize_browser_history(store, owner)
 
 if persistent:
-    st.success(
-        "Account history: conversations are saved to your configured "
-        "PostgreSQL database and are available when you sign in again."
-    )
+    st.caption("History saved to your account.")
 elif st.session_state.get("alba_browser_available"):
-    st.info(
-        "Saved in this browser: public/synthetic conversations will be restored "
-        "after refresh and future visits on this device, as long as this site's "
-        "browser storage is not cleared. This is NOT private cloud account "
-        "storage or cross-device synchronisation. Do not use shared computers "
-        "for sensitive material."
-    )
+    st.caption("History saved in this browser only.")
 else:
-    st.warning(
-        "Browser history storage is unavailable. This session is temporary. "
-        "Export important conversations using Download resumable chat (.json)."
-    )
+    st.warning("Browser saving unavailable. Export chats to keep them.")
 
 if _oidc_configured():
     with st.sidebar:
@@ -187,10 +167,7 @@ with st.sidebar:
             if st.button("Remove project", key="alba_remove_project_start"):
                 st.session_state["alba_remove_project_pending"] = project_to_remove
             if st.session_state.get("alba_remove_project_pending") == project_to_remove:
-                st.caption(
-                    "Removing a project does not delete its chats; chats move "
-                    "to No project."
-                )
+                st.caption("Chats remain under No project.")
                 if st.button(
                     "Confirm remove project", key="alba_remove_project_confirm"
                 ):
@@ -266,7 +243,7 @@ def _render_chat_content(value: str) -> None:
 
 if conversation:
     st.subheader(conversation["title"])
-    st.caption("Specialism: " + MODES[conversation["mode"]])
+    st.caption(MODES[conversation["mode"]])
     actions, move, export = st.columns([2, 2, 2])
     with actions:
         new_title = st.text_input(
@@ -345,22 +322,11 @@ else:
         key="alba_new_project",
     )
     messages = []
-    st.caption(
-        "Try: Compare a proposed VKM provision with the supplied Directive "
-        "article; review an Administrative Capacity Note; or draft an EU reply."
-    )
+    st.caption("Example: Compare this VKM provision with the EU directive.")
 
-st.caption(
-    "ALBA remembers the full thread in the workspace, but sends only recent "
-    "turns within the AI context limit. Verify citations against official texts."
-)
 attachment_text = ""
 attachment_name = ""
-with st.expander("Add a public document to your question (optional)"):
-    st.caption(
-        "Use a public PDF, Word document or text file. Only a selected text "
-        "excerpt, not the original file, is sent to the AI."
-    )
+with st.expander("Attach a public document (optional)"):
     doc_nonce = st.session_state.get("alba_doc_nonce", 0)
     doc = st.file_uploader(
         "Attach public legislation, directive or report",
@@ -378,10 +344,7 @@ with st.expander("Add a public document to your question (optional)"):
             if checked.warning:
                 st.warning(checked.warning)
             if len(checked.text) > 3200:
-                st.info(
-                    "Long document: select the relevant provision below. "
-                    "ALBA will not silently send or summarise the entire text."
-                )
+                st.caption("Long document: select the section to analyse.")
                 digest = hashlib.sha256(doc.getvalue()).hexdigest()[:12]
                 with st.expander("Read extracted public source"):
                     st.text_area(
@@ -396,9 +359,6 @@ with st.expander("Add a public document to your question (optional)"):
                 )
             else:
                 attachment_text = checked.text
-                st.caption(
-                    "Document text is ready for your next question."
-                )
             if attachment_text.strip():
                 attachment_name = doc.name
 
@@ -411,11 +371,7 @@ if not account or not api_key:
         "CLOUDFLARE_API_TOKEN in Streamlit Cloud → App settings → Secrets."
     )
 
-with st.expander("AI connection diagnostics", expanded=False):
-    st.caption(
-        "This tests Cloudflare with a synthetic phrase. "
-        "No uploaded document or conversation is transmitted."
-    )
+with st.expander("Connection settings"):
     if st.button("Test AI connection", key="alba_test_ai_connection"):
         if not account or not api_key:
             st.error("Cloudflare credentials are missing.")
@@ -425,16 +381,14 @@ with st.expander("AI connection diagnostics", expanded=False):
                     check_chat_connection(
                         account_id=account, api_token=api_key,
                     )
-                st.success("Cloudflare responded successfully. AI chat is available.")
+                st.success("AI connection working.")
             except ValueError as exc:
                 st.error(str(exc))
             except Exception:
                 st.error("Unexpected AI connection problem. Review Streamlit logs.")
 
 st.caption(
-    "Ask naturally, as in a conversation. By pressing Send you confirm that "
-    "your message contains only public or synthetic content and you authorise "
-    "sending it to Cloudflare for an AI response. Do not send private records."
+    "Public or synthetic content only. Sending a message shares it with Cloudflare."
 )
 doc_context = (
     "\n\n[PUBLIC DOCUMENT EXCERPT: " + attachment_name + "]\n"
