@@ -35,7 +35,7 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         ).run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(app.text_input[0].value, "")
-        self.assertEqual(list(app.selectbox[0].options), list(range(1, 9)))
+        self.assertEqual(list(app.selectbox[0].options), [str(n) for n in range(1, 9)])
 
     def test_communication_studio_page_loads_without_credentials(self):
         app = AppTest.from_file(
