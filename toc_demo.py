@@ -1,6 +1,6 @@
 """Separate Streamlit PoC: directive PDF/DOCX + user-supplied blank ToC DOCX."""
 import streamlit as st
-from toc_builder import extract_document
+from toc_builder import extract_document, pdf_extraction_flags, normalise_pdf_display, Provision
 from toc_units import first_n_articles
 from toc_template import create_toc_using_template
 
@@ -28,6 +28,11 @@ template = st.file_uploader(
 )
 title = st.text_input("Emërtimi i direktivës", value="Direktiva 2008/68/KE")
 n_articles = st.selectbox("Numri i neneve për provën", [1, 2, 3, 4, 5, 6, 7, 8], index=2)
+cleanup = st.checkbox(
+    "Pastro vetëm artefaktet vizuale të PDF-së (faqet dhe ndarjet e rreshtave)",
+    value=False,
+    help="Nuk vërteton besnikërinë e tekstit. Kontrolli me burimin mbetet i detyrueshëm.",
+)
 safe = st.checkbox(
     "Konfirmoj që dokumentet janë publike ose sintetike dhe nuk janë konfidenciale."
 )
@@ -36,6 +41,19 @@ if directive is not None and template is not None and safe:
     try:
         extracted = extract_document(directive.name, directive.getvalue())
         units = first_n_articles(extracted.text, n_articles)
+        flags = pdf_extraction_flags("\n".join(unit.text for unit in units))
+        if flags:
+            for issue in flags:
+                st.warning(issue)
+        if directive.name.lower().endswith(".pdf") and cleanup:
+            units = [
+                Provision(unit.reference, normalise_pdf_display(unit.text))
+                for unit in units
+            ]
+            st.info(
+                "U pastruan vetëm formatimi i rreshtave dhe shënimet e njohura "
+                "të botimit; ky nuk është transkriptim juridik i verifikuar."
+            )
         st.metric("Rreshta me dispozita të BE-së", len(units))
         for warning in extracted.warnings:
             st.warning(warning)
