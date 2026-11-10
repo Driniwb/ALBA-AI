@@ -32,7 +32,7 @@ st.set_page_config(
 )
 apply_theme("COMM")
 st.title("Communication Studio")
-st.caption("Institutional communications · Albanian-language drafts")
+st.caption("Institutional communications · EU reporting · Albanian and English drafts")
 st.warning(
     "Editorial prototype. Use public or synthetic materials only. "
     "Do not enter personal, confidential or internal information."
@@ -267,7 +267,7 @@ if generate_single or generate_all:
                     style_id=style_id,
                     output_language=output_language,
                 )
-                with st.spinner("Preparing the Albanian draft..."):
+                with st.spinner("Preparing the draft..."):
                     output = generate_communication(messages, account, token)
                 if scan_text_fields(output).blocked:
                     st.session_state.pop("comm_editor", None)
