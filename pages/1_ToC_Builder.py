@@ -23,13 +23,13 @@ from ui_theme import apply_theme
 from ui_copy import friendly_error
 
 st.set_page_config(
-    page_title="ALBA AI – ToC Builder",
+    page_title="ALBA | ToC Builder",
     page_icon="📄",
     layout="wide",
 )
 apply_theme("TOC")
 st.title("ToC Builder")
-st.caption("ALBA 3.5 · Legal concordance · Literal English-to-Albanian translation · Word")
+st.caption("Legal concordance · Literal English-to-Albanian translation · Word")
 
 st.warning(
     "Experimental legal drafting tool, not an automatic transposition assessment. "
