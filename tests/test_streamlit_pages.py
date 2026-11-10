@@ -11,6 +11,15 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=25).run()
         self.assertEqual(len(app.exception), 0)
 
+    def test_writing_assistant_named_page_loads(self):
+        app = AppTest.from_file(
+            str(ROOT / "writing_assistant.py"), default_timeout=25
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any(
+            "Writing Assistant" in title.value for title in app.title
+        ))
+
     def test_toc_builder_page_loads_without_upload(self):
         app = AppTest.from_file(
             str(ROOT / "pages" / "1_ToC_Builder.py"), default_timeout=25
@@ -19,6 +28,14 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         headings = [item.value for item in app.title]
         self.assertTrue(any("ToC Builder" in value for value in headings))
 
+
+    def test_toc_article_range_and_empty_title(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "1_ToC_Builder.py"), default_timeout=25
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertEqual(app.text_input[0].value, "")
+        self.assertEqual(list(app.selectbox[0].options), list(range(1, 9)))
 
     def test_communication_studio_page_loads_without_credentials(self):
         app = AppTest.from_file(
@@ -51,7 +68,7 @@ class StreamlitNavigationSmoke(unittest.TestCase):
 
 
     def test_main_editor_blocks_contact_details_without_echo(self):
-        app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=25).run()
+        app = AppTest.from_file(str(ROOT / "writing_assistant.py"), default_timeout=25).run()
         app.text_area[0].set_value("Private contact: synthetic.person@example.org").run()
         self.assertEqual(len(app.exception), 0)
         messages = [str(item.value) for item in app.error]
