@@ -26,7 +26,7 @@ MAX_CONTEXT_CHARS = 1100
 
 FORMATS = {
     "press_release": {
-        "label": "Njoftim për shtyp",
+        "label": "Press release",
         "group": "Press & Media",
         "outline": (
             "Jep një titull faktik; hyrjen me informacionin kryesor dhe "
@@ -36,7 +36,7 @@ FORMATS = {
         ),
     },
     "press_statement": {
-        "label": "Deklaratë për shtyp",
+        "label": "Press statement",
         "group": "Press & Media",
         "outline": (
             "Jep qëndrimin/sqarimin e konfirmuar në mënyrë të qartë dhe "
@@ -45,7 +45,7 @@ FORMATS = {
         ),
     },
     "newsletter": {
-        "label": "Newsletter / buletin",
+        "label": "Newsletter",
         "group": "Newsletter & Web",
         "outline": (
             "Jep etiketa të qarta: Subjekti:, Teksti paraprak:, "
@@ -56,7 +56,7 @@ FORMATS = {
         ),
     },
     "web_article": {
-        "label": "Artikull për website",
+        "label": "Website article",
         "group": "Newsletter & Web",
         "outline": (
             "Jep titull informues, hyrje që nis me faktin kryesor, "
@@ -336,30 +336,30 @@ def qa_flags(source_text: str, output: str, format_id: str) -> list[str]:
         raise ValueError("Formati nuk njihet.")
     content = extract_publishable_text(output)
     if not content:
-        return ["Seksioni 'Materiali për publikim' nuk u gjet. Kontrollo formatin."]
+        return ["The publishable-content section could not be identified; check the draft format."]
     flags = []
     numerals = re.compile(r"(?<!\w)\d+(?:[.,/-]\d+)*(?!\w)")
     original_nums = Counter(numerals.findall(source_text))
     output_nums = Counter(numerals.findall(content))
     added = list((output_nums - original_nums).elements())
     if added:
-        flags.append("Numra/datat e reja në material, për verifikim: " + ", ".join(added[:10]))
+        flags.append("New numbers or dates in the draft require verification: " + ", ".join(added[:10]))
     original_links = set(re.findall(r"https?://[^\s)>\]]+", source_text))
     result_links = set(re.findall(r"https?://[^\s)>\]]+", content))
     if result_links - original_links:
-        flags.append("Lidhje të reja në material; kontrollo adresat e tyre.")
+        flags.append("New links were introduced; check their destinations.")
     if "“" in content and "“" not in source_text and "„" not in source_text:
-        flags.append("Tekst në thonjëza që nuk shfaqet në materialin burimor; kontrollo citimet.")
+        flags.append("Quoted text was not present in the source; verify the quotation.")
     if format_id == "x" and len(content) > 280:
         flags.append(
-            f"Postimi X ka {len(content)} karaktere (numërim i thjeshtë), "
-            "mbi 280 për postimin standard. URL-të mund të numërohen ndryshe nga X."
+            "f"The X post has {len(content)} characters (simple count), "
+            "above 280 for a standard post. X may count URLs differently."
         )
     if format_id == "newsletter":
         if not re.search(r"(?im)^(?:\*\*)?Subjekti\s*:", content):
-            flags.append("Newsletter-it i mungon rreshti 'Subjekti:'.")
+            flags.append("The newsletter needs a subject line (Subjekti:).")
         if not re.search(r"(?im)^(?:\*\*)?Teksti paraprak\s*:", content):
-            flags.append("Newsletter-it i mungon rreshti 'Teksti paraprak:'.")
+            flags.append("The newsletter needs preview text (Teksti paraprak:).")
     if re.search(r"\[(?:për t['’]u konfirmuar|link|lidhja|data|emri)\]", content, re.I):
-        flags.append("Ka fusha në kllapa që duhen plotësuar përpara publikimit.")
+        flags.append("Some bracketed placeholders must be completed before publication.")
     return flags
