@@ -6,7 +6,7 @@ from io import BytesIO
 import unittest
 from docx import Document
 
-from toc_builder import Provision
+from toc_builder import Provision, pdf_extraction_flags, normalise_pdf_display
 from toc_template import create_toc_using_template, validate_blank_template
 from toc_units import split_toc_units, first_n_articles
 
@@ -79,6 +79,22 @@ class TocTemplateTests(unittest.TestCase):
         )
         self.assertEqual("\n".join(r.text for r in result), SYNTHETIC)
         self.assertEqual(len(first_n_articles(SYNTHETIC, 2)), 8)
+
+    def test_pdf_layout_cleanup_is_explicit_and_auditable(self):
+        sample = (
+            "1. This must keep its meaning.\n"
+            "(a) under the responsi \u00ad\nbility of the institution;\n"
+            "▼B\n\n 02008L0068 — EN — 27.06.2019 — 017.001 — 3  "
+        )
+        flags = pdf_extraction_flags(sample)
+        self.assertEqual(len(flags), 2)
+        cleaned = normalise_pdf_display(sample)
+        self.assertEqual(
+            cleaned,
+            "1. This must keep its meaning. (a) under the responsibility "
+            "of the institution;"
+        )
+        self.assertEqual(pdf_extraction_flags(cleaned), [])
 
     def test_populates_only_eu_columns_and_keeps_template_header(self):
         template = synthetic_blank_template()
