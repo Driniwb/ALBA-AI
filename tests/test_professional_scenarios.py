@@ -46,7 +46,7 @@ class ProfessionalScenarioTests(unittest.TestCase):
         self.assertIn("PËRAFRIM SA MË LITERAL", request)
         self.assertIn("Annex III", request)
         self.assertIn(SYNTHETIC_VKM, request)
-        self.assertIn("VENDOSI", system)
+        self.assertIn("VENDOSI", request)
         self.assertIn("[nuk është dhënë]", request)
         self.assertIn("Mos shpik", system)
         self.assertIn("anëtarësimit", system)
