@@ -14,31 +14,46 @@ class ChatWorkspaceUITests(unittest.TestCase):
             default_timeout=25,
         ).run()
         self.assertEqual(len(app.exception), 0)
-        self.assertTrue(any("Chat Workspace" in item.value for item in app.title))
+        self.assertTrue(any("ALBA" in item.value for item in app.title))
         self.assertTrue(any(
             "Browser saving unavailable" in str(item.value) for item in app.warning
         ))
         self.assertTrue(any("New chat" in str(item.label) for item in app.button))
-        self.assertTrue(any("Create project" in str(item.label) for item in app.button))
-        self.assertTrue(any("Assistant specialism" in str(item.label)
-                            for item in app.selectbox))
+        self.assertFalse(any("Create project" in str(item.label) for item in app.button))
+        self.assertFalse(any("Assistant specialism" in str(item.label)
+                             for item in app.selectbox))
+        self.assertFalse(any("Connection settings" in str(item.label)
+                             for item in app.expander))
+        self.assertTrue(any("Attach a public document" in str(item.label)
+                            for item in app.expander))
 
-    def test_guest_can_create_project_without_a_database_or_login(self):
+    def test_project_control_appears_only_in_existing_chat(self):
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return {"success": True, "result": {
+                    "response": "Synthetic source check completed."
+                }}
+
         app = AppTest.from_file(
             str(ROOT / "pages" / "5_Chat_Workspace.py"),
             default_timeout=25,
-        ).run()
+        )
+        app.secrets["CLOUDFLARE_ACCOUNT_ID"] = "DEMO_ACCOUNT"
+        app.secrets["CLOUDFLARE_API_TOKEN"] = "DEMO_TOKEN"
+        app.run()
         self.assertEqual(len(app.exception), 0)
-        name = next(item for item in app.text_input
-                    if item.label == "New project")
-        name.set_value("Synthetic EU transport").run()
-        submit = next(button for button in app.button
-                      if button.label == "Create project")
-        submit.click().run()
+        self.assertFalse(any(box.label == "Project" for box in app.selectbox))
+        with patch("chat_backend.requests.post", return_value=Response()):
+            app.chat_input[0].set_value("Analyse a synthetic public provision.").run()
         self.assertEqual(len(app.exception), 0)
-        self.assertIn("Synthetic EU transport", [
-            str(option) for box in app.selectbox for option in box.options
-        ])
+        self.assertEqual(len(app.chat_message), 2)
+        self.assertTrue(any(box.label == "Project" for box in app.selectbox))
+        self.assertFalse(any("Export" in button.label for button in app.button))
+        self.assertFalse(any("Delete conversation" in button.label for button in app.button))
+        self.assertFalse(any("Save title" in button.label for button in app.button))
+        self.assertFalse(any("Restore chat" in button.label for button in app.button))
 
     def test_real_chat_widget_flow_uses_previous_turns_and_can_reopen(self):
         """Exercise Streamlit's chat_input, not only a static page render."""
@@ -143,7 +158,10 @@ class ChatWorkspaceUITests(unittest.TestCase):
             check.key == "alba_chat_public_confirm" for check in app.checkbox
         ))
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(encoding="utf-8")
-        self.assertIn("Sending a message shares it with Cloudflare", source)
+        self.assertNotIn("Sending a message shares it with Cloudflare", source)
+        self.assertNotIn("Connection settings", source)
+        self.assertIn("Attach a public document (optional)", source)
+        self.assertIn("Move to project", source)
 
 
     def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
@@ -169,7 +187,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertIn("if owner and dsn:", source)
         self.assertIn("ChatStore.postgres(dsn)", source)
         self.assertIn("ChatStore.session_memory()", source)
-        self.assertIn("History saved in this browser only", source)
+        self.assertIn("initialize_browser_history(", source)
         self.assertIn("initialize_browser_history(", source)
         self.assertIn("save_browser_history(", source)
         self.assertNotIn("st.session_state.get('email')", source)
