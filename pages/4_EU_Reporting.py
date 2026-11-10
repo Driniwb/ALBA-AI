@@ -29,12 +29,7 @@ st.set_page_config(page_title="ALBA | EU Communication & Reporting",
                    page_icon="🇪🇺", layout="wide")
 apply_theme("EU")
 st.title("EU Communication & Reporting")
-st.caption("Information Notes · Administrative Capacities · EU Acquis Progress")
-st.warning(
-    "Experimental drafting support. Use public or synthetic information only. "
-    "Do not submit internal, confidential or personal records. "
-    "Outputs require institutional verification and approval."
-)
+st.caption("Public sources only · Verify drafts before submission.")
 
 @st.cache_data(show_spinner=False)
 def reporting_library():
@@ -199,10 +194,7 @@ if (
                 st.write("• " + item)
         else:
             st.write("No heuristic alerts were detected; this does not verify the evidence.")
-        st.caption(
-            "Verify legal status, FTE, enforcement data, commitments, "
-            "reporting dates and institutional clearance before transmission."
-        )
+
     transmission = extract_publishable_text(revised)
     if transmission:
         st.download_button(

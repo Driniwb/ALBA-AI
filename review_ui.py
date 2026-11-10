@@ -41,18 +41,13 @@ def render_auto_review(*, kind: str, source_text: str, draft_text: str,
     state_key = state + "_fingerprint"
 
     st.divider()
-    st.subheader("ALBA independent legal and evidence review")
-    st.caption(
-        "ALBA chooses one or two independent Cloudflare-hosted reviewers "
-        "automatically according to the document's legal complexity. "
-        "This reuses the existing Cloudflare configuration; no new API keys."
-    )
-    st.caption(
-        "Cloudflare Workers Free includes a shared allocation of 10,000 "
-        "Neurons per day. Reviews use the same allocation as draft generation. "
-        "If your Cloudflare account is on a paid plan, overage charges can apply; "
-        "this feature is disabled unless the app administrator confirms Workers Free."
-    )
+    st.subheader("Independent AI Review")
+    st.caption("Optional second check using your Cloudflare models.")
+    with st.expander("How this review works"):
+        st.write(
+            "ALBA chooses reviewers automatically. Uses the free daily "
+            "Cloudflare allowance; only enable on a confirmed Workers Free account."
+        )
 
     consent = st.checkbox(
         "I authorize ALBA to submit this public/synthetic source and current "
@@ -115,16 +110,10 @@ def render_auto_review(*, kind: str, source_text: str, draft_text: str,
 
     available = list(result.findings.items())
     if available:
-        st.caption(
-            "Reviewed by: " +
-            ", ".join(REVIEW_MODELS[k]["name"] for k, _ in available) +
-            ". ALBA selected the review depth automatically."
-        )
+        st.caption("Reviewed by " + ", ".join(
+            REVIEW_MODELS[k]["name"] for k, _ in available
+        ))
         if len(available) > 1:
-            st.info(
-                "Two independent assessments. Agreement is not proof, "
-                "and conflicting legal interpretations require expert judgement."
-            )
             tabs = st.tabs([REVIEW_MODELS[k]["name"] for k, _ in available])
             for panel, (_, text) in zip(tabs, available):
                 with panel:
@@ -142,9 +131,7 @@ def render_auto_review(*, kind: str, source_text: str, draft_text: str,
             for key, value in alternatives:
                 with st.expander("Proposed by " + REVIEW_MODELS[key]["name"]):
                     st.markdown(value)
-            st.caption("Alternatives are not merged or applied to the draft automatically.")
-        else:
-            st.caption("No source-supported alternative formulation was identified.")
+            st.caption("Review proposals before applying them.")
 
     for key, reason in result.errors.items():
         st.warning(REVIEW_MODELS[key]["name"] + ": " + reason)

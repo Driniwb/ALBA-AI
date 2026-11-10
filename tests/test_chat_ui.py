@@ -16,7 +16,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertEqual(len(app.exception), 0)
         self.assertTrue(any("Chat Workspace" in item.value for item in app.title))
         self.assertTrue(any(
-            "Browser history storage is unavailable" in str(item.value) for item in app.warning
+            "Browser saving unavailable" in str(item.value) for item in app.warning
         ))
         self.assertTrue(any("New chat" in str(item.label) for item in app.button))
         self.assertTrue(any("Create project" in str(item.label) for item in app.button))
@@ -143,7 +143,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
             check.key == "alba_chat_public_confirm" for check in app.checkbox
         ))
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(encoding="utf-8")
-        self.assertIn("By pressing Send", source)
+        self.assertIn("Sending a message shares it with Cloudflare", source)
 
 
     def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
@@ -169,7 +169,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertIn("if owner and dsn:", source)
         self.assertIn("ChatStore.postgres(dsn)", source)
         self.assertIn("ChatStore.session_memory()", source)
-        self.assertIn("Saved in this browser", source)
+        self.assertIn("History saved in this browser only", source)
         self.assertIn("initialize_browser_history(", source)
         self.assertIn("save_browser_history(", source)
         self.assertNotIn("st.session_state.get('email')", source)

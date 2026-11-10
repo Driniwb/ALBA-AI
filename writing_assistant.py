@@ -23,20 +23,7 @@ st.set_page_config(
 apply_theme("EDITOR")
 st.title("Writing Assistant")
 
-st.caption("Albanian legal and institutional writing")
-
-st.caption(
-    "Draft, edit and review Albanian legal and institutional language "
-    "with a consistent, source-aware workflow."
-)
-
-
-
-st.warning(
-    "Experimental prototype. Use only public or "
-    "synthetic texts. Do not enter personal, "
-    "confidential or sensitive information."
-)
+st.caption("Public or synthetic text only · Review results before use.")
 
 # ==========================================
 # CLOUDFLARE SETTINGS
@@ -567,10 +554,6 @@ kërko kontroll njerëzor. Mos shpik referenca.
                         st.error(BLOCK_NOTICE)
                         st.stop()
 
-                    st.success(
-                        "Analysis completed successfully!"
-                    )
-
                     st.subheader("ALBA AI Analysis")
                     st.markdown(result)
 
@@ -588,32 +571,15 @@ kërko kontroll njerëzor. Mos shpik referenca.
                             for item in alerts:
                                 st.warning(item)
                         else:
-                            st.info(
-                                "No obvious changes to numbers, acronyms or "
-                                "selected status terms detected. This does "
-                                "not verify semantic or legal accuracy."
-                            )
+                            st.caption("No automated issues detected.")
 
-                    st.warning(
-                        "AI-generated draft. Guidance includes short "
-                        "paraphrases of public sources and original ALBA "
-                        "editorial proposals, all pending expert review. "
-                        "No independent legal validity check has been made. "
-                        "The 1973 orthography source is historical, not "
-                        "a current spelling dictionary. "
-                        "Human review is mandatory."
-                    )
+                    st.caption("AI draft — verify references and wording before use.")
 
                 else:
 
                     st.error(
                         "Cloudflare returned a response "
                         "without usable text."
-                    )
-
-                    st.info(
-                        "This may be a model response "
-                        "or output-format issue."
                     )
 
                     # Safe diagnostics without printing
@@ -706,9 +672,4 @@ kërko kontroll njerëzor. Mos shpik referenca.
                 "Unexpected response format."
             )
 
-st.divider()
 
-st.caption(
-    "ALBA | Writing Assistant | "
-    "Human Review Required"
-)
