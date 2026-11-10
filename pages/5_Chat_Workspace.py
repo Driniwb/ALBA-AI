@@ -16,6 +16,7 @@ from chat_backend import (
 )
 from chat_store import ChatStore, MODES
 from chat_auth import verified_chat_owner
+from chat_backup import backup_bytes, parse_backup_file
 from privacy_guard import BLOCK_NOTICE, scan_text_fields
 from ui_theme import apply_theme
 
@@ -183,6 +184,33 @@ with st.sidebar:
                     store.delete_project(owner, project_to_remove)
                     st.session_state["alba_remove_project_pending"] = None
                     st.rerun()
+    with st.expander("Restore conversation from backup"):
+        uploaded_backup = st.file_uploader(
+            "ALBA chat backup (.json)", type=["json"],
+            key="alba_restore_chat_file",
+            help="A JSON chat backup exported from ALBA; not an arbitrary document.",
+        )
+        backup_public = st.checkbox(
+            "I confirm the backup contains public or synthetic content only.",
+            key="alba_restore_public_confirm",
+        )
+        if st.button("Restore chat", key="alba_restore_chat_button"):
+            if not uploaded_backup or not backup_public:
+                st.warning("Select an ALBA JSON backup and confirm public content.")
+            else:
+                try:
+                    recovered = parse_backup_file(uploaded_backup.getvalue())
+                    recovered_id = store.import_conversation_backup(owner, recovered)
+                    st.session_state["alba_active_conversation"] = recovered_id
+                    st.rerun()
+                except ValueError:
+                    st.error(
+                        "The backup is incomplete, unsupported or contains "
+                        "material that is not eligible for this public pilot."
+                    )
+                except Exception:
+                    st.error("Could not restore the chat. The backup was not changed.")
+
     conversations = store.list_conversations(owner)
 
     for chat in conversations[:45]:
@@ -249,6 +277,21 @@ if conversation:
             file_name="ALBA_Chat_Transcript.md", mime="text/markdown",
             key="alba_export_" + active_id,
         )
+        try:
+            resumable_backup = backup_bytes(conversation, messages)
+        except ValueError:
+            st.caption(
+                "This conversation is too long or includes content that cannot "
+                "be exported as a portable public-only backup."
+            )
+        else:
+            st.download_button(
+                "Download resumable chat (.json)", resumable_backup,
+                file_name="ALBA_Chat_Backup.json",
+                mime="application/json",
+                key="alba_backup_" + active_id,
+                help="Restore this file later to continue the chat in a new session.",
+            )
         if st.button("Delete conversation", key="alba_delete_start_" + active_id):
             st.session_state["alba_delete_confirm"] = active_id
 
