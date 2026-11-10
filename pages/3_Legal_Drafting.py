@@ -105,7 +105,7 @@ if (
         st.session_state.get("legal_source", ""), eu_text,
         public_legal=published_act,
     ).blocked
-    or scan_text_fields(basis, goal).blocked
+    or scan_text_fields(basis, goal, public_legal=published_act).blocked
 ):
     st.session_state.pop("legal_result", None)
     st.session_state.pop("legal_result_key", None)
@@ -140,7 +140,7 @@ if safe_doc:
             st.text_area(
                 "Extracted source (read-only; copy the article you need)",
                 value=safe_doc.text, height=340, disabled=True,
-                key="legal_full_extracted_text",
+                key="legal_full_extracted_text_" + file_signature[:12],
             )
         selected_upload = st.text_area(
             "Selected article(s) or sections for AI analysis",
