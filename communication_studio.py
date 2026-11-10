@@ -534,6 +534,20 @@ def qa_flags(source_text: str, output: str, format_id: str) -> list[str]:
         flags.append("New links were introduced; check their destinations.")
     if "“" in content and "“" not in source_text and "„" not in source_text:
         flags.append("Quoted text was not present in the source; verify the quotation.")
+    if format_id in EU_REPORTING_FORMATS:
+        # These are review alerts, not semantic verification of EU law or data.
+        if re.search(r"\bFTE\b", source_text, re.I) and not re.search(r"\bFTE\b", content, re.I):
+            flags.append("The source includes FTE staffing, but the draft omits it; verify the capacity narrative.")
+        if re.search(
+            r"\b(?:fully compliant|fully aligned|full compliance|full transposition|"
+            r"closing benchmark (?:is|has been) (?:met|fulfilled))\b",
+            content, re.I,
+        ):
+            flags.append("A strong alignment or benchmark claim needs explicit, independently verified evidence.")
+        if re.search(r"\b(?:adopted|miratuar)\b", content, re.I) and not re.search(
+            r"\b(?:adopted|miratuar)\b", source_text, re.I
+        ):
+            flags.append("The draft claims an adopted measure without an adoption statement in the source.")
     if format_id == "x" and len(content) > 280:
         flags.append(
             f"The X post has {len(content)} characters (simple count), "
