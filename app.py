@@ -117,14 +117,15 @@ def select_relevant_terms(text, limit=10):
 
 with st.sidebar:
     st.header("Reference Library – 3.1")
-    st.metric("Public reference sources", len(SOURCES))
+    st.metric("Sources and editorial notes", len(SOURCES))
     st.metric("Editorial guidance rules", len(RULES))
     st.metric("Candidate glossary entries", len(GLOSSARY))
     st.caption(
         "Only short paraphrased guidance is used. "
         "The full manuals and research PDFs are not uploaded or searched. "
-        "Research articles are not official norms. "
-        "Entries are editorial drafts pending expert approval."
+        "The library also includes original ALBA editorial proposals, "
+        "which are not official rules or legal authorities. "
+        "All entries remain pending expert review."
     )
     for source in SOURCES:
         with st.expander(source.get("title", "Reference")):
@@ -182,6 +183,19 @@ DOCUMENT_TYPES = {
         "Respekto strukturën e dispozitave dhe terminologjinë normative. "
         "Mos ndrysho kompetenca, subjekt, modalitet detyrimi, afate, "
         "përkufizime ose referenca ligjore; trego çfarë kërkon verifikim."
+    ),
+    "Table of Concordance (ToC)": (
+        "Shqyrto qartësinë e formulimeve të komenteve dhe "
+        "referencave. Mos ndrysho në heshtje citimet e "
+        "dispozitave të BE-së ose të aktit kombëtar. "
+        "Sugjerimet jepi veçmas, pa deklaruar vlerësim "
+        "juridik për shkallën e transpozimit."
+    ),
+    "Memo / internal briefing note": (
+        "Organizo memon me titull të qartë, paragrafë "
+        "tematikë dhe përfundim të shkurtër kur rrjedh "
+        "nga materiali. Shmang përsëritjet dhe mos "
+        "shto rekomandime ose kërkesa të padokumentuara."
     ),
     "Report / information note": (
         "Përdor stil faktik, të qartë dhe të njëtrajtshëm. "
@@ -482,14 +496,16 @@ TEKSTI:
 
 Përgjigju në shqip dhe ruaj kuptimin.
 
-UDHËZIME EDITORIALE NGA MANUALE PUBLIKE:
+UDHËZIME EDITORIALE TË PËRZGJEDHURA NGA BIBLIOTEKA:
 {reference_guidance}
 
 TERMA KANDIDATË PËR KONTROLL:
 {reference_terms}
 
-Këto janë përmbledhje editoriale, jo citime ose dispozita
-detyruese. Mos i trajto si verifikim juridik.
+Këto janë përmbledhje të burimeve publike ose propozime
+origjinale editoriale të ALBA-s, jo citime ose dispozita
+detyruese. Shënimet e ALBA-s nuk janë udhëzime zyrtare.
+Mos i trajto si verifikim juridik.
 Përdor vetëm ID-të R01 etj. kur një rregull realisht
 lidhet me ndryshimin. Nëse një term mbetet i pasigurt,
 kërko kontroll njerëzor. Mos shpik referenca.
@@ -595,8 +611,8 @@ kërko kontroll njerëzor. Mos shpik referenca.
                                     )
                                 )
                                 st.caption(
-                                    "{title} | {loc} | Editorial summary; "
-                                    "expert approval pending".format(
+                                    "{title} | {loc} | Editorial guidance "
+                                    "(not legal authority); approval pending".format(
                                         title=source.get("title", "Source"),
                                         loc=rule.get("source_location", "")
                                     )
@@ -634,8 +650,9 @@ kërko kontroll njerëzor. Mos shpik referenca.
                                 )
 
                     st.warning(
-                        "AI-generated draft. Guidance consists of short "
-                        "paraphrases of public manuals, pending expert review. "
+                        "AI-generated draft. Guidance includes short "
+                        "paraphrases of public sources and original ALBA "
+                        "editorial proposals, all pending expert review. "
                         "No independent legal validity check has been made. "
                         "The 1973 orthography source is historical, not "
                         "a current spelling dictionary. "
