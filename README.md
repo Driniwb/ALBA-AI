@@ -1,10 +1,11 @@
-# ALBA AI 3.2 – Word ToC Builder and literal translation
+# ALBA AI 3.3 – Legal Writing, ToC Builder and Communication Studio
 
 ALBA AI is an experimental assistant for Albanian legal and institutional language.
 
-Two Streamlit pages are available from `streamlit run app.py`:
+Three Streamlit pages are available from `streamlit run app.py`:
 
 - **ALBA language editor:** existing text editor with source-traceable writing guidance.
+- **Communication Studio:** create, review or adapt Albanian public communication in Press & Media (press release, press statement), Newsletter & Web (newsletter, website article) and Social Media (Instagram, LinkedIn, Facebook, X).
 - **ToC Builder:** upload a *public or synthetic* English-language EU directive (text PDF or DOCX), select up to three articles, and download a **seven-column Word Table of Concordance**. A public-source synthetic template is included; the user can upload a blank 7-column DOCX to preserve the exact desired structure and style.
 
 The ToC Builder has two distinct modes:
@@ -32,3 +33,27 @@ python -m unittest discover -s tests -v
 ```
 
 The optional `ToC Word proof of concept` workflow on the original development branch also checks source extraction against a public archive of Directive 2008/68/EC; it does not certify legal-language fidelity.
+
+## Communication Studio (ALBA 3.3)
+
+The new sidebar page `pages/2_Communication_Studio.py` uses two **separate** reference layers:
+
+- `reference_library/communication_sources.csv`: 11 publicly accessible official or publisher guidance pages (European Commission, OECD, GDS/GOV.UK, Mailchimp and X) and GIZ public newsroom examples. Sources are categorised as official public guidance, vendor guidance, platform information or **illustrative examples only**. GIZ public examples **are not** an endorsement or an internal GIZ style guide.
+- `reference_library/communication_rules.csv`: ALBA's **C01–C30 editorial syntheses** with format mappings, source IDs, review status and original synthetic Albanian examples. They are not quotations or legally binding rules from the named organisations.
+- `reference_library/rules.csv`: selected existing Albanian-writing R-rules (including the caveat that the spelling source from 1973 is historical, not a present-day official dictionary).
+
+Each format activates only its relevant C-rules, never the full C01–C30 list. User may select **Create**, **Review**, or **Adapt**, with an organisation, audience, objective, and optional description of visual content. An editable response is displayed with a publishing section and a separate verification section. The published content can be downloaded as a TXT file or reused as input for another communication format **within the same Streamlit session**. The tool **does not** post to social accounts, send newsletters, save uploads or require external app logins.
+
+The AI uses the **existing Cloudflare Workers AI configuration** and requests are transmitted only after an explicit Generate action; never during page load. Do not input personal data, unpublished government or development partner documents, or confidential material. The generated text is **not approved for publication**: facts, dates, quotations, donor acknowledgement, links, consent and organisation-specific approval requirements still require human verification.
+
+Automated editorial warning checks are intentionally limited: newly introduced numerals or URLs, possible unattributed quoted passages, lack of newsletter subject/preview text, and a simple 280-character length check for standard X posts. A successful warning check does not establish factual accuracy. X URL weighting and account-specific length allowances can differ from the simple check.
+
+### Verification
+
+```bash
+python -m pip install -r requirements.txt 'reportlab>=4.0'
+python -m unittest discover -s tests -v
+streamlit run app.py
+```
+
+This work extends ALBA's communication drafting only. The existing legal editor and legal ToC translation workflows remain separate.
