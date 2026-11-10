@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 MAX_UNCOMPRESSED_BYTES = 18 * 1024 * 1024
 MAX_PDF_PAGES = 35
+MAX_PUBLIC_LEGAL_PDF_PAGES = 180
 MAX_ATTACHMENT_TEXT = 10000
 SUPPORTED = {".txt", ".md", ".docx", ".pdf"}
 
@@ -87,6 +88,25 @@ CONFIDENTIAL = re.compile(
     r"dokument\s+i\s+brendshëm)\b",
     re.IGNORECASE,
 )
+# Public acts discuss confidentiality, health, and privacy as legal concepts.
+# Treat such vocabulary as non-sensitive ONLY in the public-law workflow.
+# Explicit classification markers and filled patient fields remain forbidden.
+CLASSIFICATION_LABEL = re.compile(
+    r"(?im)^\\s*(?:(?:strictly\\s+confidential|for\\s+internal\\s+use\\s+only|"
+    r"vetëm\\s+për\\s+përdorim\\s+të\\s+brendshëm|"
+    r"konfidenciale?\\s*(?:[-–]\\s*(?:draft|projekt|i\\s+brendshëm))?|"
+    r"confidential\\s+(?:draft|document|report|memo|note))\\s*"
+    r"|(?:classification|klasifikimi)\\s*[:=-]\\s*"
+    r"(?:confidential|konfidencial|secret|sekret))\\s*$",
+    re.IGNORECASE,
+)
+PRIVATE_CASE_LABEL = re.compile(
+    r"(?im)^\\s*(?:patient\\s+(?:record|name)|medical\\s+record|"
+    r"kartelë\\s+mjekësore|diagnoz[ëa]|date\\s+of\\s+birth|datëlindja)"
+    r"\\s*[:=]\\s*\\S+",
+    re.IGNORECASE,
+)
+
 SENSITIVE_HEALTH = re.compile(
     r"\b(?:medical\s+records?|patient\s+record|diagnos(?:is|ed)|"
     r"raport\s+mjekësor|kartelë\s+mjekësore|"
@@ -118,6 +138,7 @@ class AttachmentResult:
     blocked: bool
     text: str = ""
     reason: str = ""
+    warning: str = ""
 
 
 def _valid_card(number: str) -> bool:
@@ -135,35 +156,40 @@ def _valid_card(number: str) -> bool:
     return total % 10 == 0
 
 
-def scan_text(text: str) -> ScanResult:
-    """Screen without exposing matches, offsets, substrings or raw PII."""
+def scan_text(text: str, *, public_legal: bool = False) -> ScanResult:
+    """Screen without exposing matches; allow normative vocabulary in public acts.
+
+    Public-law mode is only for declared, published legislation. It relaxes
+    *topic words*, not credential, personal-identifier or classification checks.
+    """
     if not isinstance(text, str):
         return ScanResult(True, "uninspectable_text")
     if not text:
         return ScanResult(False)
+    hard_patterns = (
+        EMAIL, AL_NID, IBAN, PERSONAL_PHONE, LABELED_ID,
+        LABELED_PERSON, PERSONAL_FINANCE, CREDENTIALS,
+        PRIVATE_KEY_BLOCK, LABELED_ADDRESS,
+    )
     if (
-        EMAIL.search(text)
-        or AL_NID.search(text.upper())
-        or IBAN.search(text.upper())
-        or PERSONAL_PHONE.search(text)
-        or LABELED_ID.search(text)
-        or LABELED_PERSON.search(text)
-        or PERSONAL_FINANCE.search(text)
-        or CREDENTIALS.search(text)
-        or PRIVATE_KEY_BLOCK.search(text)
-        or CONFIDENTIAL.search(text)
-        or SENSITIVE_HEALTH.search(text)
-        or LABELED_ADDRESS.search(text)
+        any(pattern.search(text.upper() if pattern in (AL_NID, IBAN) else text)
+            for pattern in hard_patterns)
+        or CLASSIFICATION_LABEL.search(text)
     ):
+        return ScanResult(True, "sensitive_pattern")
+    if public_legal:
+        if PRIVATE_CASE_LABEL.search(text):
+            return ScanResult(True, "sensitive_pattern")
+    elif CONFIDENTIAL.search(text) or SENSITIVE_HEALTH.search(text):
         return ScanResult(True, "sensitive_pattern")
     if any(_valid_card(m.group()) for m in CARD_CANDIDATE.finditer(text)):
         return ScanResult(True, "financial_identifier")
     return ScanResult(False)
 
 
-def scan_text_fields(*fields: str) -> ScanResult:
+def scan_text_fields(*fields: str, public_legal: bool = False) -> ScanResult:
     for field in fields:
-        result = scan_text(field)
+        result = scan_text(field, public_legal=public_legal)
         if result.blocked:
             return result
     return ScanResult(False)
@@ -188,22 +214,32 @@ def _pdf_has_images(page) -> bool:
     return False
 
 
-def _read_pdf(data: bytes) -> str:
+def _read_pdf(data: bytes, *, public_legal: bool = False) -> tuple[str, bool]:
+    """Extract PDF text only. Graphics never reach the AI model.
+
+    A public legal PDF may contain a logo, stamp or diagram. Its readable
+    text is still extractable; clearly warn that images/figures are omitted.
+    Image-only, encrypted, textless pages are never accepted.
+    """
     from pypdf import PdfReader
     reader = PdfReader(BytesIO(data), strict=False)
     if reader.is_encrypted:
         raise ValueError("encrypted")
-    if not reader.pages or len(reader.pages) > MAX_PDF_PAGES:
+    max_pages = MAX_PUBLIC_LEGAL_PDF_PAGES if public_legal else MAX_PDF_PAGES
+    if not reader.pages or len(reader.pages) > max_pages:
         raise ValueError("invalid_page_count")
     text_parts = []
+    has_images = False
     for page in reader.pages:
-        if _pdf_has_images(page):
+        contains_images = _pdf_has_images(page)
+        if contains_images and not public_legal:
             raise ValueError("images_not_inspectable")
         text = page.extract_text() or ""
         if not text.strip():
             raise ValueError("textless_page")
         text_parts.append(text)
-    return "\n\n".join(text_parts)
+        has_images = has_images or contains_images
+    return "\n\n".join(text_parts), has_images
 
 
 def _read_docx(data: bytes) -> str:
@@ -249,11 +285,18 @@ def _read_docx(data: bytes) -> str:
         return result
 
 
-def screen_upload(filename: str, data: bytes, *, max_chars: int = MAX_ATTACHMENT_TEXT) -> AttachmentResult:
-    """Screen supported attachments in memory before any AI request/preview.
+def screen_upload(
+    filename: str,
+    data: bytes,
+    *,
+    max_chars: int = MAX_ATTACHMENT_TEXT,
+    public_legal: bool = False,
+) -> AttachmentResult:
+    """Screen uploaded text, with a dedicated public normative-act workflow.
 
-    Block unsupported types, unscannable PDFs or DOCXs with embedded images.
-    Never return extracted text for blocked documents.
+    Public-law mode requires explicit user declaration in the calling UI.
+    Every byte stays in Streamlit's upload processing; only extracted and
+    screened TEXT can be submitted to the model, never embedded images.
     """
     if not isinstance(filename, str) or not isinstance(data, bytes):
         return AttachmentResult(True, reason="invalid_upload")
@@ -264,39 +307,67 @@ def screen_upload(filename: str, data: bytes, *, max_chars: int = MAX_ATTACHMENT
         return AttachmentResult(True, reason="unsupported_extension")
     if scan_text(filename).blocked:
         return AttachmentResult(True, reason="filename")
+    warning = ""
     try:
         if extension in {".txt", ".md"}:
-            if b"\x00" in data:
+            if b"\\x00" in data:
                 raise ValueError("binary")
             text = data.decode("utf-8-sig")
         elif extension == ".pdf":
             if not data.startswith(b"%PDF-"):
                 raise ValueError("invalid_pdf")
-            text = _read_pdf(data)
+            text, has_images = _read_pdf(data, public_legal=public_legal)
+            if has_images:
+                warning = (
+                    "PDF has images or graphics that ALBA did not read. "
+                    "Only extracted text will be used; verify figures and annexes."
+                )
         else:
             if not data.startswith(b"PK"):
                 raise ValueError("invalid_docx")
             text = _read_docx(data)
         if len(text) > max_chars:
             return AttachmentResult(True, reason="too_much_text")
-        if scan_text(text).blocked:
+        if scan_text(text, public_legal=public_legal).blocked:
             return AttachmentResult(True, reason="sensitive_pattern")
-        return AttachmentResult(False, text=text)
+        return AttachmentResult(False, text=text, warning=warning)
     except Exception:
-        # Parsing failure is a block, never a partial/unscreened success.
-        # Error details may contain identifiers and are deliberately hidden.
         return AttachmentResult(True, reason="uninspectable_file")
 
 
-def combine_safe_text(*parts: str, max_chars: int = MAX_ATTACHMENT_TEXT) -> str:
-    """Fail closed if submitted text is unsafe or exceeds the model bound."""
+def combine_safe_text(
+    *parts: str, max_chars: int = MAX_ATTACHMENT_TEXT, public_legal: bool = False
+) -> str:
+    """Join only screened text; prohibit silent truncation."""
     for p in parts:
-        if scan_text(p).blocked:
+        if scan_text(p, public_legal=public_legal).blocked:
             raise ValueError(BLOCK_NOTICE_SQ)
     text = "\n\n".join(p.strip() for p in parts if p and p.strip())
     if len(text) > max_chars:
         raise ValueError(
-            "Materiali i bashkuar është shumë i gjatë për analizën e sigurt. "
-            "Përdorni një fragment më të shkurtër."
+            "Materiali i përzgjedhur është shumë i gjatë për një kërkesë AI. "
+            "Zgjidhni nenet ose fragmentin për analizë."
         )
     return text
+
+
+def upload_block_message(reason: str) -> str:
+    """Share a useful category, never a sensitive match or excerpt."""
+    guidance = {
+        "too_much_text": (
+            "Dokumenti është më i gjatë se kufiri i përpunimit. "
+            "Përdorni një akt ose fragment më të shkurtër."
+        ),
+        "file_size": (
+            "Dokumenti tejkalon kufirin 4 MB ose është bosh. "
+            "Ngarkoni një version më të vogël të aktit publik."
+        ),
+        "uninspectable_file": (
+            "PDF/DOCX nuk mund të lexohet plotësisht: mund të jetë i skanuar, "
+            "i enkriptuar, me faqe pa tekst ose me format të pambështetur. "
+            "Përdorni PDF me tekst të përzgjedhshëm ose DOCX/TXT."
+        ),
+        "sensitive_pattern": BLOCK_NOTICE,
+        "filename": BLOCK_NOTICE,
+    }
+    return guidance.get(reason, BLOCK_NOTICE)
