@@ -16,6 +16,7 @@ from ui_theme import apply_theme
 
 from communication_studio import (
     FORMATS,
+    SOCIAL_STYLES,
     build_messages,
     extract_publishable_text,
     generate_communication,
@@ -79,6 +80,20 @@ st.caption(
     "To create, provide verified facts. To review or adapt, paste an existing draft. "
     "ALBA writes the resulting content in Albanian."
 )
+
+style_id = "standard"
+if group == "Social Media":
+    style_id = st.selectbox(
+        "4. Post style",
+        options=list(SOCIAL_STYLES),
+        format_func=lambda item: SOCIAL_STYLES[item]["label"],
+        help=(
+            "Elevator pitch prioritises a strong opening, a grounded value "
+            "statement and a next step only when the facts support one. "
+            "Elevated editorial is more refined and understated."
+        ),
+        key="comm_post_style",
+    )
 
 col1, col2 = st.columns(2)
 with col1:
@@ -175,6 +190,7 @@ payload_state = {
     "audience": audience,
     "objective": objective,
     "tone": tone,
+    "style_id": style_id,
     "visual": visual,
 }
 fingerprint = hashlib.sha256(
@@ -209,6 +225,7 @@ if st.button("Generate content", type="primary"):
                     visual_description=visual,
                     communication_rules=rules,
                     albanian_rules=albanian,
+                    style_id=style_id,
                 )
                 with st.spinner("Preparing the Albanian draft..."):
                     output = generate_communication(messages, account, token)
