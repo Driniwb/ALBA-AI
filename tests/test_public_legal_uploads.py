@@ -4,6 +4,8 @@ All documents are synthetic. No private contacts or real official documents.
 """
 from io import BytesIO
 import unittest
+from pathlib import Path
+from streamlit.testing.v1 import AppTest
 
 from docx import Document
 from reportlab.pdfgen import canvas
@@ -93,6 +95,26 @@ class PublicLegalUploadTests(unittest.TestCase):
         for value in samples:
             with self.subTest(kind=value.split(":")[0]):
                 self.assertTrue(scan_text(value, public_legal=True).blocked)
+
+    def test_legal_page_uses_one_consent_and_accepts_public_normative_terms(self):
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / "pages" / "3_Legal_Drafting.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertEqual(len(app.checkbox), 1)
+        self.assertIn("public legal act", app.checkbox[0].label)
+        app.text_area[0].set_value(LEGAL_TEXT).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertEqual(len(app.error), 0)
+
+    def test_law_filename_with_confidential_topic_is_allowed(self):
+        public_law = screen_upload(
+            "Ligji per te dhenat konfidenciale.docx",
+            docx_bytes(LEGAL_TEXT),
+            public_legal=True,
+        )
+        self.assertFalse(public_law.blocked, public_law.reason)
 
     def test_published_docx_with_legal_vocabulary_passes(self):
         document = docx_bytes(LEGAL_TEXT, "Neni 4: Autoriteti ruan konfidencialitetin.")
