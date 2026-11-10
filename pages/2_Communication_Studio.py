@@ -33,11 +33,7 @@ st.set_page_config(
 )
 apply_theme("COMM")
 st.title("Communication Studio")
-st.caption("Institutional communications · EU reporting · Albanian and English drafts")
-st.warning(
-    "Editorial prototype. Use public or synthetic materials only. "
-    "Do not enter personal, confidential or internal information."
-)
+st.caption("Public materials only · Review before publishing.")
 
 @st.cache_data(show_spinner=False)
 def cached_library():
@@ -78,10 +74,7 @@ mode = st.radio(
     horizontal=True,
     key="comm_mode",
 )
-st.caption(
-    "To create, provide verified facts. To review or adapt, paste an existing draft. "
-    "Public communications are drafted in Albanian. EU reporting can be in English or Albanian."
-)
+
 
 output_language = "sq"
 if group == "EU Communication & Reporting":
@@ -295,7 +288,6 @@ if (group == "Social Media" and st.session_state.get("comm_bundle_key") == finge
         st.stop()
     st.divider()
     st.subheader("Social-media campaign drafts")
-    st.caption("One source, four platform-specific posts. Review all facts before publication.")
     tabs = st.tabs(["Instagram", "LinkedIn", "Facebook", "X"])
     combined = []
     for panel, platform, label in zip(
@@ -356,10 +348,7 @@ if (
         for flag in flags:
             st.write("• " + flag)
     else:
-        st.info(
-            "No issues were flagged by automated checks. This does not verify facts, "
-            "terminology or approval for publication."
-        )
+        st.caption("No automated issues detected. Verify facts before publishing.")
     if format_id == "x" and extracted:
         st.caption(
             f"X post length: {len(extracted)} / 280 characters (URL weighting may differ)."
