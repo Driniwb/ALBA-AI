@@ -30,7 +30,7 @@ class WordTocProof(unittest.TestCase):
             [r.reference for r in rows],
             ["Introductory text / recitals", "Article 1", "Article 2", "ANNEX I"],
         )
-        self.assertEqual("\n".join(r.text for r in rows), text.rstrip("\n"))
+        self.assertEqual("\n".join(r.text for r in rows), text)
         self.assertIn("(a) Text must remain unchanged.", rows[1].text)
 
     def test_word_source_and_word_output(self):
