@@ -84,8 +84,12 @@ def create_toc_using_template(
     table.rows[0].cells[0].paragraphs[0].text = directive_title
     right = table.rows[0].cells[2]
     for paragraph in right.paragraphs:
-        if paragraph.text.strip().startswith("Shkalla e përputhshmërisë:"):
-            paragraph.text = "Shkalla e përputhshmërisë: [për vlerësim juridik]"
+        if "Shkalla e përputhshmërisë:" in paragraph.text:
+            paragraph.text = re.sub(
+                r"Shkalla e përputhshmërisë:\s*F\s*\(e plotë\)",
+                "Shkalla e përputhshmërisë: [për vlerësim juridik]",
+                paragraph.text,
+            )
     # Do not imply that F/P/N/N/A or national references have been decided.
     out = BytesIO()
     doc.save(out)
