@@ -121,6 +121,8 @@ if (
     or (template_file_check is not None and template_file_check.blocked)
     or scan_text_fields(title).blocked
 ):
+    st.session_state.pop("toc_translations", None)
+    st.session_state.pop("toc_checks", None)
     st.error(BLOCK_NOTICE_SQ)
     st.stop()
 
