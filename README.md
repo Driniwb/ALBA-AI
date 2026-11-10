@@ -2,9 +2,10 @@
 
 ALBA is an experimental assistant for Albanian legal and institutional language.
 
-Launch `streamlit run app.py` for four named pages:
+Launch `streamlit run app.py` for five named pages:
 
 - **Writing Assistant:** existing text editor with source-traceable writing guidance.
+- **EU Communication & Reporting:** dedicated sidebar page for Information Note, Administrative Capacity Note, Benchmark/Acquis Progress Report, Negotiating Position section and Reply to the European Commission, in English or Albanian.
 - **Legal Drafting:** create, minimally amend, review or draft literal-first acquis approximations for four distinct Albanian normative act types (law, Council of Ministers decision, ministerial instruction, regulation).
 - **Communication Studio:** create, review or adapt Albanian public communication in Press & Media (press release, press statement), Newsletter & Web (newsletter, website article) and Social Media (Instagram, LinkedIn, Facebook, X), plus five EU Communication & Reporting formats (English or Albanian). One button can generate separate drafts for all four social channels.
 - **ToC Builder:** upload a *public or synthetic* English-language EU directive (text PDF or DOCX), select from one to eight articles, and download a **seven-column Word Table of Concordance**. A public-source synthetic template is included; the user can upload a blank 7-column DOCX to preserve the exact desired structure and style.
@@ -119,3 +120,32 @@ Public-media C-rules and historic Albanian editorial rules are not applied to th
 ### QA and release
 
 Run `python -m unittest discover -s tests -v` and check each Streamlit page. Unit tests use only synthetic fixtures and mocked calls; they validate prompt routing and UI smoke cases, **not** the legal accuracy or quality of live model-generated drafts. The new modules are developed in `feature/legal-drafting-eu-reporting-social-bundle` and should remain distinct from `main` until CI and human review pass.
+
+## Automatic multi-model legal and EU reporting review (experimental)
+
+Legal Drafting and EU Communication & Reporting include a single **Run ALBA independent review** button after a draft has been created. The user does **not** select Gemini, Nemotron, or both. `review_risk()` and `select_review_plan()` in `multi_model_review.py` route automatically based on document type, risks, length, and configured API credentials:
+
+- Legal transposition and amendments, or long/complex legal texts, are considered higher risk. If both providers are configured, ALBA obtains two independent source-based reviews from **NVIDIA Nemotron 3 Ultra** (OpenRouter model ID `nvidia/nemotron-3-ultra-550b-a55b:free`) and **Google Gemini 2.5 Flash**.
+- Detailed EU reporting about administrative capacities, negotiating positions, progress against benchmarks, and Commission replies can receive two independent reviews when both are configured. Simpler Information Notes normally use one.
+- If only one eligible key is configured, ALBA uses that provider. If a provider is rate-limited, the successful independent review remains visible; there is **no paid model fallback** or automatic extra provider substitution.
+- If proposed corrections are returned, ALBA shows them as **Alternative formulations for expert decision**, attributed to each reviewer. These are not merged, voted on, applied to the original draft, or represented as certified legal conclusions. A model may return no defensible alternative.
+- The original Cloudflare/Gemma draft flow is unchanged. Independent reviews happen only after a separate explicit click and a checkbox confirming consent to the external processing. No AI processing occurs simply by opening or editing the page.
+
+### Required Streamlit secrets
+
+```toml
+# Existing Cloudflare drafting credentials
+CLOUDFLARE_ACCOUNT_ID = "..."
+CLOUDFLARE_API_TOKEN = "..."
+
+# Optional independent reviewers: configure either or both
+GEMINI_API_KEY = "..."
+GEMINI_FREE_TIER_CONFIRMED = true
+OPENROUTER_API_KEY = "..."
+```
+
+**Admin cost safeguards:** OpenRouter is pinned to a specific model with `:free` pricing. ALBA does not use paid routes or an unpinned `openrouter/free` router. Gemini is enabled only if the application administrator explicitly sets `GEMINI_FREE_TIER_CONFIRMED=true`, indicating that the API key belongs to a free-tier project. **Google does not provide a way for this prototype to enforce account billing limits**; the admin must validate the project's billing configuration. Free endpoints have rate limits and can change or disappear. Never store keys in GitHub or paste them into public content.
+
+**Privacy:** Gemini free-tier prompts/outputs may be used by Google to improve products. Nemotron's free endpoint on OpenRouter also states that content is logged for security and improvement purposes and prohibits confidential or personal submissions. The ALBA pilot therefore supports **only public or synthetic information**, with local heuristic screening and affirmative provider-sharing consent. These checks are not a confidentiality guarantee. Human review of citations, legal authorizations, drafting fidelity, FTE, annex references, adoption status and institutional approval remains essential.
+
+**Testing:** The suite includes mocked provider calls, dynamic risk routing, explicit consent and page imports, invalid/truncated response rejection, quota failure handling, a no-paid-fallback model assertion and conditional alternative wording. CI does **not** perform live Gemini or OpenRouter requests and does not certify their legal accuracy. Test with public/synthetic documents only.
