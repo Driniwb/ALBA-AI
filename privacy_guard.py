@@ -206,7 +206,7 @@ def _read_docx(data: bytes) -> str:
                 raise ValueError("decompression_risk")
             lower = m.filename.lower()
             if (
-                lower.startswith(("word/media/", "word/embeddings/", "word/activeX/"))
+                lower.startswith(("word/media/", "word/embeddings/", "word/activex/"))
                 or lower.endswith((".bin", ".exe", ".js", ".vbs"))
             ):
                 raise ValueError("embedded_media_or_code")
@@ -265,8 +265,9 @@ def screen_upload(filename: str, data: bytes, *, max_chars: int = MAX_ATTACHMENT
         if scan_text(text).blocked:
             return AttachmentResult(True, reason="sensitive_pattern")
         return AttachmentResult(False, text=text)
-    except (UnicodeDecodeError, ValueError, BadZipFile, ET.ParseError, KeyError,
-            TypeError, AttributeError, IndexError, OverflowError):
+    except Exception:
+        # Parsing failure is a block, never a partial/unscreened success.
+        # Error details may contain identifiers and are deliberately hidden.
         return AttachmentResult(True, reason="uninspectable_file")
 
 
