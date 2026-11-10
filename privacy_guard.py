@@ -54,6 +54,21 @@ LABELED_ID = re.compile(
     r"\s*[:=#-]\s*\S{2,}",
     re.IGNORECASE,
 )
+LABELED_PERSON = re.compile(
+    r"(?im)^\s*(?:full\s+name|first\s+and\s+last\s+name|"
+    r"name|surname|last\s+name|emri|mbiemri|"
+    r"emri\s+dhe\s+mbiemri|datëlindja|date\s+of\s+birth)"
+    r"\s*[:=#-]\s*\S{2,}",
+    re.IGNORECASE,
+)
+PERSONAL_FINANCE = re.compile(
+    r"\b(?:my\s+(?:salary|bank\s+account)|"
+    r"paga\s+ime|llogaria\s+ime\s+bankare|"
+    r"account\s+number|bank\s+account\s+number|"
+    r"numri\s+i\s+llogarisë\s+bankare)"
+    r"\s*[:#-]?\s*[\w\d€$]{3,}",
+    re.IGNORECASE,
+)
 CREDENTIALS = re.compile(
     r"\b(?:api[_ -]?key|secret[_ -]?key|password|fjalëkalim|"
     r"authorization|bearer\s+token|access[_ -]?token|private[_ -]?key)"
@@ -132,6 +147,8 @@ def scan_text(text: str) -> ScanResult:
         or IBAN.search(text.upper())
         or PERSONAL_PHONE.search(text)
         or LABELED_ID.search(text)
+        or LABELED_PERSON.search(text)
+        or PERSONAL_FINANCE.search(text)
         or CREDENTIALS.search(text)
         or PRIVATE_KEY_BLOCK.search(text)
         or CONFIDENTIAL.search(text)
