@@ -25,17 +25,17 @@ class QuietUiTests(unittest.TestCase):
                 )
                 self.assertLessEqual(len(app.info), 1)
 
-    def test_chat_keeps_a_short_privacy_disclosure_not_an_intro_banner(self):
+    def test_chat_is_simple_without_dropping_input_screening(self):
         source = (ROOT / "pages/5_Chat_Workspace.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn("Public or synthetic content only", source)
-        self.assertIn("Sending a message shares it with Cloudflare", source)
-        self.assertNotIn(
-            "Do not paste confidential government drafts", source
-        )
-        self.assertIn("History saved in this browser only", source)
-        self.assertIn("Browser saving unavailable", source)
+        self.assertNotIn("Public or synthetic content only", source)
+        self.assertNotIn("Sending a message shares it with Cloudflare", source)
+        self.assertNotIn("Connection settings", source)
+        self.assertIn("scan_text_fields(pending, public_legal=True)", source)
+        self.assertIn("Attach a public document", source)
+        self.assertIn("Move to project", source)
+        self.assertIn("save_browser_history(", source)
 
     def test_critical_safety_logic_remains_in_place(self):
         pages = {
