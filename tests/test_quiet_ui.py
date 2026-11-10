@@ -46,7 +46,7 @@ class QuietUiTests(unittest.TestCase):
                 "scan_text_fields(", "confirm = st.checkbox(",
             ),
             "pages/2_Communication_Studio.py": (
-                "scan_text_fields(", "confirm = st.checkbox(",
+                "scan_text_fields(", "safe = st.checkbox(",
             ),
             "pages/1_ToC_Builder.py": (
                 "screen_upload(", "confirmed = st.checkbox(",
