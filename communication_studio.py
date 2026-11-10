@@ -103,6 +103,37 @@ FORMATS = {
     },
 }
 
+
+SOCIAL_FORMATS = frozenset({"instagram", "linkedin", "facebook", "x"})
+SOCIAL_STYLES = {
+    "standard": {
+        "label": "Platform-appropriate",
+        "instruction": (
+            "Përshtat stilin e zakonshëm me platformën dhe audiencën. "
+            "Përdor formulime konkrete e të natyrshme."
+        ),
+    },
+    "elevator": {
+        "label": "Elevator pitch – concise & compelling",
+        "instruction": (
+            "Përdor një elevator pitch të shkurtër, jo gjuhë shitjeje: "
+            "nis me një ide që tërheq vëmendjen, jep vlerën ose rëndësinë "
+            "reale të informacionit dhe mbyll me një hap tjetër VETËM kur "
+            "burimi e mbështet. Një mesazh qendror, pak fjali të plota. "
+            "Mos ekzagjero ndikimin, mos krijo premtime, fakte ose CTA të shpikura."
+        ),
+    },
+    "elevated": {
+        "label": "Elevated editorial – polished & understated",
+        "instruction": (
+            "Stil editorial i përpunuar, elegant dhe institucional: "
+            "fjali të sakta, ritëm natyror, terminologji e qëndrueshme, "
+            "ton i matur dhe jo pompoz. Shmang klishetë e marketingut, "
+            "superlativat, shkurtimet artificiale dhe emocionet e sajuara."
+        ),
+    },
+}
+
 SYSTEM_PROMPT = """Je redaktor i shqipes standarde dhe i komunikimit publik institucional.
 Shkruaj shqipe natyrale, profesionale dhe të përshtatshme për publikimin e kërkuar.
 Kurrë mos shpik emra, partneritete, financues, data, shifra, përqindje,
@@ -188,6 +219,7 @@ def build_messages(
     visual_description: str,
     communication_rules: list[dict],
     albanian_rules: list[dict],
+    style_id: str = "standard",
 ) -> list[dict[str, str]]:
     if scan_text_fields(
         source_text, organization, audience, objective, visual_description
@@ -195,6 +227,10 @@ def build_messages(
         raise ValueError(BLOCK_NOTICE_SQ)
     if format_id not in FORMATS or mode not in VALID_MODES:
         raise ValueError("Formati ose mënyra e punës është e pavlefshme.")
+    if style_id not in SOCIAL_STYLES:
+        raise ValueError("The selected social-media style is not supported.")
+    if format_id not in SOCIAL_FORMATS and style_id != "standard":
+        raise ValueError("Social-media styles cannot be applied to this format.")
     if not source_text.strip():
         raise ValueError("Duhet të jepni material faktik ose tekst burimor.")
     if len(source_text) > MAX_INPUT_CHARS:
@@ -219,6 +255,7 @@ def build_messages(
         f"DETYRA: {mode_hint}\n"
         f"FORMATI OBJEKTIV: {FORMATS[format_id]['label']}\n"
         f"STRUKTURA: {FORMATS[format_id]['outline']}\n"
+        f"STILI EDITORIAL: {SOCIAL_STYLES[style_id]['instruction'] if format_id in SOCIAL_FORMATS else 'Stil neutral i formatit.'}\n"
         f"ORGANIZATA (vetëm nëse është dhënë): {organization or '[pa të dhëna]'}\n"
         f"AUDIENCA: {audience or '[e papërcaktuar]'}\n"
         f"QËLLIMI: {objective or '[i papërcaktuar]'}\n"

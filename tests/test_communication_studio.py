@@ -5,6 +5,7 @@ import unittest
 
 from communication_studio import (
     FORMATS,
+    SOCIAL_STYLES,
     applicable_rules,
     albanian_editorial_rules,
     build_messages,
@@ -84,6 +85,35 @@ class CommunicationTests(unittest.TestCase):
         self.assertNotIn("C29", messages[1]["content"])
         self.assertIn("R03", messages[1]["content"])
         self.assertIn("Organizata Demo", messages[1]["content"])
+
+    def test_social_elevator_and_elevated_styles_are_applied_only_to_social(self):
+        self.assertEqual(set(SOCIAL_STYLES), {"standard", "elevator", "elevated"})
+        base = dict(
+            format_id="linkedin",
+            mode="adapt",
+            source_text="A verified public transport consultation took place.",
+            organization="Demo",
+            audience="Transport specialists",
+            objective="Share verifiable information",
+            visual_description="",
+            communication_rules=self.rules,
+            albanian_rules=self.albanian,
+        )
+        elevator = build_messages(**base, style_id="elevator")
+        elevated = build_messages(**base, style_id="elevated")
+        self.assertIn("elevator pitch", elevator[1]["content"])
+        self.assertIn("Stil editorial", elevated[1]["content"])
+        self.assertNotEqual(elevator[1]["content"], elevated[1]["content"])
+        for platform in ("instagram", "linkedin", "facebook", "x"):
+            self.assertEqual(len(build_messages(
+                **{**base, "format_id": platform}, style_id="elevator"
+            )), 2)
+        with self.assertRaisesRegex(ValueError, "cannot be applied"):
+            build_messages(
+                **{**base, "format_id": "press_release"}, style_id="elevator"
+            )
+        with self.assertRaisesRegex(ValueError, "not supported"):
+            build_messages(**base, style_id="unrecognized")
 
     def test_input_fails_when_missing_or_invalid_mode(self):
         base = dict(

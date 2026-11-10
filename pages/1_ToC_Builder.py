@@ -18,6 +18,7 @@ from toc_builder import (
 from toc_template import built_in_blank_toc, create_toc_using_template
 from toc_translation import translate_unit, translated_provisions
 from toc_units import first_n_articles
+from toc_language import detect_toc_language
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload
 from ui_theme import apply_theme
 from ui_copy import friendly_error
@@ -36,14 +37,13 @@ st.warning(
     "Use public or synthetic documents only. Do not upload personal, internal or confidential material."
 )
 st.write(
-    "Upload a text-based EU directive in PDF or Word. ALBA extracts individual "
-    "provisions and prepares a seven-column concordance table in Word. "
-    "The Albanian translation is a draft for expert review; national-law mappings "
-    "and compliance assessments stay blank."
+    "Upload a text-based directive in PDF or Word. ALBA identifies the source "
+    "language locally: English is translated into Albanian; Albanian is preserved. "
+    "The seven-column Word ToC leaves national-law mappings and compliance assessments blank."
 )
 
 source = st.file_uploader(
-    "1. Directive in English (text-based PDF or DOCX)",
+    "1. Directive in English or Albanian (text-based PDF or DOCX)",
     type=["pdf", "docx"],
     key="toc_source_file",
 )
@@ -87,11 +87,6 @@ with c2:
             "Large selections may require more manual review and several translation batches."
         ),
     )
-mode = st.radio(
-    "Content of column 2",
-    ["Literal Albanian translation (AI)", "Original text (no translation)"],
-    horizontal=True,
-)
 cleanup = st.checkbox(
     "Clean PDF page markers and line-break artifacts",
     value=True,
@@ -178,18 +173,38 @@ st.dataframe(
 with st.expander("Preview first extracted provision"):
     st.text(units[0].text[:3800])
 
-if mode == "Original text (no translation)":
+source_language = detect_toc_language(units)
+if source_language == "uncertain":
+    st.error(
+        "ALBA could not reliably identify the language of these provisions. "
+        "Use a clearly English- or Albanian-language directive. Mixed-language "
+        "files cannot be processed automatically in this pilot."
+    )
+    st.stop()
+
+if source_language == "sq":
+    st.caption("Albanian source detected. Its wording is preserved without translation.")
+    if not title.strip():
+        st.info("Enter the directive title to enable Word export.")
+        st.stop()
+
     try:
         docx = create_toc_using_template(template_bytes, units, title.strip())
         st.download_button(
-            "Download ToC in Word (original text)",
+            "Download Albanian ToC – Word (.docx)",
             data=docx,
-            file_name="ALBA_ToC_tekst_origjinal_DRAFT.docx",
+            file_name="ALBA_ToC_ALBANIAN_SOURCE_DRAFT.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
     except (ValueError, AssertionError) as error:
         st.error(friendly_error(error, context="toc"))
     st.stop()
+
+if not title.strip():
+    st.info("Enter the directive title before translating or exporting the ToC.")
+    st.stop()
+
+st.caption("English source detected. The selected provisions can be translated into Albanian.")
 
 try:
     api_token = st.secrets.get("CLOUDFLARE_API_TOKEN", "").strip()
@@ -201,7 +216,7 @@ except Exception:
 if not api_token or not account_id:
     st.error(
         "Cloudflare Workers AI is not configured for translation. "
-        "You can still export the ToC with original-language text."
+        "Please check the application configuration before translating."
     )
     st.stop()
 

@@ -37,6 +37,28 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         self.assertEqual(app.text_input[0].value, "")
         self.assertEqual(list(app.selectbox[0].options), [str(n) for n in range(1, 9)])
 
+    def test_toc_mode_selection_removed(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "1_ToC_Builder.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertFalse(any("Content of column 2" in str(x.label) for x in app.radio))
+
+    def test_social_media_style_dropdown(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "2_Communication_Studio.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertFalse(any("Post style" in str(x.label) for x in app.selectbox))
+        app.selectbox[0].set_value("Social Media").run()
+        self.assertEqual(len(app.exception), 0)
+        styles = [x for x in app.selectbox if str(x.label) == "4. Post style"]
+        self.assertEqual(len(styles), 1)
+        self.assertIn("Elevator pitch – concise & compelling", styles[0].options)
+        self.assertIn("Elevated editorial – polished & understated", styles[0].options)
+
     def test_communication_studio_page_loads_without_credentials(self):
         app = AppTest.from_file(
             str(ROOT / "pages" / "2_Communication_Studio.py"),
