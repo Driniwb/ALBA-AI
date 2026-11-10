@@ -131,13 +131,32 @@ with st.sidebar:
         if st.button("Create project", key="alba_create_project"):
             try:
                 store.create_project(owner, project_name)
-                st.session_state["alba_project_name"] = ""
                 st.rerun()
             except ValueError:
                 st.warning("Enter a project name (up to 75 characters).")
 
     projects = store.list_projects(owner)
     names = {p["id"]: p["name"] for p in projects}
+    if projects:
+        with st.expander("Manage existing projects"):
+            project_to_remove = st.selectbox(
+                "Project to remove", [p["id"] for p in projects],
+                format_func=lambda key: names.get(key, "Project"),
+                key="alba_delete_project_selected",
+            )
+            if st.button("Remove project", key="alba_remove_project_start"):
+                st.session_state["alba_remove_project_pending"] = project_to_remove
+            if st.session_state.get("alba_remove_project_pending") == project_to_remove:
+                st.caption(
+                    "Removing a project does not delete its chats; chats move "
+                    "to No project."
+                )
+                if st.button(
+                    "Confirm remove project", key="alba_remove_project_confirm"
+                ):
+                    store.delete_project(owner, project_to_remove)
+                    st.session_state["alba_remove_project_pending"] = None
+                    st.rerun()
     conversations = store.list_conversations(owner)
 
     for chat in conversations[:45]:
