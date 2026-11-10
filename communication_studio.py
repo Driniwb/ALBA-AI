@@ -352,7 +352,7 @@ def qa_flags(source_text: str, output: str, format_id: str) -> list[str]:
         flags.append("Quoted text was not present in the source; verify the quotation.")
     if format_id == "x" and len(content) > 280:
         flags.append(
-            "f"The X post has {len(content)} characters (simple count), "
+            f"The X post has {len(content)} characters (simple count), "
             "above 280 for a standard post. X may count URLs differently."
         )
     if format_id == "newsletter":
