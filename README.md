@@ -253,7 +253,7 @@ recent chat turns. It supports:
   conversation as Markdown for personal review.
 - Source-grounded legal guidance (literal-first transposition, no invented
   institutional evidence). The entire chat stays viewable; the model receives
-  only up to 12 recent turns within a 15,000-character budget.
+  up to 12 recent messages (6 exchanges) within a 15,000-character budget.
 
 ### Persistence and user separation
 
@@ -307,3 +307,43 @@ restart continuity, ownership isolation, project moves and deletions,
 and `tests/test_chat_backend.py` covers multi-turn context, privacy
 preflight, single Cloudflare requests and quota limits. These use synthetic
 materials and mocked network responses, not live model calls.
+
+### Chat Workspace audit update – persistence and restoration
+
+The following safeguards were added after an independent code review:
+
+- **No silent data loss:** when an OIDC-authenticated saved workspace has a
+  configured PostgreSQL database but that database is unavailable, ALBA
+  displays an explicit error and stops chat operations. It does *not* create a
+  misleading temporary conversation in its place.
+- **Stale login prevention:** verified OIDC issuer and subject are required,
+  and the stored OIDC identity token's expiry/not-before/issuance claims are
+  checked at the start of saved-workspace access. Streamlit documents that
+  it does not automatically enforce token expiry.
+- **Transport encryption:** PostgreSQL connections use TLS `sslmode=require`
+  at minimum. Providers supporting `sslmode=verify-full` should use the
+  stronger setting (certificate and host verification). The app does not
+  claim end-to-end or application-level database encryption.
+- **Safer saved metadata:** saved project names, conversation titles and
+  user/assistant exchanges are screened for identifiable/private material.
+- **Manual continuity without a cloud database:** download a **resumable
+  chat backup (.json)** from any existing ALBA Chat Workspace conversation.
+  In a new browser session, use **Restore conversation from backup** to
+  import that file and continue the conversation. The JSON contains no
+  account IDs or credentials. It is not encrypted. Keep downloaded backups
+  private, delete them when no longer needed, and never import files from
+  untrusted sources.
+- **Strict import:** backup files must match the published ALBA JSON schema,
+  have complete alternating conversation exchanges, be no larger than 2 MB,
+  contain at most 300 messages and pass the public/synthetic safety gate.
+  Restores are transactional and create new IDs owned by the current user.
+
+**Deployment status:** Code merge + mocked CI does not activate identity
+provider credentials, provision a database or validate production persistence.
+The prototype remains in temporary mode until a real hosted PostgreSQL and
+default OIDC provider are configured in Streamlit Cloud secrets. A true
+ChatGPT-like automatically resumed history requires that configuration.
+The QA suite now exercises Streamlit chat-input interactions and multi-turn
+context with mocked model responses, in addition to SQLite persistence.
+A live Cloudflare response, real external PostgreSQL failover and actual OIDC
+login are still separate production-acceptance tests.

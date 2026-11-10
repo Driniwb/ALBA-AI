@@ -1,6 +1,7 @@
 """Streamlit chat workspace smoke tests without credentials or external calls."""
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
 
@@ -38,6 +39,52 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertIn("Synthetic EU transport", [
             str(option) for box in app.selectbox for option in box.options
         ])
+
+    def test_real_chat_widget_flow_uses_previous_turns_and_can_reopen(self):
+        """Exercise Streamlit's chat_input, not only a static page render."""
+        class Generated:
+            status_code = 200
+
+            def json(self):
+                return {
+                    "success": True,
+                    "result": {"response": "Annex II requires expert verification."},
+                }
+
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"),
+            default_timeout=25,
+        )
+        app.secrets["CLOUDFLARE_ACCOUNT_ID"] = "DEMO_ACCOUNT"
+        app.secrets["CLOUDFLARE_API_TOKEN"] = "DEMO_TOKEN"
+        app.run()
+        self.assertEqual(len(app.exception), 0)
+        app.checkbox(key="alba_chat_public_confirm").check().run()
+        calls = []
+        def mock_post(url, **kwargs):
+            calls.append(kwargs["json"]["messages"])
+            return Generated()
+
+        with patch("chat_backend.requests.post", side_effect=mock_post):
+            app.chat_input[0].set_value("Check Annex II.").run()
+            self.assertEqual(len(app.exception), 0)
+            self.assertEqual(len(app.chat_message), 2)
+            app.chat_input[0].set_value("Continue that source check.").run()
+            self.assertEqual(len(app.exception), 0)
+            self.assertEqual(len(app.chat_message), 4)
+            self.assertEqual(calls[1][-1]["content"], "Continue that source check.")
+            self.assertTrue(any(
+                "Check Annex II." == m["content"] for m in calls[1]
+            ))
+            app.button(key="alba_new_chat").click().run()
+            self.assertEqual(len(app.exception), 0)
+            self.assertEqual(len(app.chat_message), 0)
+            open_chat = next(
+                x for x in app.button if str(x.key).startswith("alba_open_")
+            )
+            open_chat.click().run()
+            self.assertEqual(len(app.exception), 0)
+            self.assertEqual(len(app.chat_message), 4)
 
     def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
         text = (ROOT / "app.py").read_text(encoding="utf-8")

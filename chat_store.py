@@ -12,8 +12,11 @@ from datetime import datetime, timezone
 import hashlib
 import re
 import sqlite3
+from urllib.parse import urlsplit, parse_qs
 from typing import Iterator
 from uuid import uuid4
+
+from privacy_guard import scan_text_fields
 
 MODES = {
     "general": "General legal and institutional assistant",
@@ -101,8 +104,16 @@ class ChatStore:
         if self.kind == "postgresql":
             import psycopg
             from psycopg.rows import dict_row
+            # Do not silently permit plaintext PostgreSQL connections.
+            # Preserve stronger provider settings (verify-full / verify-ca).
+            sslmode = parse_qs(urlsplit(self.pg_dsn).query).get(
+                "sslmode", ["require"]
+            )[-1]
+            if sslmode not in {"require", "verify-ca", "verify-full"}:
+                raise ValueError("A TLS-protected PostgreSQL connection is required.")
             conn = psycopg.connect(
-                self.pg_dsn, connect_timeout=8, row_factory=dict_row
+                self.pg_dsn, connect_timeout=8, row_factory=dict_row,
+                sslmode=sslmode,
             )
         else:
             conn = sqlite3.connect(
@@ -126,6 +137,12 @@ class ChatStore:
 
     def _execute(self, conn, query: str, args: tuple = ()):
         return conn.execute(self._sql(query), args)
+
+    def healthcheck(self) -> bool:
+        """Verify that the database is reachable before announcing Saved mode."""
+        with self._connect() as db:
+            row = self._execute(db, "SELECT 1 AS available").fetchone()
+            return bool(row and row["available"] == 1)
 
     def initialize(self) -> None:
         message_pk = (
@@ -180,7 +197,8 @@ class ChatStore:
     def create_project(self, owner: str, name: str) -> str:
         _check_owner(owner)
         name = name.strip() if isinstance(name, str) else ""
-        if not name or len(name) > MAX_PROJECT_NAME:
+        if (not name or len(name) > MAX_PROJECT_NAME
+                or scan_text_fields(name, public_legal=True).blocked):
             raise ValueError("A project name of 1–75 characters is required.")
         ident = uuid4().hex
         with self._connect() as db:
@@ -225,7 +243,8 @@ class ChatStore:
         if mode not in MODES:
             raise ValueError("Unsupported conversation type.")
         title = title.strip() if isinstance(title, str) else ""
-        if not title or len(title) > MAX_CHAT_TITLE:
+        if (not title or len(title) > MAX_CHAT_TITLE
+                or scan_text_fields(title, public_legal=True).blocked):
             raise ValueError("Invalid conversation title.")
         ident, now = uuid4().hex, _time()
         with self._connect() as db:
@@ -262,7 +281,8 @@ class ChatStore:
         _check_owner(owner)
         _check_id(conversation_id)
         title = title.strip() if isinstance(title, str) else ""
-        if not title or len(title) > MAX_CHAT_TITLE:
+        if (not title or len(title) > MAX_CHAT_TITLE
+                or scan_text_fields(title, public_legal=True).blocked):
             raise ValueError("Invalid conversation title.")
         with self._connect() as db:
             cur = self._execute(db, """
@@ -314,7 +334,8 @@ class ChatStore:
         _check_id(conversation_id)
         for content in (user_text, assistant_text):
             if (not isinstance(content, str) or not content.strip()
-                    or len(content) > MAX_MESSAGE_CHARS):
+                    or len(content) > MAX_MESSAGE_CHARS
+                    or scan_text_fields(content, public_legal=True).blocked):
                 raise ValueError("Chat messages must be 1–8,500 characters.")
         with self._connect() as db:
             owned = self._execute(db, """
@@ -333,3 +354,29 @@ class ChatStore:
                 UPDATE alba_conversations SET updated_at = ?
                 WHERE id = ? AND owner_key = ?
             """, (now, conversation_id, owner))
+
+    def import_conversation_backup(self, owner: str, payload: dict) -> str:
+        """Atomically restore a sanitized backup under the *current* owner.
+
+        Original DB IDs and identities are deliberately not portable. A
+        failed backup validation or SQL transaction leaves no partial chat.
+        """
+        from chat_backup import validate_backup
+        _check_owner(owner)
+        cleaned = validate_backup(payload)
+        ident, now = uuid4().hex, _time()
+        with self._connect() as db:
+            self._execute(db, """
+                INSERT INTO alba_conversations
+                (id, owner_key, project_id, title, mode, created_at, updated_at)
+                VALUES (?, ?, NULL, ?, ?, ?, ?)
+            """, (
+                ident, owner, cleaned["title"], cleaned["mode"], now, now
+            ))
+            for item in cleaned["messages"]:
+                self._execute(db, """
+                    INSERT INTO alba_messages(
+                        conversation_id, role, content, created_at
+                    ) VALUES (?, ?, ?, ?)
+                """, (ident, item["role"], item["content"], now))
+        return ident
