@@ -442,15 +442,15 @@ if (prompt or retry) and pending:
                         account_id=account, api_token=api_key,
                     )
         except ValueError as exc:
-            # Preserve the user's exact question for a manual retry.
+            # Preserve the exact question and rerender the Retry controls.
             st.session_state["alba_pending_chat_error"] = str(exc)
-            st.error(str(exc))
+            st.rerun()
         except Exception:
             st.session_state["alba_pending_chat_error"] = (
                 "The chat could not complete due to an unexpected service "
                 "problem. Retry this question or test the AI connection."
             )
-            st.error(st.session_state["alba_pending_chat_error"])
+            st.rerun()
         else:
             try:
                 if not active_id:
