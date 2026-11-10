@@ -14,6 +14,7 @@ import re
 from typing import Callable
 
 import requests
+from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields
 
 MODEL = "@cf/google/gemma-4-26b-a4b-it"
 API_ROOT = "https://api.cloudflare.com/client/v4/accounts"
@@ -188,6 +189,10 @@ def build_messages(
     communication_rules: list[dict],
     albanian_rules: list[dict],
 ) -> list[dict[str, str]]:
+    if scan_text_fields(
+        source_text, organization, audience, objective, visual_description
+    ).blocked:
+        raise ValueError(BLOCK_NOTICE_SQ)
     if format_id not in FORMATS or mode not in VALID_MODES:
         raise ValueError("Formati ose mënyra e punës është e pavlefshme.")
     if not source_text.strip():
@@ -274,6 +279,15 @@ def generate_communication(
         raise ValueError("Konfigurimi i Cloudflare Workers AI mungon.")
     if not messages or any(m.get("role") not in {"user", "system"} for m in messages):
         raise ValueError("Kërkesë e pavlefshme.")
+    # Defend against callers that bypass the Streamlit preflight.
+    for item in messages:
+        if item.get("role") == "user":
+            match = re.search(
+                r"<SOURCE>\n(.*?)\n</SOURCE>", item.get("content", ""),
+                flags=re.DOTALL,
+            )
+            if not match or scan_text_fields(match.group(1)).blocked:
+                raise ValueError(BLOCK_NOTICE_SQ)
     client = post or requests.post
     try:
         response = client(
@@ -294,7 +308,10 @@ def generate_communication(
             raise ValueError(
                 f"Cloudflare nuk e përfundoi kërkesën (HTTP {response.status_code})."
             )
-        return extract_ai_text(response.json())
+        generated = extract_ai_text(response.json())
+        if scan_text_fields(generated).blocked:
+            raise ValueError(BLOCK_NOTICE_SQ)
+        return generated
     except requests.exceptions.Timeout as exc:
         raise ValueError("Shërbimi AI nuk u përgjigj në kohë.") from exc
     except requests.exceptions.RequestException as exc:

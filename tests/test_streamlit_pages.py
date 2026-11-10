@@ -50,5 +50,26 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         self.assertEqual(app.session_state["comm_mode"], "adapt")
 
 
+    def test_main_editor_blocks_contact_details_without_echo(self):
+        app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=25).run()
+        app.text_area[0].set_value("Private contact: synthetic.person@example.org").run()
+        self.assertEqual(len(app.exception), 0)
+        messages = [str(item.value) for item in app.error]
+        self.assertTrue(any("ALBA e bllokoi" in item for item in messages))
+        self.assertFalse(any("example.org" in item for item in messages))
+
+    def test_communication_page_blocks_contact_details_without_echo(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "2_Communication_Studio.py"),
+            default_timeout=25,
+        ).run()
+        app.text_area[0].set_value("Person: synthetic.person@example.org").run()
+        self.assertEqual(len(app.exception), 0)
+        messages = [str(item.value) for item in app.error]
+        self.assertTrue(any("ALBA e bllokoi" in item for item in messages))
+        self.assertFalse(any("example.org" in item for item in messages))
+
+
+
 if __name__ == "__main__":
     unittest.main()

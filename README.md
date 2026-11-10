@@ -1,4 +1,4 @@
-# ALBA AI 3.3 – Legal Writing, ToC Builder and Communication Studio
+# ALBA AI 3.4 – Privacy preflight, Attachments, ToC and Communication Studio
 
 ALBA AI is an experimental assistant for Albanian legal and institutional language.
 
@@ -57,3 +57,24 @@ streamlit run app.py
 ```
 
 This work extends ALBA's communication drafting only. The existing legal editor and legal ToC translation workflows remain separate.
+
+
+## Local privacy gate and file attachments (ALBA 3.4)
+
+All three Streamlit modules now use \`privacy_guard.py\` before AI processing:
+- **Legal & Institutional Writing:** pasted text plus optional \`.txt\`, \`.md\`, \`.docx\` or text-based \`.pdf\` supporting document.
+- **ToC Builder:** existing directive PDF/DOCX and optional blank ToC DOCX are screened **before** extracting and showing legal units or calling the translation model.
+- **Communication Studio:** pasted factual brief/draft and an optional text-based file in the same four formats; screened content is used to create, review or adapt the chosen communication type.
+
+Screening is implemented with local Python patterns for possible contacts, emails, Albanian personal IDs, labeled names/birthdates, banking/credit-card numbers, passwords/API secrets, confidential/internal classification markers, personal addresses and certain health-record indicators. It stops the relevant workflow **before** Cloudflare calls and shows a *generic warning only*. AI-generated content is also screened before display and download. There is no bypass toggle in the prototype. The app does not echo matched values, snippets, file text or identifiers in the warning.
+
+### Security and transparency limits
+
+- **The file must be temporarily read by the Streamlit server to be screened.** "No AI processing" means the **blocked input is not transmitted to Cloudflare**; it does **not** mean the hosting platform has never received the uploaded bytes. The standard file uploader itself may display the filename to the submitting user. Do not upload confidential or personal information.
+- Heuristic text patterns **cannot reliably detect every person, sensitive fact or indirect identifier**, and they can flag benign text. This is a precaution, **not a certified GDPR compliance solution, redaction solution, DLP system or guarantee of data confidentiality**.
+- Encrypted, image-only/scanned, password-protected, embedded-image/embedded-object or otherwise uninspectable files are blocked rather than parsed partially. Attachments are limited to 4 MB and inspected locally in memory. Text sent to the AI is bounded per module.
+- File bytes are not intentionally stored in a database or GitHub repository by ALBA. The Streamlit app framework and host receive uploads and may have their own logging and retention practices; these have **not** been independently audited.
+- For the public pilot, users should still use **only public or synthetic examples**, with no identifying details. High-assurance use with confidential government or partner documents would require separate infrastructure, a fuller data-protection assessment, role-based controls, encryption, logging policy and explicit approval.
+- Existing ToC splitting and AI translation remain drafts requiring source-by-source expert verification.
+
+Run tests with \`python -m unittest discover -s tests -v\`. All privacy fixtures are synthetic. The app does not auto-publish communications or send any message.

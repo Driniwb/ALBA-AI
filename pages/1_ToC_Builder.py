@@ -18,6 +18,7 @@ from toc_builder import (
 from toc_template import built_in_blank_toc, create_toc_using_template
 from toc_translation import translate_unit, translated_provisions
 from toc_units import first_n_articles
+from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields, screen_upload
 
 st.set_page_config(
     page_title="ALBA AI – ToC Builder",
@@ -103,6 +104,26 @@ if source is None:
     st.stop()
 if not confirmed:
     st.info("Konfirmoni kushtet e përdorimit për të përpunuar dokumentin.")
+    st.stop()
+
+# Local preflight covers the *entire* document and blank Word template.
+# Uploaded bytes are not sent to Cloudflare. Block files with uninspectable
+# pages, embedded images, sensitive markers or personal identifiers.
+toc_file_check = screen_upload(
+    source.name, source.getvalue(), max_chars=150000
+)
+template_file_check = (
+    screen_upload(template.name, template.getvalue(), max_chars=50000)
+    if template is not None else None
+)
+if (
+    toc_file_check.blocked
+    or (template_file_check is not None and template_file_check.blocked)
+    or scan_text_fields(title).blocked
+):
+    st.session_state.pop("toc_translations", None)
+    st.session_state.pop("toc_checks", None)
+    st.error(BLOCK_NOTICE_SQ)
     st.stop()
 
 try:
@@ -212,6 +233,8 @@ if st.button(
         try:
             with st.spinner("Përkthim: " + unit.reference):
                 result, warnings = translate_unit(unit, account_id, api_token)
+            if scan_text_fields(result).blocked:
+                raise ValueError(BLOCK_NOTICE_SQ)
             translated[unit.reference] = result
             checks[unit.reference] = warnings
         except ValueError as error:
@@ -221,6 +244,12 @@ if st.button(
     st.session_state["toc_translations"] = translated
     st.session_state["toc_checks"] = checks
     st.rerun()
+
+# Do not display previously generated content if it fails a fresh check.
+if any(scan_text_fields(value).blocked for value in translated.values()):
+    st.session_state["toc_translations"] = {}
+    st.error(BLOCK_NOTICE_SQ)
+    st.stop()
 
 reviewed = [u for u in units if translated.get(u.reference)]
 if reviewed:
@@ -236,7 +265,9 @@ if reviewed:
         st.session_state[edit_key] = translated[current]
     edited = st.text_area("Përkthimi në shqip (mund ta korrigjoni)", key=edit_key, height=180)
     if st.button("Ruaj korrigjimin për këtë njësi"):
-        if not edited.strip():
+        if scan_text_fields(edited).blocked:
+            st.error(BLOCK_NOTICE_SQ)
+        elif not edited.strip():
             st.error("Përkthimi nuk mund të jetë bosh.")
         else:
             from toc_translation import translation_warnings
