@@ -52,7 +52,11 @@ if "comm_mode" not in st.session_state:
 if "comm_source" not in st.session_state:
     st.session_state["comm_source"] = ""
 
-GROUPS = ["Press & Media", "Newsletter & Web", "Social Media", "EU Communication & Reporting"]
+# EU reporting has its own dedicated page. Keep one canonical workflow
+# rather than displaying the same five report formats in two modules.
+GROUPS = ["Press & Media", "Newsletter & Web", "Social Media"]
+if st.session_state.get("comm_group") not in GROUPS:
+    st.session_state["comm_group"] = GROUPS[0]
 group = st.selectbox("1. Category", GROUPS, key="comm_group")
 formats = [
     f for f, item in FORMATS.items() if item["group"] == group
@@ -77,12 +81,6 @@ mode = st.radio(
 
 
 output_language = "sq"
-if group == "EU Communication & Reporting":
-    output_language = st.selectbox(
-        "4. Reporting language",
-        ["en", "sq"], key="comm_eu_language",
-        format_func=lambda language: "English" if language == "en" else "Albanian",
-    )
 
 style_id = "standard"
 if group == "Social Media":
