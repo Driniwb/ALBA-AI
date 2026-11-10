@@ -33,8 +33,7 @@ st.title("Communication Studio")
 st.caption("Institutional communications · Albanian-language drafts")
 st.warning(
     "Editorial prototype. Use public or synthetic materials only. "
-    "Do not enter personal, confidential or internal information. "
-    "On Generate, approved input is sent to Cloudflare Workers AI."
+    "Do not enter personal, confidential or internal information."
 )
 
 @st.cache_data(show_spinner=False)
