@@ -28,6 +28,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ALBA-ToC-2008-68-Word-Demo
-          path: artifacts/*.docx
+          path: artifacts/*
           if-no-files-found: ignore
           retention-days: 7
