@@ -2,8 +2,9 @@
 
 ALBA is an experimental assistant for Albanian legal and institutional language.
 
-Launch `streamlit run app.py` for five named pages:
+Launch `streamlit run app.py` for six named pages:
 
+- **Chat Workspace:** ChatGPT-style multi-turn conversations, conversation history, project folders, rename/move/delete/export controls. Guest sessions are temporary; verified sign-in + hosted PostgreSQL enables durable, owner-isolated history.
 - **Writing Assistant:** existing text editor with source-traceable writing guidance.
 - **EU Communication & Reporting:** dedicated sidebar page for Information Note, Administrative Capacity Note, Benchmark/Acquis Progress Report, Negotiating Position section and Reply to the European Commission, in English or Albanian.
 - **Legal Drafting:** create, minimally amend, review or draft literal-first acquis approximations for four distinct Albanian normative act types (law, Council of Ministers decision, ministerial instruction, regulation).
@@ -237,3 +238,72 @@ public or synthetic materials suitable for external model processing.
 Regression coverage: `tests/test_public_document_modules.py`, plus
 `tests/test_public_legal_uploads.py`, validates public-topic vocabulary,
 mocked model generation, UI page loading and private-data blocking.
+
+## Chat Workspace: projects, saved chats and continuing conversations
+
+The new default navigation page is **Chat Workspace**. It reuses the existing
+Cloudflare Workers AI Gemma model to answer follow-up questions with selected
+recent chat turns. It supports:
+
+- **New chat**, **continue previous chat**, named chat history in the sidebar,
+  separate specialist modes (general, legal drafting, EU reporting, communication).
+- **Project folders**: create a project and assign/move conversations to it.
+  Removing a project unassigns its chats; it does not destroy them.
+- Rename chat, delete chat (explicit confirmation), export the visible
+  conversation as Markdown for personal review.
+- Source-grounded legal guidance (literal-first transposition, no invented
+  institutional evidence). The entire chat stays viewable; the model receives
+  only up to 12 recent turns within a 15,000-character budget.
+
+### Persistence and user separation
+
+**Without configuration:** The page is usable immediately for public/synthetic
+conversations in a **temporary, per-browser-session in-memory SQLite database**.
+These chats **are not saved** after session expiry, a reload/server restart,
+or a redeploy. The interface clearly marks Temporary workspace.
+
+**With configuration:** Chat Workspace stores conversations in a **hosted
+PostgreSQL database**, isolated by a pseudonymous owner key derived from
+verified OpenID Connect (OIDC) `issuer + subject` claims. Every read/write,
+project move and deletion checks the owner ID; no raw email or name is saved.
+Only signed-in users access PostgreSQL; unauthenticated guests never read or
+write to that shared database.
+
+1. Provision a TLS-enabled PostgreSQL database, with an account allowed to
+   create the `alba_projects`, `alba_conversations` and `alba_messages`
+   tables. Set `ALBA_DATABASE_URL` in Streamlit Cloud secrets.
+2. Configure an OIDC identity provider, such as Google identity, Microsoft
+   Entra or Auth0. Add the `[auth]` and provider-specific secrets described
+   in `.streamlit/secrets.example.toml`. Register the exact callback URL
+   `https://YOUR-APP.streamlit.app/oauth2callback` with the provider.
+3. Restart the Streamlit app, sign in, and check that Chat Workspace displays
+   **Saved workspace**. Create a conversation; sign out and sign back in to
+   verify you can resume it.
+
+The database URL and OIDC credentials must **never** be committed to GitHub
+or displayed in UI/logs. A `.gitignore` now protects local secrets and
+development database files. Cloud-based local SQLite files are not durable.
+Avoid granting the database user more privileges than needed; enable provider
+backups and at-rest encryption per organizational requirements.
+
+**Security and scope:** This remains a **public/synthetic-only prototype**.
+Heuristic filters block common personal identifiers, contact addresses,
+secrets and classified markers, but cannot prove material is public. Even
+when a durable database is configured, do not use the tool for non-public
+institutional drafts or personal data without a separate confidentiality,
+access-control and retention assessment. Database contents are not
+end-to-end encrypted by ALBA. The prototype does not import older ChatGPT
+chats, nor chats created on other ALBA pages. Those workflows are preserved
+and can be connected to the workspace later.
+
+**Architecture:** `chat_store.py` implements independent storage and
+ownership rules; `chat_backend.py` implements the model/context boundary;
+`pages/5_Chat_Workspace.py` is only the current Streamlit presentation.
+The store and chat service can later be exposed through FastAPI and a React
+interface without rewriting core conversation persistence.
+
+**Offline acceptance tests:** `tests/test_chat_store.py` exercises
+restart continuity, ownership isolation, project moves and deletions,
+and `tests/test_chat_backend.py` covers multi-turn context, privacy
+preflight, single Cloudflare requests and quota limits. These use synthetic
+materials and mocked network responses, not live model calls.
