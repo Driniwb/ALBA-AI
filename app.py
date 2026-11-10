@@ -317,8 +317,7 @@ def revised_section(output):
 
 def consistency_flags(original, revised):
     if not revised:
-        return ["Seksioni i tekstit të rishikuar nuk u identifikua "
-                "automatikisht; bëj krahasim manual."]
+        return ["The revised-text section could not be identified automatically; compare manually."]
 
     flags = []
     numeric = re.compile(r"(?<!\w)\d+(?:[.,/]\d+)*(?!\w)")
@@ -330,7 +329,7 @@ def consistency_flags(original, revised):
         flags.append(
             "Check numbers and dates: removed "
             + (", ".join(sorted(removed_numbers)) or "none")
-            + "; të shtuar "
+            + "; added "
             + (", ".join(sorted(added_numbers)) or "none")
             + "."
         )
