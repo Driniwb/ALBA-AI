@@ -58,42 +58,47 @@ with a:
         format_func=lambda value: FORMATS[value]["label"],
         key="eu_document_type",
     )
-    organisation = st.text_input(
-        "Reporting institution (optional)", max_chars=140,
-        key="eu_institution",
-    )
 with b:
     output_language = st.selectbox(
         "2. Output language", ["en", "sq"],
         format_func=lambda code: "English" if code == "en" else "Albanian",
         key="eu_output_language",
     )
-    audience = st.text_input(
-        "Recipient / audience (optional)", max_chars=160,
-        key="eu_audience",
-    )
 
+# 'Adapt' duplicated 'prepare' when an existing draft was supplied.
+# Preparation now covers a new document or adaptation to the chosen format.
+# Review stays separate because it preserves and critiques the existing draft.
 mode = st.radio(
-    "3. Drafting task",
-    options=["create", "review", "adapt"],
+    "3. What do you want to do?",
+    options=["create", "review"],
     format_func=lambda value: {
-        "create": "Prepare a new document",
+        "create": "Prepare or adapt a document",
         "review": "Review an existing draft",
-        "adapt": "Adapt text to the selected EU reporting format",
     }[value],
     horizontal=True,
     key="eu_mode",
 )
-objective = st.text_input(
-    "Objective / reporting scope (optional)", max_chars=240, key="eu_objective"
-)
+with st.expander("Optional reporting details"):
+    details1, details2 = st.columns(2)
+    with details1:
+        organisation = st.text_input(
+            "Reporting institution", max_chars=140, key="eu_institution",
+        )
+    with details2:
+        audience = st.text_input(
+            "Recipient / audience", max_chars=160, key="eu_audience",
+        )
+    objective = st.text_input(
+        "Objective / reporting scope", max_chars=240, key="eu_objective",
+    )
+
 st.text_area(
     "4. Verified source facts, legislation and operational evidence",
     key="eu_source", height=265, max_chars=8000,
     placeholder=(
         "Provide sourced national measures, adoption / draft status, mandate, "
         "FTE, inspections, periods, outcomes, gaps and confirmed commitments. "
-        "For review or adapt, paste the existing text."
+        "For review, paste the existing draft. For adaptation, include the draft and the requested target."
     ),
 )
 attachment = st.file_uploader(
