@@ -93,6 +93,21 @@ class CommunicationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_messages(**{**base, "format_id":"facebook"}, output_language="en")
 
+    def test_eu_reporting_excludes_public_media_and_historic_language_rules(self):
+        messages = build_messages(
+            format_id="information_note", mode="review",
+            source_text="This is a synthetic public progress report with no private data.",
+            organization="Demo authority", audience="European Commission",
+            objective="Explain evidenced progress", visual_description="",
+            communication_rules=self.rules, albanian_rules=self.albanian,
+            output_language="en",
+        )
+        self.assertIn("REFERENCE APPROACH:", messages[1]["content"])
+        self.assertIn("English", messages[1]["content"])
+        self.assertNotIn("R17:", messages[1]["content"])
+        self.assertNotIn("C01:", messages[1]["content"])
+        self.assertNotIn("Shënim: R17", messages[1]["content"])
+
     def test_social_bundle_generates_four_separate_platform_outputs(self):
         seen = []
         def fake_post(url, **kwargs):
