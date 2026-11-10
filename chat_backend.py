@@ -105,48 +105,116 @@ def prepare_chat_messages(
     ]
 
 
-def generate_chat_reply(
-    *, mode: str, history: list[dict], user_text: str,
-    account_id: str, api_token: str, post: Callable | None = None,
-) -> str:
-    """One request per explicit action, with bounded turns and no retries."""
-    if not account_id or not api_token:
-        raise ValueError("Cloudflare credentials are not configured.")
-    messages = prepare_chat_messages(
-        mode=mode, history=history, user_text=user_text
-    )
+# Both models are in the existing Cloudflare Workers AI account.
+# Use GLM only on a model-specific outage; never bypass authentication/quotas.
+PRIMARY_MODEL = MODEL
+FALLBACK_MODEL = "@cf/zai-org/glm-4.7-flash"
+RETRYABLE_MODEL_STATUS = {404, 500, 502, 503, 504}
+
+
+def _request_cloudflare_chat(*, model: str, messages: list[dict],
+                             account_id: str, api_token: str,
+                             post: Callable | None) -> str:
     try:
         response = (post or requests.post)(
-            f"{API_ROOT}/{account_id}/ai/run/{MODEL}",
+            f"{API_ROOT}/{account_id}/ai/run/{model}",
             headers={
                 "Authorization": f"Bearer {api_token}",
                 "Content-Type": "application/json",
             },
             json={
                 "messages": messages,
-                "chat_template_kwargs": {"enable_thinking": False},
-                "max_tokens": 1700,
+                "chat_template_kwargs": {"enable_thinking": False}
+                if model == PRIMARY_MODEL else {},
+                "max_tokens": 1900,
                 "stream": False,
             },
-            timeout=100,
+            timeout=95,
         )
         if response.status_code != 200:
-            if response.status_code in (429, 503):
+            status = response.status_code
+            if status in {401, 403}:
                 raise ValueError(
-                    "Cloudflare request limit or temporary capacity reached."
+                    "Cloudflare rejected the API credentials (HTTP "
+                    + str(status) + "). Check the existing Cloudflare Account "
+                    "ID and API Token under Streamlit Secrets."
+                )
+            if status == 429:
+                raise ValueError(
+                    "Cloudflare free daily limit or rate limit reached (HTTP 429). "
+                    "Try again after the provider resets the quota."
+                )
+            if status in RETRYABLE_MODEL_STATUS:
+                raise ModelUnavailable(
+                    f"Cloudflare model unavailable (HTTP {status})."
+                )
+            if status in {400, 413, 422}:
+                raise ValueError(
+                    f"Cloudflare rejected this request (HTTP {status}). "
+                    "Try a shorter question or a new chat."
                 )
             raise ValueError(
-                f"Cloudflare could not complete the chat (HTTP {response.status_code})."
+                f"Cloudflare chat failed (HTTP {status})."
             )
-        reply = extract_ai_text(response.json())
+        payload = response.json()
+        reply = extract_ai_text(payload)
         if len(reply) > MAX_MESSAGE_CHARS:
-            raise ValueError("AI reply exceeds the saved-chat limit.")
+            raise ValueError("AI reply is too long for a saved chat.")
         if scan_text_fields(reply, public_legal=True).blocked:
             raise ValueError(BLOCK_NOTICE_SQ)
         return reply
     except requests.exceptions.Timeout as exc:
-        raise ValueError("Chat request timed out.") from exc
+        raise ValueError("Cloudflare did not respond before the timeout.") from exc
     except requests.exceptions.RequestException as exc:
-        raise ValueError("Cloudflare could not be reached.") from exc
+        raise ValueError("Unable to reach Cloudflare. Check the connection.") from exc
     except (TypeError, KeyError) as exc:
-        raise ValueError("AI response could not be parsed.") from exc
+        raise ValueError("Cloudflare response could not be parsed.") from exc
+
+
+class ModelUnavailable(Exception):
+    """Only model-outage errors trigger a free in-account fallback."""
+
+
+def generate_chat_reply(
+    *, mode: str, history: list[dict], user_text: str,
+    account_id: str, api_token: str, post: Callable | None = None,
+) -> str:
+    """One user action, with one optional fallback for model outages only.
+
+    The model fallback uses the same Cloudflare credentials and is NEVER
+    attempted on access denial, rate limits, malformed prompts or privacy
+    blocks. No paid external API, retry loops or hidden rerouting.
+    """
+    if not isinstance(account_id, str) or not account_id.strip():
+        raise ValueError("Cloudflare Account ID is not configured.")
+    if not isinstance(api_token, str) or not api_token.strip():
+        raise ValueError("Cloudflare API Token is not configured.")
+    messages = prepare_chat_messages(
+        mode=mode, history=history, user_text=user_text
+    )
+    try:
+        return _request_cloudflare_chat(
+            model=PRIMARY_MODEL, messages=messages,
+            account_id=account_id, api_token=api_token, post=post,
+        )
+    except ModelUnavailable:
+        try:
+            return _request_cloudflare_chat(
+                model=FALLBACK_MODEL, messages=messages,
+                account_id=account_id, api_token=api_token, post=post,
+            )
+        except ModelUnavailable as exc:
+            raise ValueError(
+                "Both Cloudflare chat models are unavailable. "
+                "Try again later without losing your question."
+            ) from exc
+
+
+def check_chat_connection(*, account_id: str, api_token: str,
+                          post: Callable | None = None) -> str:
+    """User-initiated synthetic probe; no document or private data sent."""
+    return generate_chat_reply(
+        mode="general", history=[],
+        user_text="This is a synthetic connectivity test. Reply only: ALBA OK.",
+        account_id=account_id, api_token=api_token, post=post,
+    )
