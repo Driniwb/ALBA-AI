@@ -14,7 +14,8 @@ import streamlit as st
 from chat_backend import (
     MAX_USER_CHARS, generate_chat_reply, prepare_chat_messages,
 )
-from chat_store import ChatStore, MODES, owner_key_from_oidc
+from chat_store import ChatStore, MODES
+from chat_auth import verified_chat_owner
 from privacy_guard import BLOCK_NOTICE, scan_text_fields
 from ui_theme import apply_theme
 
@@ -38,44 +39,69 @@ def _secret(name: str) -> str:
 
 
 def _oidc_configured() -> bool:
+    """Only the default st.login() provider is supported by this pilot."""
     try:
         config = st.secrets.get("auth")
-        return bool(config and config.get("redirect_uri")
-                    and config.get("cookie_secret"))
+        return bool(config and all(config.get(key) for key in (
+            "redirect_uri", "cookie_secret", "client_id",
+            "client_secret", "server_metadata_url",
+        )))
     except Exception:
         return False
 
 
 def _verified_owner() -> str | None:
+    """Fail closed if a signed-in identity has expired or lacks claims."""
     try:
         user = st.user
         if not user.is_logged_in:
             return None
-        return owner_key_from_oidc(user.get("iss", ""), user.get("sub", ""))
-    except (ValueError, AttributeError, KeyError):
-        return None
+        claims = {key: user.get(key) for key in (
+            "iss", "sub", "exp", "iat", "nbf",
+        )}
+        return verified_chat_owner(claims)
+    except ValueError:
+        st.warning(
+            "Your login has expired or could not be verified. "
+            "Sign in again to access saved chats."
+        )
+        st.logout()
+        st.stop()
+    except (AttributeError, KeyError, TypeError):
+        st.error("Unable to verify the sign-in identity.")
+        st.stop()
 
 
 def _store_for_page() -> tuple[ChatStore, str, bool]:
-    """Prefer durable auth+Postgres. No unprotected cross-user persistence."""
+    """Never silently substitute a disposable chat when saved DB is offline."""
     owner = _verified_owner() if _oidc_configured() else None
     dsn = _secret("ALBA_DATABASE_URL")
     if owner and dsn:
         token = hashlib.sha256(dsn.encode("utf-8")).hexdigest()
         saved = st.session_state.get("alba_persistent_store")
-        if saved and saved[0] == token:
-            return saved[1], owner, True
         try:
-            store = ChatStore.postgres(dsn)
+            if saved and saved[0] == token:
+                store = saved[1]
+            else:
+                store = ChatStore.postgres(dsn)
+                st.session_state["alba_persistent_store"] = (token, store)
+            if not store.healthcheck():
+                raise RuntimeError("database healthcheck failed")
         except Exception:
             st.error(
-                "Persistent database is unavailable. Using a temporary session "
-                "only; these messages will NOT be saved after your session ends."
+                "Your saved conversations are temporarily unavailable because "
+                "the database cannot be reached. Nothing will be silently "
+                "saved into a disposable chat. Try again after the connection "
+                "has been restored."
             )
-        else:
-            st.session_state["alba_persistent_store"] = (token, store)
-            return store, owner, True
+            st.stop()
+        return store, owner, True
 
+    if owner and not dsn:
+        st.warning(
+            "You are signed in, but persistent chat storage has not been "
+            "configured. This session is temporary and will not be saved."
+        )
     if "alba_demo_store" not in st.session_state:
         st.session_state["alba_demo_store"] = ChatStore.session_memory()
         # Random session-only owner prevents cross-session guest access.
