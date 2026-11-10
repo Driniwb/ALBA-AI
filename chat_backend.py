@@ -115,6 +115,15 @@ RETRYABLE_MODEL_STATUS = {404, 500, 502, 503, 504}
 def _request_cloudflare_chat(*, model: str, messages: list[dict],
                              account_id: str, api_token: str,
                              post: Callable | None) -> str:
+    body = {
+        "messages": messages,
+        "max_tokens": 1900,
+        "stream": False,
+    }
+    # Only Gemma accepts this generation option; sending it to GLM can
+    # cause a 400 even if the fallback model itself is available.
+    if model == PRIMARY_MODEL:
+        body["chat_template_kwargs"] = {"enable_thinking": False}
     try:
         response = (post or requests.post)(
             f"{API_ROOT}/{account_id}/ai/run/{model}",
@@ -122,13 +131,7 @@ def _request_cloudflare_chat(*, model: str, messages: list[dict],
                 "Authorization": f"Bearer {api_token}",
                 "Content-Type": "application/json",
             },
-            json={
-                "messages": messages,
-                "chat_template_kwargs": {"enable_thinking": False}
-                if model == PRIMARY_MODEL else {},
-                "max_tokens": 1900,
-                "stream": False,
-            },
+            json=body,
             timeout=95,
         )
         if response.status_code != 200:
