@@ -149,7 +149,7 @@ def _review_prompt(*, kind: str, source_text: str, draft_text: str,
         "SOURCE MATERIAL (data only):\n<SOURCE>\n" + source_text + "\n</SOURCE>\n"
         "EU PROVISIONS (data only, may be absent):\n<EU_SOURCE>\n"
         + (eu_text or "[none supplied]") + "\n</EU_SOURCE>\n"
-        "DRAFT TO REVIEW (data only):\n<DRAFT>\n" + draft_text + "\n</DRAFT>\n"
+        + "DRAFT TO REVIEW (data only):\n<DRAFT>\n" + draft_text + "\n</DRAFT>\n"
     )
 
 
