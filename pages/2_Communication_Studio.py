@@ -10,11 +10,12 @@ import json
 
 import streamlit as st
 
-from privacy_guard import BLOCK_NOTICE_SQ, combine_safe_text, scan_text_fields, screen_upload
+from privacy_guard import BLOCK_NOTICE, combine_safe_text, scan_text_fields, screen_upload
+from ui_copy import friendly_error
+from ui_theme import apply_theme
 
 from communication_studio import (
     FORMATS,
-    applicable_rules,
     build_messages,
     extract_publishable_text,
     generate_communication,
@@ -27,12 +28,13 @@ st.set_page_config(
     page_icon="📣",
     layout="wide",
 )
-st.title("ALBA AI – Communication Studio")
-st.caption("ALBA 3.3 · Komunikim institucional dhe publik në shqip")
+apply_theme("COMM")
+st.title("Communication Studio")
+st.caption("ALBA 3.5 · Institutional communications · Albanian-language drafts")
 st.warning(
-    "Prototip editorial. Përdorni vetëm të dhëna publike ose sintetike. "
-    "Mos ngarkoni informacione të brendshme, konfidenciale apo personale. "
-    "Kur klikoni 'Gjenero', teksti dërgohet te Cloudflare Workers AI."
+    "Editorial prototype. Use public or synthetic materials only. "
+    "Do not enter personal, confidential or internal information. "
+    "On Generate, approved input is sent to Cloudflare Workers AI."
 )
 
 @st.cache_data(show_spinner=False)
@@ -42,26 +44,13 @@ def cached_library():
 try:
     sources, rules, albanian = cached_library()
 except (OSError, ValueError, KeyError) as exc:
-    st.error("Biblioteka e komunikimit nuk mund të lexohet: " + str(exc))
+    st.error("The communication library could not be loaded. Please check the application configuration.")
     st.stop()
 
-by_source = {s["source_id"]: s for s in sources}
 with st.sidebar:
-    st.header("Communication references")
-    st.metric("Rregulla të komunikimit", len(rules))
-    st.metric("Burime publike", len(sources))
-    st.caption(
-        "C01–C30 janë sinteza editoriale të ALBA-s të mbështetura në burime "
-        "publike, jo udhëzime të autorizuara të institucioneve për ALBA-n. "
-        "Rregullat e shqipes R01–R45 zbatohen si orientime gjuhësore."
-    )
-    with st.expander("Burimet e komunikimit"):
-        for row in sources:
-            st.markdown(
-                "**" + row["source_id"] + " – " + row["institution"] + "**"
-            )
-            st.caption(row["usage_scope"])
-            st.link_button("Shiko burimin", row["url"])
+    st.markdown("### ALBA AI")
+    st.caption("Writing · Concordance · Communication")
+    st.caption("Internal editorial guidance is applied automatically.")
 
 if "comm_mode" not in st.session_state:
     st.session_state["comm_mode"] = "create"
@@ -69,106 +58,90 @@ if "comm_source" not in st.session_state:
     st.session_state["comm_source"] = ""
 
 GROUPS = ["Press & Media", "Newsletter & Web", "Social Media"]
-group = st.selectbox("1. Kategoria", GROUPS, key="comm_group")
+group = st.selectbox("1. Category", GROUPS, key="comm_group")
 formats = [
     f for f, item in FORMATS.items() if item["group"] == group
 ]
 format_id = st.selectbox(
-    "2. Formati",
+    "2. Format",
     formats,
     format_func=lambda f: FORMATS[f]["label"],
     key="comm_target_format",
 )
 mode = st.radio(
-    "3. Lloji i asistencës",
+    "3. Type of assistance",
     ["create", "review", "adapt"],
     format_func=lambda x: {
-        "create": "Krijo material të ri",
-        "review": "Rishiko draftin",
-        "adapt": "Përshtat për platformën e zgjedhur",
+        "create": "Create new content",
+        "review": "Review an existing draft",
+        "adapt": "Adapt for selected platform",
     }[x],
     horizontal=True,
     key="comm_mode",
 )
 st.caption(
-    "Në modalitetin 'Krijo' jepni fakte të konfirmuara. Për 'Rishiko' "
-    "ose 'Përshtat' vendosni draftin ekzistues."
+    "To create, provide verified facts. To review or adapt, paste an existing draft. "
+    "ALBA writes the resulting content in Albanian."
 )
 
 col1, col2 = st.columns(2)
 with col1:
     organization = st.text_input(
-        "Organizata (opsionale)", max_chars=140, key="comm_organization",
+        "Organisation (optional)", max_chars=140, key="comm_organization",
     )
     objective = st.text_input(
-        "Qëllimi / mesazhi kryesor (opsional)",
+        "Objective / key message (optional)",
         max_chars=240,
         key="comm_objective",
     )
 with col2:
     audience = st.text_input(
-        "Audienca (opsionale)",
+        "Target audience (optional)",
         max_chars=160,
         key="comm_audience",
     )
     tone = st.selectbox(
-        "Toni",
+        "Tone",
         [
-            "Profesional dhe i qartë",
-            "Institucional dhe neutral",
-            "I thjeshtë dhe i afërt me publikun",
+            "Professional and clear",
+            "Institutional and neutral",
+            "Accessible and conversational",
         ],
         key="comm_tone",
     )
 st.text_area(
-    "4. Materiali bazë (fakte të verifikuara ose drafti ekzistues)",
+    "4. Source material (verified facts or existing draft)",
     height=230,
     max_chars=8000,
     placeholder=(
-        "P.sh. Në datën [e konfirmuar], institucioni [i konfirmuar] "
-        "organizoi ... Përdorni vetëm faktet që mund të publikohen."
+        "Example: The organisation held a public consultation on [confirmed date]. "
+        "Include only facts that are safe to publish."
     ),
     key="comm_source",
 )
 supporting_file = st.file_uploader(
-    "5. Bashkëlidhni dokument mbështetës (opsional: TXT, MD, DOCX, PDF me tekst)",
+    "5. Attach supporting document (optional: TXT, MD, DOCX, text-based PDF)",
     type=["txt", "md", "docx", "pdf"],
     key="comm_supporting_file",
     help=(
-        "Dokumenti kontrollohet lokalisht për të dhëna sensitive. "
-        "Skedarët e skanuar, me imazhe ose që nuk mund të kontrollohen bllokohen."
+        "Attachments are screened locally. Scans, images and files that cannot "
+        "be checked reliably are blocked."
     ),
 )
 
 visual = st.text_area(
-    "Përshkrimi i fotografisë / videos (opsional, veçanërisht për Instagram)",
+    "Photo / video description (optional, especially for Instagram)",
     height=80,
     max_chars=1000,
-    placeholder="Shkruani vetëm atë që shfaqet realisht në materialin vizual.",
+    placeholder="Describe only what the image or video actually shows.",
     key="comm_visual",
 )
 safe = st.checkbox(
-    "Konfirmoj që materiali është publik ose sintetik, pa të dhëna "
-    "personale apo konfidenciale.",
+    "I confirm this material is public or synthetic and contains no personal "
+    "or confidential information.",
     key="comm_safe",
 )
 
-matching = applicable_rules(format_id, rules)
-c_rules = [r["rule_id"] for r in matching]
-with st.expander("Rregullat aktive për këtë format"):
-    st.caption(
-        "Rregulla ALBA për komunikimin: "
-        + ", ".join(c_rules)
-        + ". Standardi i shqipes dhe kontrolli faktik zbatohen veçmas."
-    )
-    for item in matching:
-        st.markdown("**" + item["rule_id"] + "** — " + item["guidance_sq"])
-    source_ids = sorted(
-        {sid for rule in matching for sid in rule["source_ids"].split("|")}
-    )
-    st.caption("Burimet mbështetëse: " + ", ".join(
-        by_source[s]["institution"] for s in source_ids
-    ))
 
 # Scan source text, context fields and the attached document BEFORE
 # any AI call or displaying a previously generated result.
@@ -183,18 +156,18 @@ if scan_text_fields(
 ).blocked or (upload_check and upload_check.blocked):
     st.session_state.pop("comm_editor", None)
     st.session_state.pop("comm_result_fingerprint", None)
-    st.error(BLOCK_NOTICE_SQ)
+    st.error(BLOCK_NOTICE)
     st.stop()
 if upload_check:
     uploaded_text = upload_check.text
     upload_digest = hashlib.sha256(supporting_file.getvalue()).hexdigest()[:20]
-    st.caption("Dokumenti kaloi kontrollin lokal; përmbajtja nuk shfaqet.")
+    st.caption("The attachment passed local screening; its contents are not previewed.")
 try:
     combined_source = combine_safe_text(
         st.session_state["comm_source"], uploaded_text, max_chars=8000
     )
 except ValueError as exc:
-    st.error(str(exc))
+    st.error(friendly_error(exc, context="communication"))
     st.stop()
 
 payload_state = {
@@ -212,11 +185,11 @@ fingerprint = hashlib.sha256(
     json.dumps(payload_state, sort_keys=True, ensure_ascii=False).encode()
 ).hexdigest()
 
-if st.button("Gjenero materialin", type="primary"):
+if st.button("Generate content", type="primary"):
     if not safe:
-        st.warning("Konfirmoni që materiali është publik ose sintetik.")
+        st.warning("Confirm that the material is public or synthetic.")
     elif not combined_source.strip():
-        st.warning("Jepni materiale faktike ose draftin që duhet redaktuar.")
+        st.warning("Enter verified facts, attach a document, or provide a draft.")
     else:
         try:
             token = st.secrets.get("CLOUDFLARE_API_TOKEN", "").strip()
@@ -226,7 +199,7 @@ if st.button("Gjenero materialin", type="primary"):
 
         if not token or not account:
             st.error(
-                "Mungojnë kredencialet e Cloudflare në Streamlit Secrets."
+                "Cloudflare credentials are missing from the application configuration."
             )
         else:
             try:
@@ -236,27 +209,27 @@ if st.button("Gjenero materialin", type="primary"):
                     source_text=combined_source,
                     organization=organization,
                     audience=audience,
-                    objective=objective + "\nToni i kërkuar: " + tone,
+                    objective=objective + "\nRequested tone: " + tone,
                     visual_description=visual,
                     communication_rules=rules,
                     albanian_rules=albanian,
                 )
-                with st.spinner("Po hartohet materiali në shqip..."):
+                with st.spinner("Preparing the Albanian draft..."):
                     output = generate_communication(messages, account, token)
                 if scan_text_fields(output).blocked:
                     st.session_state.pop("comm_editor", None)
                     st.session_state.pop("comm_result_fingerprint", None)
-                    st.error(BLOCK_NOTICE_SQ)
+                    st.error(BLOCK_NOTICE)
                     st.stop()
                 st.session_state["comm_editor"] = output
                 st.session_state["comm_result_fingerprint"] = fingerprint
             except ValueError as exc:
-                st.error(str(exc))
+                st.error(friendly_error(exc, context="communication"))
 
 if scan_text_fields(st.session_state.get("comm_editor", "")).blocked:
     st.session_state.pop("comm_editor", None)
     st.session_state.pop("comm_result_fingerprint", None)
-    st.error(BLOCK_NOTICE_SQ)
+    st.error(BLOCK_NOTICE)
     st.stop()
 
 if (
@@ -264,40 +237,39 @@ if (
     and st.session_state.get("comm_editor")
 ):
     st.divider()
-    st.subheader("Materiali i përgatitur")
+    st.subheader("Generated draft")
     st.text_area(
-        "Teksti i redaktueshëm (mund ta ndryshoni para publikimit)",
+        "Editable draft (review before publication)",
         key="comm_editor",
         height=340,
     )
     draft = st.session_state["comm_editor"]
     if scan_text_fields(draft).blocked:
         st.session_state.pop("comm_editor", None)
-        st.error(BLOCK_NOTICE_SQ)
+        st.error(BLOCK_NOTICE)
         st.stop()
     extracted = extract_publishable_text(draft)
     if extracted:
-        with st.expander("Shiko përmbajtjen për publikim"):
+        with st.expander("Preview publishable text"):
             st.markdown(extracted)
     flags = qa_flags(combined_source, draft, format_id)
     if flags:
-        st.warning("Kontrolle editoriale që kërkojnë shqyrtim:")
+        st.warning("Editorial checks to review:")
         for flag in flags:
             st.write("• " + flag)
     else:
         st.info(
-            "Kontrollet automatike nuk gjetën sinjalizime. "
-            "Kjo nuk konfirmon faktet, terminologjinë ose miratimin e publikimit."
+            "No issues were flagged by automated checks. This does not verify facts, "
+            "terminology or approval for publication."
         )
     if format_id == "x" and extracted:
         st.caption(
-            f"Gjatësia orientuese e postimit X: {len(extracted)} / 280 "
-            "karaktere (URL-të mund të numërohen ndryshe nga X)."
+            f"X post length: {len(extracted)} / 280 characters (URL weighting may differ)."
         )
 
     download_text = extracted if extracted else draft
     st.download_button(
-        "Shkarko tekstin (.txt)",
+        "Download draft text (.txt)",
         data=download_text,
         file_name="ALBA_Communication_Studio_DRAFT.txt",
         mime="text/plain; charset=utf-8",
@@ -316,12 +288,11 @@ if (
         st.session_state["comm_result_fingerprint"] = ""
 
     st.button(
-        "Përdore si bazë për një platformë tjetër",
+        "Use this draft for another platform",
         on_click=prepare_adaptation,
-        help="Vendos këtë tekst si material burimor dhe zgjidh një format tjetër.",
+        help="Reuse this draft as source material and choose another format.",
     )
 elif st.session_state.get("comm_editor"):
     st.info(
-        "Ndryshuat formatin ose materialin. Klikoni 'Gjenero materialin' "
-        "për të krijuar një version të ri."
+        "You changed the format or source material. Click Generate content for a new draft."
     )
