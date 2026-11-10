@@ -1,11 +1,12 @@
-# ALBA – Writing Assistant, ToC Builder and Communication Studio
+# ALBA – Legal and Institutional Writing Toolkit
 
 ALBA is an experimental assistant for Albanian legal and institutional language.
 
-Launch `streamlit run app.py` for three named pages:
+Launch `streamlit run app.py` for four named pages:
 
 - **Writing Assistant:** existing text editor with source-traceable writing guidance.
-- **Communication Studio:** create, review or adapt Albanian public communication in Press & Media (press release, press statement), Newsletter & Web (newsletter, website article) and Social Media (Instagram, LinkedIn, Facebook, X).
+- **Legal Drafting:** create, minimally amend, review or draft literal-first acquis approximations for four distinct Albanian normative act types (law, Council of Ministers decision, ministerial instruction, regulation).
+- **Communication Studio:** create, review or adapt Albanian public communication in Press & Media (press release, press statement), Newsletter & Web (newsletter, website article) and Social Media (Instagram, LinkedIn, Facebook, X), plus five EU Communication & Reporting formats (English or Albanian). One button can generate separate drafts for all four social channels.
 - **ToC Builder:** upload a *public or synthetic* English-language EU directive (text PDF or DOCX), select from one to eight articles, and download a **seven-column Word Table of Concordance**. A public-source synthetic template is included; the user can upload a blank 7-column DOCX to preserve the exact desired structure and style.
 
 The ToC Builder identifies source language locally; its output depends on the detected language:
@@ -105,3 +106,16 @@ The shared interface now takes inspiration from 1950s–1960s **atomic-age retro
 ToC Builder no longer asks the user to choose between **"Literal Albanian translation (AI)"** and **"Original text (no translation)"**. A deterministic, local language detector (`toc_language.py`) uses legal vocabulary and headings to identify English and Albanian text. English units are queued for user-triggered literal translation; already-Albanian units are preserved and exported in Word. When the language is uncertain or mixed, ALBA stops and asks the user to provide a clear source; it must not guess or silently transmit unclassified text. The directive title starts blank. Detection is heuristic and does **not** certify the original source or its legal accuracy.
 
 Communication Studio adds two optional post styles to Instagram, LinkedIn, Facebook and X only: **Elevator pitch – concise & compelling**, and **Elevated editorial – polished & understated**, alongside the existing platform-appropriate default. Elevator pitch uses a factual hook, meaningful value and a call to action only if there is a real next step in the source. Elevated editorial uses a refined, restrained professional style without hyperbole. Both preserve platform-specific requirements, source facts, and the existing personal-data screening; only user-triggered Generate sends screened text to the external model. Press releases, press statements, website articles and newsletters are unaffected by these social styles. Automated output requires editorial review before publication.
+
+
+## Legal Drafting and EU Communication & Reporting (pilot)
+
+The fourth page, `pages/3_Legal_Drafting.py`, uses `legal_drafting.py` and curated public methodological pointers in `reference_library/legal_drafting_sources.csv`. It separates four act types: **draft law, draft Council of Ministers decision, draft ministerial instruction and draft regulation**. Each act has its own drafting guidance, delegated-authority checks and expected normative structure. Modes: **new drafting, minimal amendment, legal-technique review and literal-first EU acquis approximation**. Amendment work must identify the existing provision; acquis work requires the relevant EU provision supplied by the user. ALBA will not invent enabling legislation, institutions, sanctions, accession effects or full approximation grades. Every AI response separates proposed text from outstanding legal checks. Output is an editable draft and a TXT download, not an officially verified legal instrument.
+
+Within **Communication Studio → EU Communication & Reporting**, the supported categories are **Information Note, Administrative Capacity Note, Benchmark/Acquis Progress Report, Negotiating Position section and Reply to the European Commission**. Output may be **English or Albanian**. Editorial guidance draws on public EU assessment and Transport Community reporting examples, catalogued in `reference_library/eu_reporting_sources.csv`; **these are reference examples, not mandatory templates** or evidence of any institution's achievements. Prompts require clear separation of enacted versus draft legislation, legal alignment versus implementation/enforcement, confirmed versus planned staff/FTE, results versus targets and measurable commitments versus aspirations. The output always includes a draft-for-transmission section plus a separate pre-submission verification section. Drafts need substantive institutional review, source checking and approval.
+
+Public-media C-rules and historic Albanian editorial rules are not applied to the EU reporting prompt; this prevents social-media or newsletter style guidance from contaminating reporting outputs. The four-platform social bundle remains an independent action with four separately generated, editable drafts; it does not post anything online. The public pilot's privacy restrictions apply equally to these new functions: **use public or synthetic material only**. Documents and AI output are screened locally with imperfect heuristics; screening does not guarantee confidentiality or data-protection compliance. Cloudflare Workers AI receives selected text on explicit generation requests.
+
+### QA and release
+
+Run `python -m unittest discover -s tests -v` and check each Streamlit page. Unit tests use only synthetic fixtures and mocked calls; they validate prompt routing and UI smoke cases, **not** the legal accuracy or quality of live model-generated drafts. The new modules are developed in `feature/legal-drafting-eu-reporting-social-bundle` and should remain distinct from `main` until CI and human review pass.
