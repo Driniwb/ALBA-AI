@@ -19,11 +19,7 @@ from review_ui import render_auto_review
 st.set_page_config(page_title="ALBA | Legal Drafting", page_icon="⚖️",layout="wide")
 apply_theme("LEGAL")
 st.title("Legal Drafting")
-st.caption("Albanian normative acts · Drafting technique · EU acquis approximation")
-st.warning(
-    "Drafting assistance only. No legal act or EU-conformity assessment is certified. "
-    "Use only public or synthetic material without personal or confidential data."
-)
+st.caption("Public documents only · Verify drafts before use.")
 a, b = st.columns(2)
 with a:
     act_type = st.selectbox(
@@ -37,7 +33,6 @@ with b:
         "2. Drafting task", options=list(DRAFT_MODES),
         format_func=lambda value: DRAFT_MODES[value], key="legal_mode"
     )
-st.caption("Each act follows its own methodology, delegated competence and structure. Output is in Albanian.")
 basis = st.text_input(
     "Legal basis / enabling authority (use exact verified citations)",
     placeholder="Leave empty when unavailable; ALBA will not invent a legal basis.",
@@ -115,12 +110,7 @@ if safe_doc:
                 "the available context. Shorten those fields to select a section."
             )
             st.stop()
-        st.info(
-            f"The act was successfully read ({len(safe_doc.text):,} characters). "
-            "ALBA cannot reliably analyse an entire long legal act in one "
-            "request. Choose the relevant articles below. The field initially "
-            "contains the beginning of the act; it is NOT the full document."
-        )
+        st.caption("Long act: select the article(s) to analyse.")
         file_signature = hashlib.sha256(
             attachment.getvalue()
         ).hexdigest()
@@ -193,7 +183,6 @@ if (st.session_state.get("legal_result_key") == fingerprint
     with st.expander("Legal QA checklist",expanded=False):
         for warning in warnings:
             st.write("• " + warning)
-        st.caption("Manual verification of hierarchy, legal basis and EU legal effect is essential.")
     st.download_button(
         "Download draft (.txt)",data=reviewed.encode("utf-8"),
         file_name="ALBA_Legal_Drafting_DRAFT.txt",
