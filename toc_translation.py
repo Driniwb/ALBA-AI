@@ -66,11 +66,11 @@ def translation_warnings(source: str, translation: str) -> list[str]:
     """Heuristic red flags; no clean check certifies legal or literal accuracy."""
     issues = []
     if not translation.strip():
-        return ["Përkthimi është bosh."]
+        return ["The translation is empty."]
     if len(translation) < max(25, len(source) * .28):
-        issues.append("Përkthimi është shumë më i shkurtër se origjinali.")
+        issues.append("The translation is much shorter than the source.")
     if len(translation) > max(250, len(source) * 2.8):
-        issues.append("Përkthimi është shumë më i gjatë se origjinali.")
+        issues.append("The translation is much longer than the source.")
     number_pat = re.compile(r"(?<!\w)\d+(?:[.,/]\d+)*(?!\w)")
     original_numbers = Counter(number_pat.findall(source))
     translated_numbers = Counter(number_pat.findall(translation))
@@ -78,18 +78,18 @@ def translation_warnings(source: str, translation: str) -> list[str]:
         missing = list((original_numbers - translated_numbers).elements())
         added = list((translated_numbers - original_numbers).elements())
         issues.append(
-            "Numra/referenca për kontroll: mungojnë "
-            + (", ".join(missing[:12]) or "asnjë")
-            + "; shtuar " + (", ".join(added[:12]) or "asnjë") + "."
+            "Check numbers and references: missing "
+            + (", ".join(missing[:12]) or "none")
+            + "; added " + (", ".join(added[:12]) or "none") + "."
         )
     acronyms = ("ADR", "RID", "ADN", "COTIF", "UN", "MEGC")
     for abbr in acronyms:
         if re.search(r"\b" + abbr + r"\b", source) and not re.search(
             r"\b" + abbr + r"\b", translation
         ):
-            issues.append("Akronim që mungon në përkthim: " + abbr)
+            issues.append("Acronym missing from the translation: " + abbr)
     if translation.lstrip().startswith(("Përkthimi:", "Translation:", "###")):
-        issues.append("Përgjigjja duket se përmban shpjegime shtesë.")
+        issues.append("The model response appears to contain extra explanations.")
     return issues
 
 
