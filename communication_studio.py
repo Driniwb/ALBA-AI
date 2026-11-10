@@ -324,9 +324,11 @@ def build_messages(
     albanian_rules: list[dict],
     style_id: str = "standard",
     output_language: str = "sq",
+    public_legal_source: bool = False,
 ) -> list[dict[str, str]]:
     if scan_text_fields(
-        source_text, organization, audience, objective, visual_description
+        source_text, organization, audience, objective, visual_description,
+        public_legal=public_legal_source,
     ).blocked:
         raise ValueError(BLOCK_NOTICE_SQ)
     if format_id not in FORMATS or mode not in VALID_MODES:
@@ -481,14 +483,16 @@ def generate_social_bundle(*, mode: str, source_text: str, organization: str,
                            audience: str, objective: str, visual_description: str,
                            style_id: str, communication_rules: list[dict],
                            albanian_rules: list[dict], account_id: str,
-                           api_token: str, post: Callable | None = None) -> dict[str, str]:
+                           api_token: str, post: Callable | None = None,
+                           public_legal_source: bool = False) -> dict[str, str]:
     """Draft four platform-specific posts from ONE screened source and click.
 
     Four independent AI requests are used rather than asking one response to
     imitate four channels. Publish nothing until *all* four succeed.
     """
     if scan_text_fields(
-        source_text, organization, audience, objective, visual_description
+        source_text, organization, audience, objective, visual_description,
+        public_legal=public_legal_source,
     ).blocked:
         raise ValueError(BLOCK_NOTICE_SQ)
     result = {}
@@ -499,9 +503,11 @@ def generate_social_bundle(*, mode: str, source_text: str, organization: str,
             visual_description=visual_description,
             style_id=style_id, communication_rules=communication_rules,
             albanian_rules=albanian_rules, output_language="sq",
+            public_legal_source=public_legal_source,
         )
         result[platform] = generate_communication(
-            messages, account_id, api_token, post=post
+            messages, account_id, api_token, post=post,
+            public_legal_source=public_legal_source,
         )
     return result
 
