@@ -181,6 +181,8 @@ upload_check = (
 if scan_text_fields(
     st.session_state["comm_source"], organization, audience, objective, visual
 ).blocked or (upload_check and upload_check.blocked):
+    st.session_state.pop("comm_editor", None)
+    st.session_state.pop("comm_result_fingerprint", None)
     st.error(BLOCK_NOTICE_SQ)
     st.stop()
 if upload_check:
