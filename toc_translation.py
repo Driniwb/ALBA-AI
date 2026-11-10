@@ -11,6 +11,7 @@ from typing import Callable
 import requests
 
 from toc_builder import Provision
+from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields
 
 MODEL = "@cf/google/gemma-4-26b-a4b-it"
 API_ROOT = "https://api.cloudflare.com/client/v4/accounts"
@@ -97,6 +98,8 @@ def translate_unit(
     post: Callable | None = None,
 ) -> tuple[str, list[str]]:
     """Translate one selected EU unit with bounded input and safe errors."""
+    if scan_text_fields(unit.reference, unit.text).blocked:
+        raise ValueError(BLOCK_NOTICE_SQ)
     if not account_id.strip() or not api_token.strip():
         raise ValueError("Konfigurimi i Cloudflare Workers AI mungon.")
     if not unit.text.strip():
@@ -139,6 +142,8 @@ def translate_unit(
         raise ValueError("Problem lidhjeje me shërbimin AI.") from exc
     except (TypeError, KeyError) as exc:
         raise ValueError("Përgjigjja e modelit nuk mund të interpretohet.") from exc
+    if scan_text_fields(translated).blocked:
+        raise ValueError(BLOCK_NOTICE_SQ)
     return translated, translation_warnings(unit.text, translated)
 
 
