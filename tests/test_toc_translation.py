@@ -85,7 +85,7 @@ class TranslationChecks(unittest.TestCase):
             "Article 3: ADR 2008/68/EC (2).",
             "Neni 4: 2008/68/KE (3).",
         )
-        self.assertTrue(any("Numra/referenca" in flag for flag in issues))
+        self.assertTrue(any("numbers and references" in flag for flag in issues))
         self.assertTrue(any("ADR" in flag for flag in issues))
 
     def test_complete_translations_required_and_references_unchanged(self):
@@ -111,7 +111,7 @@ class TranslationChecks(unittest.TestCase):
         page = ROOT / "pages" / "1_ToC_Builder.py"
         self.assertTrue(page.is_file())
         ast.parse(page.read_text(encoding="utf-8"))
-        self.assertIn("Përkthim literal në shqip", page.read_text(encoding="utf-8"))
+        self.assertIn("Literal Albanian translation (AI)", page.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
