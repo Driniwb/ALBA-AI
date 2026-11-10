@@ -38,16 +38,16 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         ).run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(app.selectbox[0].value, "Press & Media")
-        self.assertIn("press_release", app.selectbox[1].options)
+        self.assertIn("Njoftim për shtyp", app.selectbox[1].options)
         app.selectbox[0].set_value("Social Media").run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(
             list(app.selectbox[1].options),
-            ["instagram", "linkedin", "facebook", "x"],
+            ["Instagram caption", "LinkedIn post", "Facebook post", "X (Twitter) post"],
         )
-        app.radio[0].set_value("adapt").run()
+        app.radio[0].set_value("Përshtat për platformën e zgjedhur").run()
         self.assertEqual(len(app.exception), 0)
-        self.assertEqual(app.radio[0].value, "adapt")
+        self.assertEqual(app.session_state["comm_mode"], "adapt")
 
 
 if __name__ == "__main__":
