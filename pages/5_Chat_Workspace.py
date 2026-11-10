@@ -372,22 +372,16 @@ with st.expander("AI connection diagnostics", expanded=False):
             except Exception:
                 st.error("Unexpected AI connection problem. Review Streamlit logs.")
 
-confirmed = st.checkbox(
-    "Enable AI chat (public or synthetic information only; "
-    "messages are sent to Cloudflare).",
-    key="alba_chat_public_confirm",
+st.caption(
+    "Ask naturally, as in a conversation. By pressing Send you confirm that "
+    "your message contains only public or synthetic content and you authorise "
+    "sending it to Cloudflare for an AI response. Do not send private records."
 )
-if not confirmed:
-    st.caption(
-        "Enable AI chat above to send a question. Your message will not "
-        "be transmitted until this confirmation is checked."
-    )
-
 prompt = st.chat_input(
-    "Ask ALBA a question or continue the conversation…",
+    "Ask ALBA anything about a public legal, EU or institutional topic…",
     key="alba_chat_prompt",
     max_chars=MAX_USER_CHARS,
-    disabled=not confirmed or not (account and api_key),
+    disabled=not (account and api_key),
 )
 
 if prompt:
@@ -405,7 +399,7 @@ if pending and error:
     with retry_col:
         retry = st.button(
             "Retry this question", key="alba_retry_chat",
-            disabled=not confirmed or not (account and api_key),
+            disabled=not (account and api_key),
         )
     with discard_col:
         if st.button("Discard failed question", key="alba_discard_failed"):
@@ -414,12 +408,7 @@ if pending and error:
             st.rerun()
 
 if (prompt or retry) and pending:
-    if not confirmed:
-        st.session_state["alba_pending_chat_error"] = (
-            "Enable AI chat to send public or synthetic material."
-        )
-        st.warning(st.session_state["alba_pending_chat_error"])
-    elif scan_text_fields(pending, public_legal=True).blocked:
+    if scan_text_fields(pending, public_legal=True).blocked:
         st.session_state["alba_pending_chat_error"] = BLOCK_NOTICE
         st.error(BLOCK_NOTICE)
     elif not account or not api_key:
