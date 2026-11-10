@@ -20,5 +20,16 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         self.assertTrue(any("ToC Builder" in value for value in headings))
 
 
+    def test_communication_studio_page_loads_without_credentials(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "2_Communication_Studio.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any(
+            "Communication Studio" in item.value for item in app.title
+        ))
+
+
 if __name__ == "__main__":
     unittest.main()
