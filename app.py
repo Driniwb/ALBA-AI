@@ -4,6 +4,7 @@ import requests
 import csv
 import re
 from pathlib import Path
+from privacy_guard import BLOCK_NOTICE_SQ, combine_safe_text, scan_text, screen_upload
 
 # ==========================================
 # ALBA AI - Version 3.3
@@ -404,10 +405,39 @@ user_text = st.text_area(
     placeholder="Enter a public or synthetic text..."
 )
 
-safe_input = st.checkbox(
-    "I confirm that this text is public or "
-    "synthetic and contains no sensitive data."
+attachment = st.file_uploader(
+    "Optional supporting document (.txt, .md, .docx, or text-based .pdf)",
+    type=["txt", "md", "docx", "pdf"],
+    help=(
+        "Local screening happens before analysis. Only public/synthetic "
+        "text-based files are accepted. Scanned PDFs, embedded images and "
+        "uninspectable documents are blocked."
+    ),
+    key="alba_editor_attachment",
 )
+safe_input = st.checkbox(
+    "I confirm that this text and attachment are public or "
+    "synthetic and contain no sensitive data."
+)
+
+# Fail closed *before* retrieving rules, producing previews or contacting AI.
+attachment_text = ""
+file_review = (
+    screen_upload(attachment.name, attachment.getvalue(), max_chars=6000)
+    if attachment is not None else None
+)
+if scan_text(user_text).blocked or (file_review and file_review.blocked):
+    st.error(BLOCK_NOTICE_SQ)
+    st.stop()
+if file_review:
+    attachment_text = file_review.text
+try:
+    submitted_text = combine_safe_text(user_text, attachment_text, max_chars=6000)
+except ValueError as exc:
+    st.error(str(exc))
+    st.stop()
+if attachment is not None:
+    st.caption("Attached text passed local checks; content is not previewed here.")
 
 # ==========================================
 # ANALYSIS
@@ -415,7 +445,7 @@ safe_input = st.checkbox(
 
 if st.button("Analyse text", type="primary"):
 
-    if not user_text.strip():
+    if not submitted_text.strip():
         st.warning("Please enter a text.")
 
     elif not safe_input:
@@ -447,7 +477,7 @@ if st.button("Analyse text", type="primary"):
             "Content-Type": "application/json"
         }
 
-        selected_rules = select_relevant_rules(user_text, task + " " + document_type)
+        selected_rules = select_relevant_rules(submitted_text, task + " " + document_type)
         # Include a baseline spelling principle for editing/translation.
         if task in {
             "Improve Albanian institutional language",
@@ -459,7 +489,7 @@ if st.button("Analyse text", type="primary"):
             )
             if baseline:
                 selected_rules = selected_rules[:5] + [baseline]
-        selected_terms = select_relevant_terms(user_text)
+        selected_terms = select_relevant_terms(submitted_text)
 
         reference_guidance = "\n".join(
             "[{id}] {text} (Burimi: {source}, {loc}; STATUS: draft)"
@@ -498,7 +528,7 @@ UDHËZIMI:
 {TASKS[task]}
 
 TEKSTI:
-{user_text}
+{submitted_text}
 
 Përgjigju në shqip dhe ruaj kuptimin.
 
@@ -557,6 +587,11 @@ kërko kontroll njerëzor. Mos shpik referenca.
 
                 if result:
 
+                    # Never render or download AI-generated sensitive content.
+                    if scan_text(result).blocked:
+                        st.error(BLOCK_NOTICE_SQ)
+                        st.stop()
+
                     st.success(
                         "Analysis completed successfully!"
                     )
@@ -572,7 +607,7 @@ kërko kontroll njerëzor. Mos shpik referenca.
                     )
 
                     extracted = revised_section(result)
-                    alerts = consistency_flags(user_text, extracted)
+                    alerts = consistency_flags(submitted_text, extracted)
                     with st.expander("Consistency checks (automatic)"):
                         if alerts:
                             for item in alerts:
