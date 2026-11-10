@@ -13,7 +13,6 @@ import streamlit as st
 
 from chat_backend import (
     MAX_USER_CHARS, generate_chat_reply, prepare_chat_messages,
-    check_chat_connection,
 )
 from guest_browser_storage import (
     initialize_browser_history, save_browser_history,
@@ -371,25 +370,6 @@ if not account or not api_key:
         "CLOUDFLARE_API_TOKEN in Streamlit Cloud → App settings → Secrets."
     )
 
-with st.expander("Connection settings"):
-    if st.button("Test AI connection", key="alba_test_ai_connection"):
-        if not account or not api_key:
-            st.error("Cloudflare credentials are missing.")
-        else:
-            try:
-                with st.spinner("Checking Cloudflare connectivity..."):
-                    check_chat_connection(
-                        account_id=account, api_token=api_key,
-                    )
-                st.success("AI connection working.")
-            except ValueError as exc:
-                st.error(str(exc))
-            except Exception:
-                st.error("Unexpected AI connection problem. Review Streamlit logs.")
-
-st.caption(
-    "Public or synthetic content only. Sending a message shares it with Cloudflare."
-)
 doc_context = (
     "\n\n[PUBLIC DOCUMENT EXCERPT: " + attachment_name + "]\n"
     + attachment_text + "\n[/PUBLIC DOCUMENT EXCERPT]"
