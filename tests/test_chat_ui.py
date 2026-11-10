@@ -16,7 +16,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertEqual(len(app.exception), 0)
         self.assertTrue(any("Chat Workspace" in item.value for item in app.title))
         self.assertTrue(any(
-            "Temporary workspace" in str(item.value) for item in app.info
+            "Browser history storage is unavailable" in str(item.value) for item in app.warning
         ))
         self.assertTrue(any("New chat" in str(item.label) for item in app.button))
         self.assertTrue(any("Create project" in str(item.label) for item in app.button))
@@ -59,7 +59,6 @@ class ChatWorkspaceUITests(unittest.TestCase):
         app.secrets["CLOUDFLARE_API_TOKEN"] = "DEMO_TOKEN"
         app.run()
         self.assertEqual(len(app.exception), 0)
-        app.checkbox(key="alba_chat_public_confirm").check().run()
         calls = []
         def mock_post(url, **kwargs):
             calls.append(kwargs["json"]["messages"])
@@ -86,6 +85,67 @@ class ChatWorkspaceUITests(unittest.TestCase):
             self.assertEqual(len(app.exception), 0)
             self.assertEqual(len(app.chat_message), 4)
 
+    def test_failed_question_is_kept_and_retried_successfully(self):
+        class RateLimited:
+            status_code = 429
+        class GoodReply:
+            status_code = 200
+            def json(self):
+                return {"success": True, "result": {
+                    "response": "The synthetic report needs expert verification."
+                }}
+
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"),
+            default_timeout=25,
+        )
+        app.secrets["CLOUDFLARE_ACCOUNT_ID"] = "SYNTHETIC_ACCOUNT"
+        app.secrets["CLOUDFLARE_API_TOKEN"] = "SYNTHETIC_KEY"
+        app.run()
+        self.assertEqual(len(app.exception), 0)
+        
+        calls = []
+        def rate_limit_post(url, **kwargs):
+            calls.append(url)
+            return RateLimited()
+        with patch("chat_backend.requests.post", side_effect=rate_limit_post):
+            app.chat_input[0].set_value(
+                "Please check the synthetic capacity note."
+            ).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(
+            app.session_state["alba_pending_chat_text"],
+            "Please check the synthetic capacity note.",
+        )
+        self.assertTrue(any("429" in str(err.value) for err in app.error))
+        self.assertTrue(any(
+            button.label == "Retry this question" for button in app.button
+        ))
+
+        with patch("chat_backend.requests.post", return_value=GoodReply()):
+            app.button(key="alba_retry_chat").click().run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertEqual(len(app.chat_message), 2)
+        self.assertIsNone(app.session_state["alba_pending_chat_text"])
+
+    def test_composer_is_ready_without_a_separate_consent_checkbox(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"),
+            default_timeout=25,
+        )
+        app.secrets["CLOUDFLARE_ACCOUNT_ID"] = "SYNTHETIC_ACCOUNT"
+        app.secrets["CLOUDFLARE_API_TOKEN"] = "SYNTHETIC_KEY"
+        app.run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertFalse(app.chat_input[0].disabled)
+        self.assertFalse(any(
+            check.key == "alba_chat_public_confirm" for check in app.checkbox
+        ))
+        source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(encoding="utf-8")
+        self.assertIn("By pressing Send", source)
+
+
     def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
         text = (ROOT / "app.py").read_text(encoding="utf-8")
         self.assertIn('"pages/5_Chat_Workspace.py"', text)
@@ -109,7 +169,9 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertIn("if owner and dsn:", source)
         self.assertIn("ChatStore.postgres(dsn)", source)
         self.assertIn("ChatStore.session_memory()", source)
-        self.assertIn("will disappear after refresh/restart", source)
+        self.assertIn("Saved in this browser", source)
+        self.assertIn("initialize_browser_history(", source)
+        self.assertIn("save_browser_history(", source)
         self.assertNotIn("st.session_state.get('email')", source)
 
 

@@ -100,6 +100,53 @@ class ChatBackendTests(unittest.TestCase):
                 user_text="x" * (MAX_USER_CHARS + 1),
             )
 
+    def test_primary_model_outage_uses_only_free_cloudflare_model(self):
+        calls = []
+        class Outage:
+            status_code = 503
+        def post(url, **kwargs):
+            calls.append((url, kwargs))
+            return Outage() if len(calls) == 1 else Response()
+        answer = generate_chat_reply(
+            mode="general", history=[],
+            user_text="Public synthetic check.",
+            account_id="DEMO", api_token="FAKE", post=post,
+        )
+        self.assertEqual(answer, "The source does not establish full compliance.")
+        self.assertEqual(len(calls), 2)
+        self.assertIn("gemma-4", calls[0][0])
+        self.assertIn("glm-4.7-flash", calls[1][0])
+        self.assertEqual(calls[1][1]["headers"]["Authorization"], "Bearer FAKE")
+
+    def test_invalid_credentials_do_not_trigger_fallback(self):
+        calls = []
+        class AccessDenied:
+            status_code = 403
+        def post(url, **kwargs):
+            calls.append(url)
+            return AccessDenied()
+        with self.assertRaisesRegex(ValueError, "credentials"):
+            generate_chat_reply(
+                mode="general", history=[], user_text="Public question.",
+                account_id="DEMO", api_token="FAKE", post=post,
+            )
+        self.assertEqual(len(calls), 1)
+
+    def test_connection_probe_has_no_private_or_previous_chat_content(self):
+        from chat_backend import check_chat_connection
+        requests_sent = []
+        def post(url, **kwargs):
+            requests_sent.append(kwargs["json"]["messages"])
+            return Response()
+        check_chat_connection(
+            account_id="DEMO", api_token="FAKE", post=post
+        )
+        self.assertEqual(len(requests_sent), 1)
+        self.assertEqual(len(requests_sent[0]), 2)
+        self.assertIn("synthetic connectivity test",
+                      requests_sent[0][-1]["content"])
+        self.assertNotIn("private", requests_sent[0][-1]["content"])
+
     def test_quota_failure_no_retry(self):
         called = []
         def post(url, **kwargs):

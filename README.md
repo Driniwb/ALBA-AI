@@ -4,7 +4,7 @@ ALBA is an experimental assistant for Albanian legal and institutional language.
 
 Launch `streamlit run app.py` for six named pages:
 
-- **Chat Workspace:** ChatGPT-style multi-turn conversations, conversation history, project folders, rename/move/delete/export controls. Guest sessions are temporary; verified sign-in + hosted PostgreSQL enables durable, owner-isolated history.
+- **Chat Workspace:** ChatGPT-style multi-turn conversations, conversation history, project folders, rename/move/delete/export controls. Guest chats are saved in the same browser through localStorage (public/synthetic only); verified sign-in + hosted PostgreSQL enables durable, owner-isolated cross-device history.
 - **Writing Assistant:** existing text editor with source-traceable writing guidance.
 - **EU Communication & Reporting:** dedicated sidebar page for Information Note, Administrative Capacity Note, Benchmark/Acquis Progress Report, Negotiating Position section and Reply to the European Commission, in English or Albanian.
 - **Legal Drafting:** create, minimally amend, review or draft literal-first acquis approximations for four distinct Albanian normative act types (law, Council of Ministers decision, ministerial instruction, regulation).
@@ -257,10 +257,21 @@ recent chat turns. It supports:
 
 ### Persistence and user separation
 
-**Without configuration:** The page is usable immediately for public/synthetic
-conversations in a **temporary, per-browser-session in-memory SQLite database**.
-These chats **are not saved** after session expiry, a reload/server restart,
-or a redeploy. The interface clearly marks Temporary workspace.
+**Without a cloud database:** The page is usable immediately for public/
+synthetic conversations. A native Streamlit Component v2 stores a checked
+snapshot in **this browser's localStorage**, allowing conversations and
+projects to reappear after a refresh, reopening the same site, or a
+Streamlit redeploy on the same origin, provided browser storage is available.
+No OIDC or external PostgreSQL key is needed for that basic persistence.
+
+**Browser storage is not an account.** History remains on this device only;
+it is **not encrypted**, not private on shared computers, and is lost if the
+browser clears site data, blocks localStorage or changes the app origin.
+The app displays a warning if the browser cannot save history. All guest
+messages remain public/synthetic only, and exportable JSON backups are still
+recommended for important work. The browser snapshot has strict size limits
+(1.8 MB, 80 chats, 500 messages); explicit JSON backup can exceed these
+limits one conversation at a time.
 
 **With configuration:** Chat Workspace stores conversations in a **hosted
 PostgreSQL database**, isolated by a pseudonymous owner key derived from
@@ -340,10 +351,61 @@ The following safeguards were added after an independent code review:
 
 **Deployment status:** Code merge + mocked CI does not activate identity
 provider credentials, provision a database or validate production persistence.
-The prototype remains in temporary mode until a real hosted PostgreSQL and
-default OIDC provider are configured in Streamlit Cloud secrets. A true
-ChatGPT-like automatically resumed history requires that configuration.
+The prototype now has same-browser automatic local history without account
+configuration. Private, centrally controlled **cross-device** automatic
+history still requires hosted PostgreSQL and a verified OIDC provider.
+Neither service was provisioned by the code change.
 The QA suite now exercises Streamlit chat-input interactions and multi-turn
 context with mocked model responses, in addition to SQLite persistence.
 A live Cloudflare response, real external PostgreSQL failover and actual OIDC
 login are still separate production-acceptance tests.
+
+### Chat usability and browser persistence fix
+
+- **Ask ALBA is conversational and ready to use** as soon as the existing
+  Cloudflare credentials are available. Pressing Send is the explicit
+  user action authorising processing of public or synthetic material;
+  there is no separate checkbox blocking the composer. A missing
+  Cloudflare key is flagged clearly before an attempted request.
+- **Test AI connection** sends only a short synthetic ping to Cloudflare;
+  it does not send an uploaded document or conversation history.
+- Failed questions remain visible with **Retry this question** and **Discard**
+  controls. Errors distinguish missing/invalid credentials (401/403), rate
+  limits (429), oversized/invalid requests, provider outages and network
+  failures. A one-time fallback to Cloudflare's free GLM model is permitted
+  only for primary model outages (404/5xx), never credential or quota errors.
+- Local browser backup uses an official Streamlit Component v2 with fixed
+  JavaScript (no model text or user source inserted into executable code).
+  All restored JSON is screened, bounded and mapped to new current-session
+  identifiers. The CI suite tests backend snapshots and mocked UI but cannot
+  execute real browser localStorage scripts; run an actual browser refresh
+  acceptance test after the Streamlit deployment.
+- Streamlit 1.60 or newer is now required for this browser component.
+  This does not introduce React, FastAPI, additional AI API credentials or
+  a hosted database for same-browser usage.
+
+### Natural conversations and public source attachments
+
+ALBA Chat Workspace now answers ordinary legal and institutional questions
+directly rather than always insisting on a source file or returning only
+verification warnings. For generic explanations, general model knowledge
+may be used; authoritative, precise legal citations still require checking
+official versions. The assistant continues the current thread using the last
+relevant exchanges. Specialisms remain optional, and the general assistant
+handles legal drafting, policy, reporting and communication requests.
+
+For document-grounded questions, open **Add a public document to your
+question (optional)** and attach a readable public PDF, DOCX, TXT or MD.
+For longer documents select up to 3,200 characters of relevant provisions.
+Only the screened excerpt is appended to the question and sent to Cloudflare;
+the original file is never uploaded to the model by this feature. The
+attached excerpt is retained as part of the conversation and can inform
+follow-ups while it remains in the context budget. The file selector resets
+after a successful answer to prevent inadvertent duplicate submissions.
+PDF images and scanned pages are still not interpreted here.
+
+**Live validation remains necessary:** The new behaviour has simulated
+Cloudflare and headless Streamlit tests. It has not been verified with a
+real production Cloudflare token or with browser-localStorage JavaScript
+executing in the user's deployed browser. The AI connection diagnostics
+panel can distinguish those external-provider failures.
