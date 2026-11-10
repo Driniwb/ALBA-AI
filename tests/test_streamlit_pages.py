@@ -89,6 +89,45 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         self.assertEqual(app.session_state["comm_mode"], "adapt")
 
 
+    def test_legal_drafting_page_and_four_act_types(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "3_Legal_Drafting.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any("Legal Drafting" in item.value for item in app.title))
+        self.assertIn("Draft law", app.selectbox[0].options)
+        self.assertIn("Council of Ministers decision (VKM)", app.selectbox[0].options)
+        self.assertIn("Ministerial instruction (udhëzim)", app.selectbox[0].options)
+        self.assertIn("Regulation / technical rules (rregullore)", app.selectbox[0].options)
+
+    def test_eu_reporting_formats_and_language_menu(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "2_Communication_Studio.py"),
+            default_timeout=25,
+        ).run()
+        app.selectbox[0].set_value("EU Communication & Reporting").run()
+        self.assertEqual(len(app.exception), 0)
+        labels = app.selectbox[1].options
+        self.assertIn("Administrative Capacity Note", labels)
+        self.assertIn("Information Note", labels)
+        self.assertIn("Benchmark / Acquis Progress Report", labels)
+        self.assertTrue(any(str(x.label) == "4. Reporting language" for x in app.selectbox))
+
+    def test_social_campaign_generate_control_visible_only_on_social(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "2_Communication_Studio.py"),
+            default_timeout=25,
+        ).run()
+        self.assertFalse(any(
+            "Generate posts for all four platforms" in str(x.label) for x in app.button
+        ))
+        app.selectbox[0].set_value("Social Media").run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any(
+            "Generate posts for all four platforms" in str(x.label) for x in app.button
+        ))
+
     def test_main_editor_blocks_contact_details_without_echo(self):
         app = AppTest.from_file(str(ROOT / "writing_assistant.py"), default_timeout=25).run()
         app.text_area[0].set_value("Private contact: synthetic.person@example.org").run()
