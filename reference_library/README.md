@@ -29,6 +29,10 @@ Four sources were integrated in a restricted form: the Council of Europe *Glossa
 
 The Council of Europe glossary is an institutional terminology resource for ECHR law, **not an authoritative general Albanian dictionary**; it is copyrighted (© Council of Europe 2016, reproduction permission reserved), and some translations contain editorial errors. Its entries remain candidate terms pending expert checking. Linguistic studies are descriptive, historical or author opinions and are not binding orthographic rules. The eight other PDFs are classified in `material_review_2026-11_batch2.md` and were not activated.
 
+## ALBA AI original editorial proposals (November 2026)
+
+Eight additional rules (R38–R45) concern clarity of normative clauses, internal numbering and legal citations, source-text integrity and Remarks in Tables of Concordance, concise institutional memos and correspondence, and context-sensitive English-to-Albanian legal drafting. They are derived from generalised, synthetic drafting workflows and documented in [editorial_guidelines_2026-11.md](editorial_guidelines_2026-11.md). **They are not sourced to an external publication and must never be represented as official legal, ministerial or GIZ drafting instructions.** The document includes scope, examples and limitations; all entries remain pending expert review. This update deliberately does not add a separate rule about the actual adoption or implementation status of draft acts, because ALBA is a writing assistant rather than a compliance-status verifier.
+
 ## Files
 
 - `sources.csv`: bibliographic metadata and review status.
