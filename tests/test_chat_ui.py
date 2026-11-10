@@ -16,7 +16,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertEqual(len(app.exception), 0)
         self.assertTrue(any("Chat Workspace" in item.value for item in app.title))
         self.assertTrue(any(
-            "Temporary workspace" in str(item.value) for item in app.info
+            "Browser history storage is unavailable" in str(item.value) for item in app.info
         ))
         self.assertTrue(any("New chat" in str(item.label) for item in app.button))
         self.assertTrue(any("Create project" in str(item.label) for item in app.button))
@@ -109,7 +109,9 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertIn("if owner and dsn:", source)
         self.assertIn("ChatStore.postgres(dsn)", source)
         self.assertIn("ChatStore.session_memory()", source)
-        self.assertIn("will disappear after refresh/restart", source)
+        self.assertIn("Saved in this browser", source)
+        self.assertIn("initialize_browser_history(", source)
+        self.assertIn("save_browser_history(", source)
         self.assertNotIn("st.session_state.get('email')", source)
 
 
