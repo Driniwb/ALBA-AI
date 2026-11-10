@@ -6,17 +6,17 @@ import re
 from pathlib import Path
 
 # ==========================================
-# ALBA AI - Version 3.1
+# ALBA AI - Version 3.2
 # Cloudflare Workers AI
 # ==========================================
 
 st.set_page_config(
-    page_title="ALBA AI 3.1",
+    page_title="ALBA AI 3.2",
     page_icon="📘",
     layout="wide"
 )
 
-st.title("ALBA AI 3.1")
+st.title("ALBA AI 3.2")
 
 st.subheader(
     "AI Language Base for Albanian Legal and Institutional Writing"
@@ -25,6 +25,11 @@ st.subheader(
 st.info(
     "AI-supported drafting, editing and terminology "
     "review for Albanian institutional communication."
+)
+
+st.caption(
+    "New: **ToC Builder** in the sidebar — seven-column Word concordance "
+    "table and literal English-to-Albanian legal translation."
 )
 
 st.warning(
@@ -116,7 +121,7 @@ def select_relevant_terms(text, limit=10):
     return matches[:limit]
 
 with st.sidebar:
-    st.header("Reference Library – 3.1")
+    st.header("Reference Library – 3.2")
     st.metric("Sources and editorial notes", len(SOURCES))
     st.metric("Editorial guidance rules", len(RULES))
     st.metric("Candidate glossary entries", len(GLOSSARY))
@@ -764,6 +769,6 @@ kërko kontroll njerëzor. Mos shpik referenca.
 st.divider()
 
 st.caption(
-    "ALBA AI 3.1 | Cloudflare + Public Reference Library | "
+    "ALBA AI 3.2 | Cloudflare + Public Reference Library | "
     "Human Review Required"
 )
