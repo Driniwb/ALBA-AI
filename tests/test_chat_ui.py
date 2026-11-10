@@ -16,7 +16,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertEqual(len(app.exception), 0)
         self.assertTrue(any("Chat Workspace" in item.value for item in app.title))
         self.assertTrue(any(
-            "Browser history storage is unavailable" in str(item.value) for item in app.info
+            "Browser history storage is unavailable" in str(item.value) for item in app.warning
         ))
         self.assertTrue(any("New chat" in str(item.label) for item in app.button))
         self.assertTrue(any("Create project" in str(item.label) for item in app.button))
