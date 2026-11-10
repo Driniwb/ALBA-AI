@@ -30,17 +30,7 @@ st.set_page_config(
 )
 apply_theme("TOC")
 st.title("ToC Builder")
-st.caption("Legal concordance · Literal English-to-Albanian translation · Word")
-
-st.warning(
-    "Experimental legal drafting tool, not an automatic transposition assessment. "
-    "Use public or synthetic documents only. Do not upload personal, internal or confidential material."
-)
-st.write(
-    "Upload a readable public directive in PDF or Word, including files with logos. ALBA identifies the source "
-    "language locally: English is translated into Albanian; Albanian is preserved. "
-    "The seven-column Word ToC leaves national-law mappings and compliance assessments blank."
-)
+st.caption("Upload a public EU directive. Check extracted provisions before exporting.")
 
 source = st.file_uploader(
     "1. Directive in English or Albanian (text-based PDF or DOCX)",
@@ -100,7 +90,6 @@ confirmed = st.checkbox(
 )
 
 if source is None:
-    st.info("Upload a directive to begin.")
     st.stop()
 if not confirmed:
     st.info("Confirm the safe-use statement to proceed.")
@@ -188,7 +177,7 @@ if source_language == "uncertain":
     st.stop()
 
 if source_language == "sq":
-    st.caption("Albanian source detected. Its wording is preserved without translation.")
+
     if not title.strip():
         st.info("Enter the directive title to enable Word export.")
         st.stop()
@@ -209,7 +198,7 @@ if not title.strip():
     st.info("Enter the directive title before translating or exporting the ToC.")
     st.stop()
 
-st.caption("English source detected. The selected provisions can be translated into Albanian.")
+
 
 try:
     api_token = st.secrets.get("CLOUDFLARE_API_TOKEN", "").strip()
@@ -241,10 +230,7 @@ checks = st.session_state["toc_checks"]
 pending = [u for u in units if not translated.get(u.reference, "").strip()]
 
 st.subheader("Literal English-to-Albanian translation")
-st.caption(
-    "Translation runs provision by provision for easier review of numbering, "
-    "terminology and completeness. AI translation is not authoritative."
-)
+
 st.progress((len(units) - len(pending)) / len(units))
 st.write(f"Translated: **{len(units) - len(pending)} / {len(units)}**")
 batch = st.selectbox(
@@ -330,10 +316,7 @@ if all(translated.get(u.reference, "").strip() for u in units):
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             type="primary",
         )
-        st.warning(
-            "Compare every provision with the official source. Automated splitting "
-            "and translation require expert verification; especially check lettered lists."
-        )
+        st.caption("Check all provisions and lettering against the official source.")
     except (ValueError, AssertionError) as error:
         st.error(friendly_error(error, context="toc"))
 else:
