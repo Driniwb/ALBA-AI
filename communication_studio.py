@@ -365,7 +365,7 @@ def build_messages(
         f"STRUKTURA: {FORMATS[format_id]['outline']}\n"
         f"OUTPUT LANGUAGE: {'English' if output_language == 'en' else 'Albanian'}\n"
         + (f"REFERENCE APPROACH: {EU_REPORTING_REFERENCE}\n" if format_id in EU_REPORTING_FORMATS else "")
-        f"STILI EDITORIAL: {SOCIAL_STYLES[style_id]['instruction'] if format_id in SOCIAL_FORMATS else 'Stil neutral i formatit.'}\n"
+        + f"STILI EDITORIAL: {SOCIAL_STYLES[style_id]['instruction'] if format_id in SOCIAL_FORMATS else 'Stil neutral i formatit.'}\n"
         f"ORGANIZATA (vetëm nëse është dhënë): {organization or '[pa të dhëna]'}\n"
         f"AUDIENCA: {audience or '[e papërcaktuar]'}\n"
         f"QËLLIMI: {objective or '[i papërcaktuar]'}\n"
