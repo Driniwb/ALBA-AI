@@ -16,6 +16,7 @@ import re
 import xml.etree.ElementTree as ET
 
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024
+MAX_PUBLIC_LEGAL_UPLOAD_BYTES = 12 * 1024 * 1024
 MAX_UNCOMPRESSED_BYTES = 18 * 1024 * 1024
 MAX_PDF_PAGES = 35
 MAX_PUBLIC_LEGAL_PDF_PAGES = 180
@@ -92,18 +93,18 @@ CONFIDENTIAL = re.compile(
 # Treat such vocabulary as non-sensitive ONLY in the public-law workflow.
 # Explicit classification markers and filled patient fields remain forbidden.
 CLASSIFICATION_LABEL = re.compile(
-    r"(?im)^\\s*(?:(?:strictly\\s+confidential|for\\s+internal\\s+use\\s+only|"
-    r"vetëm\\s+për\\s+përdorim\\s+të\\s+brendshëm|"
-    r"konfidenciale?\\s*(?:[-–]\\s*(?:draft|projekt|i\\s+brendshëm))?|"
-    r"confidential\\s+(?:draft|document|report|memo|note))\\s*"
-    r"|(?:classification|klasifikimi)\\s*[:=-]\\s*"
-    r"(?:confidential|konfidencial|secret|sekret))\\s*$",
+    r"(?im)^\s*(?:(?:strictly\s+confidential|for\s+internal\s+use\s+only|"
+    r"vetëm\s+për\s+përdorim\s+të\s+brendshëm|"
+    r"konfidenciale?\s*(?:[-–]\s*(?:draft|projekt|i\s+brendshëm))?|"
+    r"confidential\s+(?:draft|document|report|memo|note))\s*"
+    r"|(?:classification|klasifikimi)\s*[:=-]\s*"
+    r"(?:confidential|konfidencial|secret|sekret))\s*$",
     re.IGNORECASE,
 )
 PRIVATE_CASE_LABEL = re.compile(
-    r"(?im)^\\s*(?:patient\\s+(?:record|name)|medical\\s+record|"
-    r"kartelë\\s+mjekësore|diagnoz[ëa]|date\\s+of\\s+birth|datëlindja)"
-    r"\\s*[:=]\\s*\\S+",
+    r"(?im)^\s*(?:patient\s+(?:record|name)|medical\s+record|"
+    r"kartelë\s+mjekësore|diagnoz[ëa]|date\s+of\s+birth|datëlindja)"
+    r"\s*[:=]\s*\S+",
     re.IGNORECASE,
 )
 
@@ -308,7 +309,10 @@ def screen_upload(
     """
     if not isinstance(filename, str) or not isinstance(data, bytes):
         return AttachmentResult(True, reason="invalid_upload")
-    if not data or len(data) > MAX_UPLOAD_BYTES:
+    upload_limit = (
+        MAX_PUBLIC_LEGAL_UPLOAD_BYTES if public_legal else MAX_UPLOAD_BYTES
+    )
+    if not data or len(data) > upload_limit:
         return AttachmentResult(True, reason="file_size")
     extension = PurePath(filename).suffix.lower()
     if extension not in SUPPORTED:
@@ -318,7 +322,7 @@ def screen_upload(
     warning = ""
     try:
         if extension in {".txt", ".md"}:
-            if b"\\x00" in data:
+            if b"\x00" in data:
                 raise ValueError("binary")
             text = data.decode("utf-8-sig")
         elif extension == ".pdf":
@@ -372,7 +376,7 @@ def upload_block_message(reason: str) -> str:
             "Përdorni një akt ose fragment më të shkurtër."
         ),
         "file_size": (
-            "Dokumenti tejkalon kufirin 4 MB ose është bosh. "
+            "Dokumenti tejkalon kufirin e ngarkimit (12 MB për akte ligjore) ose është bosh. "
             "Ngarkoni një version më të vogël të aktit publik."
         ),
         "uninspectable_file": (
