@@ -317,7 +317,7 @@ def screen_upload(
     extension = PurePath(filename).suffix.lower()
     if extension not in SUPPORTED:
         return AttachmentResult(True, reason="unsupported_extension")
-    if scan_text(filename).blocked:
+    if scan_text(filename, public_legal=public_legal).blocked:
         return AttachmentResult(True, reason="filename")
     warning = ""
     try:
