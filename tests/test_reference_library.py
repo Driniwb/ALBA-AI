@@ -46,6 +46,29 @@ class AlbaReferenceChecks(unittest.TestCase):
             self.assertTrue(term["albanian"].strip())
             self.assertEqual(term["status"], "candidate")
 
+    def test_editorial_workflow_rules_are_clearly_non_authoritative(self):
+        sources = {item["source_id"]: item for item in csv_rows("sources.csv")}
+        editorial = sources["ALBA-EDITORIAL-2026"]
+        self.assertIn("not_official", editorial["verification"])
+        self.assertIn("not_external_authority", editorial["verification"])
+        self.assertEqual(editorial["expert_approval"], "pending")
+        rules = {rule["rule_id"]: rule for rule in csv_rows("rules.csv")}
+        for number in range(38, 46):
+            rule = rules[f"R{number}"]
+            self.assertEqual(rule["source_id"], "ALBA-EDITORIAL-2026")
+            self.assertEqual(rule["status"], "editorial_draft")
+            self.assertIn(f"R{number}", rule["source_location"])
+        note = LIB / "editorial_guidelines_2026-11.md"
+        self.assertTrue(note.is_file())
+        text = note.read_text(encoding="utf-8")
+        self.assertIn("Nuk është manual zyrtar", text)
+
+    def test_specialized_document_types_exist(self):
+        app = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertIn('"Table of Concordance (ToC)":', app)
+        self.assertIn('"Memo / internal briefing note":', app)
+        self.assertIn("Shënimet e ALBA-s nuk janë udhëzime zyrtare.", app)
+
     def test_public_sources_remain_pending_expert_review(self):
         for source in csv_rows("sources.csv"):
             self.assertTrue(source["url"].startswith("https://"))
