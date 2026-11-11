@@ -56,6 +56,34 @@ class GuestBrowserStorageTests(unittest.TestCase):
         finally:
             new_db.close()
 
+    def test_restored_sidebar_keeps_recent_chat_order_and_active_chat(self):
+        first = self.db.create_conversation(OWNER1, title="Older public question")
+        self.db.append_exchange(
+            OWNER1, first, "Old synthetic public question.",
+            "Old synthetic public answer.",
+        )
+        second = self.db.create_conversation(
+            OWNER1, title="Newest public question"
+        )
+        self.db.append_exchange(
+            OWNER1, second, "New synthetic public question.",
+            "New synthetic public answer.",
+        )
+        snapshot = export_guest_workspace(
+            self.db, OWNER1, active_id=second
+        )
+        new_store = ChatStore.session_memory()
+        try:
+            new_active = restore_guest_workspace(new_store, OWNER2, snapshot)
+            recent = new_store.list_conversations(OWNER2)
+            self.assertEqual(
+                [chat["title"] for chat in recent],
+                ["Newest public question", "Older public question"],
+            )
+            self.assertEqual(new_active, recent[0]["id"])
+        finally:
+            new_store.close()
+
     def test_unanswered_question_survives_a_new_browser_session(self):
         project = self.db.create_project(OWNER1, "Legal drafting")
         chat = self.db.create_conversation(
