@@ -520,3 +520,34 @@ structure**; it should not be described as a byte-identical copy of the
 user's original Word template. If the exact binary template becomes available
 for authorized reuse, it can be embedded as the bundled baseline without
 adding a second user-facing upload step.
+
+## Chat Workspace: browser autosave repair (November 2026)
+
+Guest Chat Workspace now mounts a single stable Streamlit component v2
+browser bridge near the **start** of the page. It first reads
+`localStorage["alba-public-workspace-v1"]` on the current app origin,
+restores projects, ordered conversations and the most recently active chat,
+then permits writes. The existing storage key and JSON version remain
+compatible with earlier ALBA browser snapshots; malformed existing history
+is **never overwritten**.
+
+A submitted public/synthetic question is saved **before** the Cloudflare
+request and only sent after the browser confirms the exact snapshot
+revision by reading it back. A connection failure can therefore restore
+the unanswered question with a **Retry** option on the next session.
+Successful exchanges and project changes are saved automatically after
+their server-side commit. The UI warns when saving is blocked, full or
+unconfirmed rather than silently suggesting that in-memory work is durable.
+
+The same-browser persistence is **not** equivalent to encrypted or
+cross-device ChatGPT account history. Clearing browser storage, switching
+browser/device, changing the app origin, exceeding browser storage limits,
+or private/incognito browsing may prevent recovery. Enabling authenticated
+cross-device cloud storage still requires correctly configured **OIDC
+sign-in plus a TLS PostgreSQL service**. Do not upload confidential
+government material into guest browser storage.
+
+Offline CI exercises validated snapshots, new-session recovery, ordering,
+rejected sensitive content and the actual JavaScript localStorage bridge
+in a simulated browser environment. The final end-to-end check of a
+Streamlit Cloud deployment requires a live browser with storage enabled.
