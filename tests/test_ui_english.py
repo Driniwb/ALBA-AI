@@ -34,7 +34,9 @@ class EnglishInterfaceTests(unittest.TestCase):
         self.assertIn('page_title="ALBA"', router)
         self.assertIn('title="Writing Assistant"', router)
         self.assertIn('title="ToC Builder"', router)
-        self.assertIn('title="Communication Studio"', router)
+        self.assertIn("COMMUNICATION_STUDIO_VISIBLE", router)
+        from alba_features import COMMUNICATION_STUDIO_VISIBLE
+        self.assertFalse(COMMUNICATION_STUDIO_VISIBLE)
         self.assertNotIn('Explore **ToC Builder**', router)
         writing = (ROOT / "writing_assistant.py").read_text(encoding="utf-8")
         self.assertNotIn('Explore **ToC Builder**', writing)

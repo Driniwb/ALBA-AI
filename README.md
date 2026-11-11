@@ -551,3 +551,14 @@ Offline CI exercises validated snapshots, new-session recovery, ordering,
 rejected sensitive content and the actual JavaScript localStorage bridge
 in a simulated browser environment. The final end-to-end check of a
 Streamlit Cloud deployment requires a live browser with storage enabled.
+
+## Temporary module visibility
+
+**Communication Studio** is temporarily hidden from the ALBA navigation and
+Chat Workspace's `Continue in` recommendations while its category rules
+are being revised. This is controlled by `COMMUNICATION_STUDIO_VISIBLE` in
+`alba_features.py`; set it to `True` when the module is ready to reopen.
+The communication implementation and reference library are retained, and
+**EU Communication & Reporting remains available** because it uses shared
+communication back-end functions. Ordinary questions about social posts
+can still be answered in the chat, but no link to the hidden page is offered.

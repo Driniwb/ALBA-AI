@@ -7,6 +7,7 @@ the user explicitly clicks the recommended module.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from alba_features import COMMUNICATION_STUDIO_VISIBLE
 import re
 from typing import MutableMapping
 
@@ -195,7 +196,7 @@ def suggest_handoff(query: str) -> Handoff | None:
             else "new"
         )
         defaults = (("legal_act_type", act), ("legal_mode", mode))
-    elif _has(_COMM, q):
+    elif COMMUNICATION_STUDIO_VISIBLE and _has(_COMM, q):
         key = "communication"
         fmt = (
             "instagram" if _has(r"instagram", q)
@@ -238,6 +239,8 @@ def suggest_handoff(query: str) -> Handoff | None:
 
 def prepare_handoff(handoff: Handoff, message: str, state: MutableMapping) -> None:
     """Prepopulate only the requested destination. No model call is made."""
+    if handoff.key == "communication" and not COMMUNICATION_STUDIO_VISIBLE:
+        raise ValueError("Communication Studio is temporarily hidden.")
     if handoff.key not in MODULES or MODULES[handoff.key][1] != handoff.page:
         raise ValueError("Unknown ALBA destination.")
     if not isinstance(message, str):
