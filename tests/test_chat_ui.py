@@ -232,6 +232,15 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertNotIn("Connection settings", source)
         self.assertIn("Attach a public document (optional)", source)
         self.assertIn("Move to project", source)
+        # The compact composer is inline and centered at the top, not
+        # Streamlit's default fixed bottom chat bar.
+        self.assertIn('chat_composer = st.container(key="alba_chat_composer")', source)
+        self.assertIn("with chat_composer:\n    prompt = st.chat_input(", source)
+        self.assertIn("max-width: 740px;", source)
+        self.assertLess(
+            source.index('chat_composer = st.container('),
+            source.index('with st.sidebar:'),
+        )
 
 
     def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
