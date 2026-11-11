@@ -15,8 +15,9 @@ class ExtendedPilotTests(unittest.TestCase):
         self.assertTrue(any(item.startswith("1.") for item in refs))
         self.assertFalse(any(item.startswith("9.") for item in refs))
         self.assertFalse(any(item.startswith("Neni 9") for item in refs))
-        with self.assertRaisesRegex(ValueError, "1 to 8"):
-            first_n_articles(directive, count=9)
+        self.assertTrue(any(item == "9" for item in [x.reference for x in first_n_articles(directive, count=9)]))
+        with self.assertRaisesRegex(ValueError, "between 1 and 120"):
+            first_n_articles(directive, count=121)
 
 
 if __name__ == "__main__":
