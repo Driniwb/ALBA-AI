@@ -98,10 +98,10 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(len(app.chat_message), 2)
         self.assertTrue(any(box.label == "Project" for box in app.selectbox))
-        self.assertFalse(any("Export" in button.label for button in app.button))
-        self.assertFalse(any("Delete conversation" in button.label for button in app.button))
-        self.assertFalse(any("Save title" in button.label for button in app.button))
-        self.assertFalse(any("Restore chat" in button.label for button in app.button))
+        self.assertTrue(any("Export conversation" in button.label for button in app.button))
+        self.assertTrue(any("Delete conversation" in button.label for button in app.button))
+        self.assertTrue(any("Save title" in button.label for button in app.button))
+        self.assertTrue(any("Restore conversation" in button.label for button in app.button))
 
     def test_real_chat_widget_flow_uses_previous_turns_and_can_reopen(self):
         """Exercise Streamlit's chat_input, not only a static page render."""
