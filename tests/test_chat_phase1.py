@@ -166,8 +166,9 @@ class ChatManagementUiTests(unittest.TestCase):
 
     def test_account_login_not_advertised_without_cloud_database(self):
         app = self._app()
-        self.assertTrue(any(
-            "this browser" in str(i.value).casefold()
+        # Successful browser saves should be silent in the chat interface.
+        self.assertFalse(any(
+            "saved in this browser" in str(i.value).casefold()
             for i in app.caption
         ))
         self.assertFalse(any(
