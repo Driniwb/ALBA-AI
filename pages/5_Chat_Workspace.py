@@ -659,7 +659,7 @@ if not account or not api_key:
 def _document_context(name: str, excerpt: str) -> str:
     return (
         "\n\n[PUBLIC DOCUMENT EXCERPT: " + name + "]\n"
-        + excerpt + "\\n[/PUBLIC DOCUMENT EXCERPT]"
+        + excerpt + "\n[/PUBLIC DOCUMENT EXCERPT]"
     )
 
 # Long files must be deliberately excerpted: no silent 3,200-character cut.
