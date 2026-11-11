@@ -7,10 +7,11 @@ within resource limits. Translation progress resumes in the same session.
 """
 from __future__ import annotations
 
+import hashlib
 import streamlit as st
 
 from toc_workflow import prepare_toc, export_word
-from toc_translation import translate_unit, translation_warnings
+from toc_translation import translate_unit
 from privacy_guard import BLOCK_NOTICE, scan_text_fields
 from ui_copy import friendly_error
 from ui_theme import apply_theme
@@ -29,11 +30,19 @@ source = st.file_uploader(
 if source is None:
     st.stop()
 
-try:
-    prepared = prepare_toc(source.name, source.getvalue())
-except (ValueError, AssertionError) as exc:
-    st.error(friendly_error(exc, context="toc"))
-    st.stop()
+# The same full directive is reused across automatic translation reruns.
+# Cache only within this user's session, not in a server-wide data cache.
+file_bytes = source.getvalue()
+file_id = hashlib.sha256(source.name.encode("utf-8") + b"\0" + file_bytes).hexdigest()[:24]
+if st.session_state.get("toc_prepared_source") != file_id:
+    try:
+        prepared_source = prepare_toc(source.name, file_bytes)
+    except (ValueError, AssertionError) as exc:
+        st.error(friendly_error(exc, context="toc"))
+        st.stop()
+    st.session_state["toc_prepared_source"] = file_id
+    st.session_state["toc_prepared_data"] = prepared_source
+prepared = st.session_state["toc_prepared_data"]
 
 st.write(
     f"**{prepared.title}** · "
@@ -113,8 +122,10 @@ if pending:
                     translations[unit.reference] = result
                     st.session_state["toc_single_checks"][unit.reference] = checks
                 except (ValueError, AssertionError) as exc:
-                    st.session_state["toc_single_error"] = friendly_error(
-                        exc, context="toc"
+                    st.session_state["toc_single_error"] = (
+                        "U arrit kufiri i përkthimit në Cloudflare. "
+                        "Puna e përfunduar mbetet në këtë sesion."
+                        if "429" in str(exc) else friendly_error(exc, context="toc")
                     )
                     st.session_state["toc_single_running"] = False
                     break
