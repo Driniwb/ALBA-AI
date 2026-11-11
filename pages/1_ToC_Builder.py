@@ -17,7 +17,14 @@ from toc_builder import (
 )
 from toc_template import built_in_blank_toc, create_toc_using_template
 from toc_translation import translate_unit, translated_provisions
-from toc_units import first_n_articles, MAX_SELECTED_ARTICLES
+# During Streamlit Cloud hot-reloads, an older toc_units module can remain
+# cached while this page script has already been updated. Do not crash the
+# entire ToC Builder because that earlier module lacks the new capacity flag.
+# A clean deployment loads the updated limit (120); a stale module safely
+# falls back to its old eight-article limit until the process restarts.
+import toc_units as _toc_units
+first_n_articles = _toc_units.first_n_articles
+MAX_SELECTED_ARTICLES = getattr(_toc_units, "MAX_SELECTED_ARTICLES", 8)
 from toc_media import extract_source_media, group_pictures_by_unit
 from toc_language import detect_toc_language
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
@@ -73,7 +80,7 @@ with c2:
         "Articles to include",
         min_value=1,
         max_value=MAX_SELECTED_ARTICLES,
-        value=20,
+        value=min(20, MAX_SELECTED_ARTICLES),
         step=1,
         help="Include Articles 1 through N. For full directives, set up to 120.",
     )
