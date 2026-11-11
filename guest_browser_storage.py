@@ -222,16 +222,20 @@ def restore_guest_workspace(
     if store.list_projects(owner) or store.list_conversations(owner):
         raise ValueError("Restore requires a new temporary workspace.")
     project_ids = [store.create_project(owner, name) for name in clean["projects"]]
-    chat_ids = []
-    for item in clean["chats"]:
+    # The snapshot lists recent conversations first. Restore oldest first
+    # so the database's updated_at descending order remains the same after
+    # reconnecting; do not reverse the user's sidebar conversation history.
+    newest_first_ids = []
+    for item in reversed(clean["chats"]):
         chat_id = store.import_conversation_backup(owner, item["chat"])
         if item["project"] is not None:
             store.set_conversation_project(
                 owner, chat_id, project_ids[item["project"]]
             )
-        chat_ids.append(chat_id)
+        newest_first_ids.append(chat_id)
+    newest_first_ids.reverse()
     return (
-        chat_ids[clean["active"]]
+        newest_first_ids[clean["active"]]
         if clean["active"] is not None else None
     )
 
