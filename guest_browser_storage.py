@@ -237,59 +237,107 @@ def restore_guest_workspace(
 
 
 def initialize_browser_history(store: ChatStore, owner: str) -> None:
-    """Load browser snapshot before allowing guest writes to avoid overwrite."""
+    """Restore first, then rerun before permitting any browser writes.
+
+    The load and save phases use ONE stable component key. Never mount both
+    phases in one Streamlit execution, and never overwrite existing browser
+    history with an empty session while a restore is still pending.
+    """
     if _for_tests():
         st.session_state["alba_browser_ready"] = True
         return
     if st.session_state.get("alba_browser_ready"):
         return
-    reply = _mount({"phase": "load"})
-    raw = reply.loaded
+
+    response = _mount({"phase": "load"})
+    raw = response.loaded
     if raw is None:
-        st.info("Loading your saved conversations from this browser…")
+        st.caption("Restoring saved chats…")
         st.stop()
     if raw == UNAVAILABLE:
         st.session_state["alba_browser_ready"] = True
         st.session_state["alba_browser_available"] = False
-        return
+        st.session_state["alba_browser_error"] = (
+            "Browser storage is blocked. New chats are not durable."
+        )
+        st.rerun()
     if raw != EMPTY:
         try:
+            clean = validate_guest_workspace(raw)
             restored_id = restore_guest_workspace(store, owner, raw)
             st.session_state["alba_active_conversation"] = restored_id
+            pending = clean["pending"]
+            if pending:
+                st.session_state["alba_pending_chat_text"] = pending
+                st.session_state["alba_pending_display_question"] = (
+                    pending.split("\n\n[PUBLIC DOCUMENT EXCERPT:", 1)[0]
+                )
+                st.session_state["alba_pending_chat_error"] = (
+                    "This earlier question has not been answered. "
+                    "Select Retry this question to continue."
+                )
+                index = clean.get("pending_project")
+                if index is not None:
+                    st.session_state["alba_new_chat_project"] = (
+                        store.list_projects(owner)[index]["id"]
+                    )
         except ValueError:
-            st.error(
-                "A previous browser history exists but cannot be loaded. "
-                "To avoid overwriting it, browser saving has been disabled. "
-                "Use a valid ALBA chat backup or clear this site's browser "
-                "storage manually after exporting a copy."
-            )
             st.session_state["alba_browser_available"] = False
+            st.session_state["alba_browser_error"] = (
+                "Saved browser history cannot be restored. To avoid erasing "
+                "it, automatic saving is disabled in this session."
+            )
             st.session_state["alba_browser_ready"] = True
-            return
+            st.rerun()
     st.session_state["alba_browser_available"] = True
     st.session_state["alba_browser_ready"] = True
+    # Unmount the load phase before mounting the save phase with the same
+    # key; otherwise a duplicate component identity can break live sync.
+    st.rerun()
 
 
 def save_browser_history(
-    store: ChatStore, owner: str, *, active_id: str | None = None
-) -> None:
-    """Sync screened messages automatically after every Streamlit rerun."""
-    if _for_tests() or not st.session_state.get("alba_browser_available"):
-        return
+    store: ChatStore, owner: str, *, active_id: str | None = None,
+    pending_text: str | None = None,
+    pending_project_id: str | None = None,
+) -> bool:
+    """Synchronize at the TOP of the Chat page and confirm browser writes.
+
+    Return True ONLY if the browser acknowledges the exact serialized
+    revision. In headless tests there is no JavaScript engine, so the
+    component is simulated and caller can proceed with normal server tests.
+    """
+    if _for_tests():
+        return True
+    if not st.session_state.get("alba_browser_available"):
+        return False
     try:
-        payload = export_guest_workspace(store, owner, active_id=active_id)
-    except ValueError:
-        st.warning(
-            "Browser storage limit reached. Export important conversations "
-            "using Download resumable chat (.json)."
+        payload = export_guest_workspace(
+            store, owner, active_id=active_id,
+            pending_text=pending_text,
+            pending_project_id=pending_project_id,
         )
-        return
+    except ValueError:
+        st.session_state["alba_browser_error"] = (
+            "Browser history is at its storage limit or includes a "
+            "question that cannot be saved. Your work is only in this session."
+        )
+        return False
+
     digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-    result = _mount({
+    response = _mount({
         "phase": "save", "payload": payload, "revision": digest,
     })
-    if result.error:
-        st.warning(
-            "This browser cannot save chat history. Export conversations as "
-            "JSON backups. No account or cloud database is configured."
+    if response.error:
+        st.session_state["alba_browser_error"] = (
+            "Browser saving failed or storage is full. "
+            "Your work is only in this session."
         )
+        return False
+    if response.saved == digest:
+        st.session_state["alba_browser_error"] = None
+        st.session_state["alba_browser_last_saved"] = digest
+        return True
+    # The JS component hasn't acknowledged this revision yet. A state
+    # callback will trigger a rerun when it has finished writing.
+    return False
