@@ -190,6 +190,12 @@ def _start_chat(project_id: str | None = None) -> None:
     st.session_state["alba_pending_chat_error"] = None
 
 
+def _mark_history_changed() -> None:
+    """Require confirmation that every guest mutation reaches the browser."""
+    if not persistent:
+        st.session_state["alba_browser_confirm_exchange"] = True
+
+
 with st.sidebar:
     if st.button("＋ New chat", key="alba_new_chat", use_container_width=True):
         _start_chat()
@@ -220,6 +226,7 @@ with st.sidebar:
                     st.error("Enter a valid project name.")
                 else:
                     _start_chat(created)
+                    _mark_history_changed()
                     st.rerun()
 
     for project in projects:
@@ -317,12 +324,14 @@ if conversation:
                 try:
                     created = store.create_project(owner, new_name)
                     store.set_conversation_project(owner, active_id, created)
+                    _mark_history_changed()
                     st.rerun()
                 except ValueError:
                     st.error("Enter a valid project name.")
         elif target != conversation["project_id"]:
             if st.button("Move", key="alba_move_" + active_id):
                 store.set_conversation_project(owner, active_id, target)
+                _mark_history_changed()
                 st.rerun()
 
     messages = store.list_messages(owner, active_id)
