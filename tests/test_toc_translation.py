@@ -111,7 +111,9 @@ class TranslationChecks(unittest.TestCase):
         page = ROOT / "pages" / "1_ToC_Builder.py"
         self.assertTrue(page.is_file())
         ast.parse(page.read_text(encoding="utf-8"))
-        self.assertIn("detect_toc_language(units)", page.read_text(encoding="utf-8"))
+        workflow = ROOT / "toc_workflow.py"
+        self.assertIn("detect_toc_language(units)", workflow.read_text(encoding="utf-8"))
+        self.assertIn("prepare_toc(", page.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
