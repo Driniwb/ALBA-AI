@@ -44,7 +44,7 @@ class EnglishInterfaceTests(unittest.TestCase):
     def test_toc_defaults_to_blank_title_and_up_to_eight_articles(self):
         toc = (ROOT / "pages" / "1_ToC_Builder.py").read_text(encoding="utf-8")
         self.assertIn('value=""', toc)
-        self.assertIn('list(range(1, 9))', toc)
+        self.assertIn('max_value=MAX_SELECTED_ARTICLES', toc)
         self.assertIn('Enter the directive number and title', toc)
 
     def test_all_format_display_names_are_english(self):
