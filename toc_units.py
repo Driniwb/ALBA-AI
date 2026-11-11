@@ -54,6 +54,12 @@ def split_toc_units(text: str) -> list[Provision]:
                 )
             else:
                 continue
+            # Follow the supplied completed ToC model: the article's
+            # first substantive row uses its article number (e.g. "1"),
+            # while subsequent points retain hierarchical references 1.2,
+            # 1.2.a and so on. The full "1." text stays in column 2.
+            if not markers and pm and num == "1" and match:
+                ref = base
             markers.append((i, ref))
 
         if not markers:
