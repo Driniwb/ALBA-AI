@@ -277,6 +277,92 @@ with st.sidebar:
             _open_conversation(chat["id"])
             st.rerun()
 
+# Keep backup and recovery under one optional menu rather than adding
+# controls throughout the ChatGPT-style sidebar.
+with st.sidebar:
+    with st.popover("History backup", icon=":material/history:"):
+        try:
+            workspace_json = export_guest_workspace(
+                store, owner,
+                active_id=st.session_state.get("alba_active_conversation"),
+                pending_text=st.session_state.get("alba_pending_chat_text"),
+                pending_project_id=st.session_state.get("alba_new_chat_project"),
+            )
+        except ValueError:
+            st.caption(
+                "Full workspace backup unavailable at the current size. "
+                "Download important conversations individually."
+            )
+        else:
+            st.download_button(
+                "Download all chats and projects (.json)",
+                data=workspace_json.encode("utf-8"),
+                file_name="ALBA_workspace_backup.json",
+                mime="application/json",
+                key="alba_download_workspace",
+                use_container_width=True,
+            )
+
+        restore_file = st.file_uploader(
+            "Import a conversation backup (.json)",
+            type=["json"],
+            key="alba_restore_single_file",
+        )
+        if restore_file is not None and st.button(
+            "Restore conversation", key="alba_restore_single",
+        ):
+            try:
+                backup = parse_backup_file(restore_file.getvalue())
+                restored = store.import_conversation_backup(owner, backup)
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                _open_conversation(restored)
+                _mark_history_changed()
+                st.rerun()
+
+        if not persistent:
+            workspace_file = st.file_uploader(
+                "Import a full workspace backup (.json) into an empty workspace",
+                type=["json"],
+                key="alba_restore_workspace_file",
+            )
+            if workspace_file is not None and st.button(
+                "Restore full workspace", key="alba_restore_workspace",
+            ):
+                if store.list_conversations(owner) or store.list_projects(owner):
+                    st.error(
+                        "Full workspace restoration requires an empty workspace. "
+                        "Existing chats will not be overwritten."
+                    )
+                else:
+                    try:
+                        raw = workspace_file.getvalue().decode("utf-8-sig")
+                        clean = validate_guest_workspace(raw)
+                        recovered = restore_guest_workspace(store, owner, raw)
+                    except (ValueError, UnicodeError) as exc:
+                        st.error(str(exc))
+                    else:
+                        st.session_state["alba_active_conversation"] = recovered
+                        st.session_state["alba_pending_chat_text"] = clean["pending"]
+                        st.session_state["alba_pending_display_question"] = (
+                            clean["pending"].split(
+                                "\n\n[PUBLIC DOCUMENT EXCERPT:", 1
+                            )[0] if clean["pending"] else None
+                        )
+                        st.session_state["alba_pending_chat_error"] = (
+                            "This question was not answered. Select Retry to continue."
+                            if clean["pending"] else None
+                        )
+                        project_index = clean["pending_project"]
+                        st.session_state["alba_new_chat_project"] = (
+                            store.list_projects(owner)[project_index]["id"]
+                            if project_index is not None else None
+                        )
+                        _mark_history_changed()
+                        st.rerun()
+
+
 active_id = st.session_state.get("alba_active_conversation")
 conversation = (
     store.get_conversation(owner, active_id) if active_id else None
