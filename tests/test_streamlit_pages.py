@@ -29,14 +29,18 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         self.assertTrue(any("ToC Builder" in value for value in headings))
 
 
-    def test_toc_article_range_and_empty_title(self):
+    def test_toc_has_only_document_upload_no_setup_fields(self):
         app = AppTest.from_file(
             str(ROOT / "pages" / "1_ToC_Builder.py"), default_timeout=25
         ).run()
         self.assertEqual(len(app.exception), 0)
-        self.assertEqual(app.text_input[0].value, "")
-        self.assertEqual(int(app.number_input[0].value), 20)
-        self.assertEqual(int(app.number_input[0].max), 120)
+        self.assertEqual(len(app.text_input), 0)
+        self.assertEqual(len(app.number_input), 0)
+        self.assertEqual(len(app.checkbox), 0)
+        self.assertEqual(len(app.selectbox), 0)
+        source = (ROOT / "pages" / "1_ToC_Builder.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("st.file_uploader("), 1)
+        self.assertNotIn("Blank Word ToC template", source)
 
     def test_toc_mode_selection_removed(self):
         app = AppTest.from_file(
