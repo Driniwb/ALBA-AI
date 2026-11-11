@@ -91,6 +91,14 @@ class ChatStoreTests(unittest.TestCase):
         first = self.store.create_project(ALICE, "EU reports")
         second = self.store.create_project(ALICE, "Legal drafting")
         chat = self.store.create_conversation(ALICE, mode="reporting", project_id=first)
+        self.assertTrue(self.store.rename_project(ALICE, first, "EU reporting"))
+        self.assertEqual(
+            next(p["name"] for p in self.store.list_projects(ALICE)
+                 if p["id"] == first),
+            "EU reporting",
+        )
+        self.assertFalse(self.store.rename_project(BOB, first, "Hijacked"))
+        self.assertFalse(self.store.rename_project(ALICE, "0" * 32, "No project"))
         self.assertTrue(self.store.rename_conversation(ALICE, chat, "Capacity Note"))
         self.assertTrue(self.store.set_conversation_project(ALICE, chat, second))
         self.assertTrue(self.store.delete_project(ALICE, second))
@@ -102,6 +110,10 @@ class ChatStoreTests(unittest.TestCase):
     def test_input_validation_and_transactions(self):
         with self.assertRaises(ValueError):
             self.store.create_project(ALICE, "")
+        with self.assertRaises(ValueError):
+            self.store.rename_project(ALICE, "not-a-valid-id", "Renamed")
+        with self.assertRaises(ValueError):
+            self.store.rename_project(ALICE, self.store.create_project(ALICE, "Temporary"), "")
         with self.assertRaises(ValueError):
             self.store.create_conversation(ALICE, mode="unknown")
         with self.assertRaises(ValueError):
