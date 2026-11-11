@@ -16,7 +16,7 @@ from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields
 MODEL = "@cf/google/gemma-4-26b-a4b-it"
 API_ROOT = "https://api.cloudflare.com/client/v4/accounts"
 MAX_SOURCE_CHARS = 4200  # limit of one Cloudflare request
-MAX_UNIT_CHARS = 40000   # larger legal units are translated in ordered chunks
+MAX_UNIT_CHARS = 240000  # full directive preambles may be one legal unit
 
 
 SYSTEM_TRANSLATE = """Je përkthyes/redaktor i specializuar për tekstin normativ të BE-së.
@@ -105,7 +105,7 @@ def split_translation_chunks(text: str) -> list[str]:
         raise ValueError("Njësia burimore është bosh.")
     if len(text) > MAX_UNIT_CHARS:
         raise ValueError(
-            "Një dispozitë kalon 40,000 karaktere; duhet ndarë manualisht "
+            "Një njësi kalon 240,000 karaktere; duhet ndarë manualisht "
             "pa prishur strukturën juridike."
         )
     result = []
