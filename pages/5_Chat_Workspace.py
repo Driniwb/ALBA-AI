@@ -114,9 +114,30 @@ def _store_for_page() -> tuple[ChatStore, str, bool]:
 
 store, owner, persistent = _store_for_page()
 scope = ("account:" if persistent else "temporary:") + owner
-if st.session_state.get("alba_scope") != scope:
+previous_scope = st.session_state.get("alba_scope")
+if previous_scope != scope:
     st.session_state["alba_scope"] = scope
-    st.session_state["alba_active_conversation"] = None
+    # Session state may survive a login/logout transition. Never carry a
+    # different owner's draft question, active conversation or project into
+    # the newly selected account/storage scope.
+    for key in (
+        "alba_active_conversation", "alba_new_chat_project",
+        "alba_pending_chat_text", "alba_pending_display_question",
+        "alba_pending_chat_error", "alba_chat_submit_staged",
+        "alba_browser_confirm_pending", "alba_browser_confirm_exchange",
+    ):
+        st.session_state.pop(key, None)
+    if previous_scope and previous_scope.startswith("account:") and not persistent:
+        # A returning guest must re-read their browser snapshot rather than
+        # accidentally relying on a stale, account-era in-memory workspace.
+        st.session_state.pop("alba_browser_ready", None)
+        st.session_state.pop("alba_browser_available", None)
+        st.session_state.pop("alba_browser_error", None)
+        old_demo = st.session_state.pop("alba_demo_store", None)
+        if old_demo is not None:
+            old_demo.close()
+        st.session_state.pop("alba_demo_owner", None)
+        st.rerun()
 
 if not persistent:
     initialize_browser_history(store, owner)
