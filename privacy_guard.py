@@ -21,7 +21,7 @@ MAX_UNCOMPRESSED_BYTES = 18 * 1024 * 1024
 MAX_PDF_PAGES = 35
 MAX_PUBLIC_LEGAL_PDF_PAGES = 180
 MAX_ATTACHMENT_TEXT = 10000
-SUPPORTED = {".txt", ".md", ".docx", ".pdf"}
+SUPPORTED = {".txt", ".md", ".docx", ".xlsx", ".pdf", ".pptx"}
 
 BLOCK_NOTICE = (
     "ALBA blocked processing because the material may contain personal, "
@@ -294,6 +294,142 @@ def _read_docx(data: bytes, *, public_legal: bool = False) -> tuple[str, bool]:
         return result, contains_media
 
 
+def _read_office_package(
+    data: bytes, extension: str, *, public_legal: bool = False
+) -> tuple[str, bool]:
+    """Read text-only XLSX/PPTX without interpreting formulas or embedded media.
+
+    Inspect all worksheets (including hidden sheets), slides and speaker notes.
+    Reject macros, embedded payloads, unsafe archive sizes and malformed XML.
+    """
+    expected = (
+        "xl/workbook.xml" if extension == ".xlsx"
+        else "ppt/presentation.xml"
+    )
+    parts = []
+    with ZipFile(BytesIO(data)) as archive:
+        members = archive.infolist()
+        names = {member.filename for member in members}
+        if (len(members) > 1500 or expected not in names
+                or "[Content_Types].xml" not in names):
+            raise ValueError("invalid_office_package")
+        if sum(m.file_size for m in members) > MAX_UNCOMPRESSED_BYTES:
+            raise ValueError("uncompressed_limit")
+
+        has_media = False
+        for member in members:
+            path = member.filename.lower()
+            if (member.file_size > MAX_UNCOMPRESSED_BYTES
+                    or (member.compress_size
+                        and member.file_size > 150 * member.compress_size
+                        and member.file_size > 100_000)
+                    or path.startswith("/")
+                    or ".." in member.filename.split("/")
+                    or "\\" in member.filename):
+                raise ValueError("unsafe_office_archive")
+            if (
+                "/embeddings/" in path or "/activex/" in path
+                or "/externallinks/" in path or "vbaproject" in path
+                or path.endswith((".bin", ".exe", ".js", ".vbs", ".xlsm", ".pptm"))
+            ):
+                raise ValueError("embedded_media_or_code")
+            if "/media/" in path:
+                if (not public_legal or not path.endswith((
+                    ".png", ".jpg", ".jpeg", ".gif", ".bmp",
+                    ".tif", ".tiff", ".emf", ".wmf", ".svg",
+                ))):
+                    raise ValueError("embedded_media_or_code")
+                has_media = True
+            if "/charts/" in path:
+                has_media = True
+
+        if extension == ".xlsx":
+            shared = []
+            if "xl/sharedStrings.xml" in names:
+                root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
+                for item in root.iter():
+                    if item.tag.rsplit("}", 1)[-1] == "si":
+                        shared.append("".join(
+                            child.text or "" for child in item.iter()
+                            if child.tag.rsplit("}", 1)[-1] == "t"
+                        ))
+            worksheets = sorted(
+                name for name in names
+                if name.startswith("xl/worksheets/")
+                and name.endswith(".xml") and "/_rels/" not in name
+            )
+            if not worksheets:
+                raise ValueError("no_worksheets")
+            for sheet in worksheets:
+                root = ET.fromstring(archive.read(sheet))
+                for cell in root.iter():
+                    if cell.tag.rsplit("}", 1)[-1] != "c":
+                        continue
+                    kind = cell.get("t", "")
+                    ref = cell.get("r", "")
+                    values = []
+                    for node in cell.iter():
+                        tag = node.tag.rsplit("}", 1)[-1]
+                        if tag == "f" and node.text:
+                            values.append("Formula: " + node.text)
+                        elif tag == "v" and node.text:
+                            value = node.text
+                            if kind == "s":
+                                position = int(value)
+                                if position < 0 or position >= len(shared):
+                                    raise ValueError("invalid_shared_string")
+                                value = shared[position]
+                            values.append(value)
+                        elif tag == "t" and node.text and kind == "inlineStr":
+                            values.append(node.text)
+                    if values:
+                        parts.append(sheet + " " + ref + ": " + " ".join(values))
+        else:
+            slides = sorted(
+                name for name in names
+                if (name.startswith("ppt/slides/slide")
+                    or name.startswith("ppt/notesSlides/notesSlide"))
+                and name.endswith(".xml") and "/_rels/" not in name
+            )
+            if not slides or not any(name.startswith("ppt/slides/") for name in slides):
+                raise ValueError("no_slides")
+            for slide in slides:
+                root = ET.fromstring(archive.read(slide))
+                text_runs = [
+                    item.text for item in root.iter()
+                    if item.tag.rsplit("}", 1)[-1] == "t" and item.text
+                ]
+                if text_runs:
+                    parts.append(slide + ": " + " ".join(text_runs))
+
+        # Include chart labels and notes/comments where these are text.
+        for name in sorted(names):
+            if not name.endswith(".xml"):
+                continue
+            if extension == ".xlsx":
+                auxiliary = name.startswith((
+                    "xl/comments", "xl/threadedComments/", "xl/charts/"
+                ))
+            else:
+                auxiliary = name.startswith((
+                    "ppt/charts/", "ppt/comments/", "ppt/commentAuthors"
+                ))
+            if not auxiliary:
+                continue
+            root = ET.fromstring(archive.read(name))
+            fragments = [
+                node.text for node in root.iter()
+                if node.tag.rsplit("}", 1)[-1] in {"t", "v", "text"}
+                and node.text
+            ]
+            if fragments:
+                parts.append(name + ": " + " ".join(fragments))
+    text = "\n".join(parts)
+    if not text.strip():
+        raise ValueError("no_text")
+    return text, has_media
+
+
 def screen_upload(
     filename: str,
     data: bytes,
@@ -333,6 +469,17 @@ def screen_upload(
                 warning = (
                     "PDF has images or graphics that ALBA did not read. "
                     "Only extracted text will be used; verify figures and annexes."
+                )
+        elif extension in {".xlsx", ".pptx"}:
+            if not data.startswith(b"PK"):
+                raise ValueError("invalid_office_package")
+            text, has_media = _read_office_package(
+                data, extension, public_legal=public_legal,
+            )
+            if has_media:
+                warning = (
+                    "Only extracted text and cell values are available. "
+                    "Embedded images and visual charts were not interpreted."
                 )
         else:
             if not data.startswith(b"PK"):
@@ -380,9 +527,9 @@ def upload_block_message(reason: str) -> str:
             "Ngarkoni një version më të vogël të aktit publik."
         ),
         "uninspectable_file": (
-            "PDF/DOCX nuk mund të lexohet plotësisht: mund të jetë i skanuar, "
+            "PDF/DOCX/XLSX/PPTX nuk mund të lexohet plotësisht: mund të jetë i skanuar, "
             "i enkriptuar, me faqe pa tekst ose me format të pambështetur. "
-            "Përdorni PDF me tekst të përzgjedhshëm ose DOCX/TXT."
+            "Përdorni dokument me tekst të lexueshëm në PDF, DOCX, XLSX ose PPTX."
         ),
         "sensitive_pattern": BLOCK_NOTICE,
         "filename": BLOCK_NOTICE,
