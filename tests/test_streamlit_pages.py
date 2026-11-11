@@ -35,7 +35,8 @@ class StreamlitNavigationSmoke(unittest.TestCase):
         ).run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(app.text_input[0].value, "")
-        self.assertEqual(list(app.selectbox[0].options), [str(n) for n in range(1, 9)])
+        self.assertEqual(int(app.number_input[0].value), 20)
+        self.assertEqual(int(app.number_input[0].max), 120)
 
     def test_toc_mode_selection_removed(self):
         app = AppTest.from_file(
