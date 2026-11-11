@@ -167,7 +167,8 @@ class AuditTests(unittest.TestCase):
         self.assertNotIn("Restore conversation from backup", src)
         self.assertNotIn("Download resumable chat (.json)", src)
         self.assertIn("Move to project", src)
-        self.assertIn("Attach a public document", src)
+        self.assertIn("accept_file=True", src)
+        self.assertIn('file_type=["docx", "xlsx", "pdf", "pptx"]', src)
 
 
 if __name__ == "__main__":
