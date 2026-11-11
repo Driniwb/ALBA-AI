@@ -103,7 +103,8 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertIn("st.download_button(", source)
         self.assertTrue(any("Delete conversation" in button.label for button in app.button))
         self.assertTrue(any("Save title" in button.label for button in app.button))
-        self.assertTrue(any("Restore conversation" in button.label for button in app.button))
+        # Restore is an action displayed only after a JSON file is uploaded.
+        self.assertIn('"Restore conversation"', source)
 
     def test_real_chat_widget_flow_uses_previous_turns_and_can_reopen(self):
         """Exercise Streamlit's chat_input, not only a static page render."""
