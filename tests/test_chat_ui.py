@@ -95,6 +95,58 @@ class ChatWorkspaceUITests(unittest.TestCase):
             for e in app.expander
         ))
 
+    def test_sidebar_project_and_chat_rename_then_move(self):
+        class Response:
+            status_code = 200
+            def json(self):
+                return {"success": True, "result": {
+                    "response": "Synthetic public answer."
+                }}
+
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"), default_timeout=25
+        )
+        app.secrets["CLOUDFLARE_ACCOUNT_ID"] = "SYNTHETIC_ACCOUNT"
+        app.secrets["CLOUDFLARE_API_TOKEN"] = "SYNTHETIC_TOKEN"
+        app.run()
+
+        app.text_input(key="alba_sidebar_project_name").set_value("First project").run()
+        app.button(key="alba_sidebar_create_project").click().run()
+        owner = app.session_state["alba_demo_owner"]
+        store = app.session_state["alba_demo_store"]
+        project_id = store.list_projects(owner)[0]["id"]
+
+        app.text_input(
+            key="alba_project_rename_" + project_id
+        ).set_value("Renamed project").run()
+        app.button(
+            key="alba_project_save_name_" + project_id
+        ).click().run()
+        self.assertEqual(store.list_projects(owner)[0]["name"], "Renamed project")
+
+        with patch("chat_backend.requests.post", return_value=Response()):
+            app.chat_input[0].set_value("Review a synthetic public rule.").run()
+        chat_id = store.list_conversations(owner)[0]["id"]
+        app.text_input(
+            key="alba_sidebar_chat_name_" + chat_id
+        ).set_value("Renamed conversation").run()
+        app.button(
+            key="alba_sidebar_save_name_" + chat_id
+        ).click().run()
+        self.assertEqual(
+            store.get_conversation(owner, chat_id)["title"],
+            "Renamed conversation",
+        )
+
+        app.selectbox(
+            key="alba_sidebar_move_target_" + chat_id
+        ).set_value(None).run()
+        app.button(
+            key="alba_sidebar_move_chat_" + chat_id
+        ).click().run()
+        self.assertIsNone(store.get_conversation(owner, chat_id)["project_id"])
+        self.assertEqual(len(app.exception), 0)
+
     def test_project_control_appears_only_in_existing_chat(self):
         class Response:
             status_code = 200
