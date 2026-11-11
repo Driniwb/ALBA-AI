@@ -79,6 +79,84 @@ _WRITING = (
 )
 
 
+
+# ALBA is an application first. "How can I do X?" means help the user use
+# the relevant ALBA page, not Microsoft Word/Google Docs instructions.
+_APP_HOWTO = (
+    r"\\b(?:si\\s+(?:(?:mund|duhet|b[eë]het|krijohet|realizohet)\\b|"
+    r"(?:t[eë]\\s+)?(?:krijoj|nd[eë]rtoj|p[eë]rgatis|hartoj|gjeneroj)\\b)|"
+    r"how\\s+(?:do|can|to)\\b|where\\s+(?:can|do)\\b|"
+    r"ku\\s+(?:mund|e)\\b|how\\s+does\\s+alba\\b)\\b"
+)
+
+
+def is_app_howto_question(query: str) -> bool:
+    if not isinstance(query, str):
+        return False
+    return _has(_APP_HOWTO, query.casefold())
+
+
+def app_help_answer(query: str) -> str | None:
+    """Answer in-product navigation questions deterministically and clearly.
+
+    Do not burn Cloudflare free quota on a generic Word/Google tutorial when
+    the user asks how to operate an existing ALBA tool. The text reflects
+    current UI capabilities, with no claim of full legal conformity.
+    """
+    if not is_app_howto_question(query):
+        return None
+    route = suggest_handoff(query)
+    if route is None:
+        return None
+    explanations = {
+        "toc": (
+            "Në ALBA, **ToC do të thotë Tabela e Përputhshmërisë "
+            "(Table of Concordance)**, jo tabela e përmbajtjes. Hape "
+            "**ToC Builder**. Ngarko direktivën publike në PDF ose DOCX, "
+            "vendos titullin dhe numrin e neneve, dhe, nëse ke një model "
+            "bosh me 7 kolona, ngarkoje. Për dokumente anglisht, përkthe "
+            "dispozitat në shqip me grupe dhe kontrolloji. Në fund shkarko "
+            "tabelën **Word (.docx)** sipas modelit. ALBA plotëson "
+            "referencat dhe tekstin e dispozitave të BE-së; kolonat e "
+            "legjislacionit shqiptar dhe vlerësimit të përputhshmërisë "
+            "mbeten bosh për analizë juridike."
+        ),
+        "legal": (
+            "Përdor **Legal Drafting** në ALBA. Zgjidh aktin (ligj, VKM, "
+            "udhëzim ose rregullore) dhe veprimin: hartim, ndryshim, "
+            "përafrim me acquis apo shqyrtim. Vendos tekstin e aktit dhe "
+            "referencat publike përkatëse, pastaj gjenero draftin. "
+            "Për përafrim, kontrollo nen për nen kuptimin dhe referencat."
+        ),
+        "eu": (
+            "Hap **EU Communication & Reporting** në ALBA. Zgjidh "
+            "Information Note, Administrative Capacity Note, pozicionin "
+            "negociues, raportin e progresit ose përgjigjen ndaj "
+            "Komisionit Evropian. Përcakto gjuhën, krijimin/përshtatjen "
+            "ose shqyrtimin, shto të dhënat dhe burimet e verifikuara "
+            "dhe përdor Generate. Kontrollo statusin e legjislacionit, "
+            "kapacitetet dhe angazhimet përpara dërgimit."
+        ),
+        "communication": (
+            "Hap **Communication Studio** në ALBA. Zgjidh Press & Media, "
+            "Newsletter & Web ose Social Media, pastaj formatin dhe "
+            "veprimin. Jep faktet e konfirmuara, gjenero tekstin dhe "
+            "redaktoje. Për katër rrjetet sociale mund të përdorësh "
+            "një gjenerim të përbashkët me variante për secilin rrjet."
+        ),
+        "writing": (
+            "Hap **Writing Assistant** në ALBA. Zgjidh formatin e "
+            "dokumentit dhe veprimin (hartim nga shënime, përmirësim "
+            "gjuhe, përshtatje në shqip ose kontroll terminologjie). "
+            "Vendos tekstin publik, gjenero rezultatin dhe shqyrto "
+            "ndryshimet përpara përdorimit institucional."
+        ),
+    }
+    return explanations[route.key] + (
+        "\\n\\nPër të vazhduar, kliko **Continue in "
+        + route.label + "** poshtë kësaj përgjigjeje."
+    )
+
 def suggest_handoff(query: str) -> Handoff | None:
     """Recommend at most one module, and never for a general explanation."""
     if not isinstance(query, str) or not query.strip():
@@ -86,7 +164,8 @@ def suggest_handoff(query: str) -> Handoff | None:
     # Ignore appended document content: it is source, not a navigation command.
     query = query.split("\n\n[PUBLIC DOCUMENT EXCERPT:", 1)[0].strip()
     q = query.casefold()
-    if not _has(_TASK, q):
+    howto = is_app_howto_question(q)
+    if not (_has(_TASK, q) or howto):
         return None
     if _has(_TOC, q):
         key, defaults = "toc", ()
