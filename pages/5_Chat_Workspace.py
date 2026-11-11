@@ -16,8 +16,12 @@ from chat_backend import (
 )
 from guest_browser_storage import (
     initialize_browser_history, save_browser_history,
+    export_guest_workspace, restore_guest_workspace,
+    validate_guest_workspace,
 )
-from chat_store import ChatStore, MODES
+from chat_history_status import chat_history_status
+from chat_backup import backup_bytes, parse_backup_file
+from chat_store import ChatStore, MODES, MAX_CHAT_TITLE
 from chat_auth import verified_chat_owner
 from chat_handoff import suggest_handoff, prepare_handoff
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
@@ -124,6 +128,14 @@ if not persistent:
         pending_text=st.session_state.get("alba_pending_chat_text"),
         pending_project_id=st.session_state.get("alba_new_chat_project"),
     )
+    st.caption(chat_history_status(
+        account_saved=False,
+        browser_available=bool(st.session_state.get("alba_browser_available")),
+        browser_confirmed=browser_saved,
+        browser_error=st.session_state.get("alba_browser_error"),
+    ))
+    if st.session_state.get("alba_browser_error"):
+        st.warning(st.session_state["alba_browser_error"])
     if st.session_state.get("alba_browser_confirm_pending"):
         if st.session_state.get("alba_browser_available") and not browser_saved:
             st.caption("Saving your question in this browser…")
@@ -151,10 +163,12 @@ if not persistent:
         else:
             st.session_state["alba_browser_confirm_exchange"] = False
 
-if not persistent and st.session_state.get("alba_browser_error"):
-    st.warning(st.session_state["alba_browser_error"])
+if persistent:
+    st.caption(chat_history_status(account_saved=True))
 
-if _oidc_configured():
+# Never imply that sign-in alone provides cloud persistence. The account
+# route requires BOTH a configured OIDC provider and a PostgreSQL database.
+if _oidc_configured() and _secret("ALBA_DATABASE_URL"):
     with st.sidebar:
         if _verified_owner():
             if st.button("Log out", key="alba_logout"):
