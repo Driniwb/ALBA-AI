@@ -30,16 +30,16 @@ class ChatWorkspaceUITests(unittest.TestCase):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('with st.popover("＋", help=', source)
-        self.assertIn('st.file_uploader(\n                "Attach a public document",', source)
-        self.assertIn('type=["docx", "xlsx", "pdf", "pptx"]', source)
+        self.assertIn("accept_file=True", source)
+        self.assertIn('file_type=["docx", "xlsx", "pdf", "pptx"]', source)
+        self.assertNotIn('with st.popover("＋", help=', source)
         self.assertNotIn('with st.expander("Attach a public document (optional)")', source)
 
     def test_attachment_menu_has_only_office_pdf_formats(self):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('with st.popover("＋", help=', source)
+        self.assertIn("accept_file=True", source)
         self.assertNotIn('"https://chatgpt.com/"', source)
         self.assertNotIn('"https://claude.ai/"', source)
         self.assertNotIn('"https://gemini.google.com/"', source)
@@ -48,9 +48,9 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertNotIn('st.subheader("How can I help?")', source)
         self.assertNotIn('st.caption(chat_history_status(', source)
         self.assertIn('screen_upload(', source)
-        self.assertIn('doc_context = (', source)
+        self.assertIn('def _document_context(', source)
         self.assertNotIn('Ask ALBA a question', source)
-        self.assertIn('"Ask a question or continue the conversation…"', source)
+        self.assertIn('"Message…"', source)
         self.assertIn('"Save project name"', source)
         self.assertIn('"Save chat name"', source)
         self.assertIn('"Move chat"', source)
@@ -232,6 +232,48 @@ class ChatWorkspaceUITests(unittest.TestCase):
             self.assertEqual(len(app.exception), 0)
             self.assertEqual(len(app.chat_message), 4)
 
+    def test_new_chat_has_no_implicit_history_from_previous_chat(self):
+        class Reply:
+            status_code = 200
+            def json(self):
+                return {"success": True, "result": {
+                    "response": "Synthetic public reply."
+                }}
+
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"),
+            default_timeout=25,
+        )
+        app.secrets["CLOUDFLARE_ACCOUNT_ID"] = "SYNTHETIC_ACCOUNT"
+        app.secrets["CLOUDFLARE_API_TOKEN"] = "SYNTHETIC_TOKEN"
+        app.run()
+        seen = []
+        def mock_post(url, **kwargs):
+            seen.append(kwargs["json"]["messages"])
+            return Reply()
+
+        with patch("chat_backend.requests.post", side_effect=mock_post):
+            app.chat_input[0].set_value("First independent public topic.").run()
+            owner = app.session_state["alba_demo_owner"]
+            store = app.session_state["alba_demo_store"]
+            first_id = store.list_conversations(owner)[0]["id"]
+            app.button(key="alba_new_chat").click().run()
+            self.assertEqual(len(app.chat_message), 0)
+            app.chat_input[0].set_value("Second independent public topic.").run()
+            self.assertEqual(len(store.list_conversations(owner)), 2)
+            self.assertNotIn("First independent public topic.",
+                             str(seen[-1]))
+            self.assertIn("Second independent public topic.",
+                          str(seen[-1]))
+
+            app.button(key="alba_open_" + first_id).click().run()
+            app.chat_input[0].set_value("Continue the first public topic.").run()
+            self.assertIn("First independent public topic.",
+                          str(seen[-1]))
+            self.assertNotIn("Second independent public topic.",
+                             str(seen[-1]))
+        self.assertEqual(len(app.exception), 0)
+
     def test_browser_autosave_runs_before_model_and_stages_prompt(self):
         source = (ROOT / "pages/5_Chat_Workspace.py").read_text(
             encoding="utf-8"
@@ -311,18 +353,16 @@ class ChatWorkspaceUITests(unittest.TestCase):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(encoding="utf-8")
         self.assertNotIn("Sending a message shares it with Cloudflare", source)
         self.assertNotIn("Connection settings", source)
-        self.assertIn("Attach a public document", source)
+        self.assertIn("accept_file=True", source)
         self.assertIn("Move to project", source)
-        # The compact composer is inline and centered at the top, not
-        # Streamlit's default fixed bottom chat bar.
-        self.assertIn('chat_composer = st.container(key="alba_chat_composer")', source)
-        self.assertIn("with chat_composer:\n    plus_col, question_col = st.columns(", source)
-        self.assertIn("with question_col:\n        prompt = st.chat_input(", source)
-        self.assertIn("max-width: 740px;", source)
-        self.assertLess(
-            source.index('chat_composer = st.container('),
-            source.index('with st.sidebar:'),
-        )
+        # New Chat is centered; existing conversations use Streamlit's
+        # native root-level, bottom-docked input.
+        self.assertIn('with st.container(key="alba_chat_empty"):', source)
+        self.assertIn('if conversation:\n    submission = st.chat_input(', source)
+        self.assertIn('max-width: 760px;', source)
+        self.assertIn('with st.popover("⋯", help="Chat options:', source)
+        self.assertNotIn('st.subheader(conversation["title"])', source)
+        self.assertNotIn('st.popover("Move to project"', source)
 
 
     def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
