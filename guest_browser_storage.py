@@ -248,7 +248,10 @@ def initialize_browser_history(store: ChatStore, owner: str) -> None:
     history with an empty session while a restore is still pending.
     """
     if _for_tests():
+        # Headless tests simulate a functioning browser component; the
+        # JavaScript read-back contract is tested separately in Node.
         st.session_state["alba_browser_ready"] = True
+        st.session_state["alba_browser_available"] = True
         return
     if st.session_state.get("alba_browser_ready"):
         return

@@ -16,8 +16,12 @@ from chat_backend import (
 )
 from guest_browser_storage import (
     initialize_browser_history, save_browser_history,
+    export_guest_workspace, restore_guest_workspace,
+    validate_guest_workspace,
 )
-from chat_store import ChatStore, MODES
+from chat_history_status import chat_history_status
+from chat_backup import backup_bytes, parse_backup_file
+from chat_store import ChatStore, MODES, MAX_CHAT_TITLE
 from chat_auth import verified_chat_owner
 from chat_handoff import suggest_handoff, prepare_handoff
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
@@ -110,9 +114,30 @@ def _store_for_page() -> tuple[ChatStore, str, bool]:
 
 store, owner, persistent = _store_for_page()
 scope = ("account:" if persistent else "temporary:") + owner
-if st.session_state.get("alba_scope") != scope:
+previous_scope = st.session_state.get("alba_scope")
+if previous_scope != scope:
     st.session_state["alba_scope"] = scope
-    st.session_state["alba_active_conversation"] = None
+    # Session state may survive a login/logout transition. Never carry a
+    # different owner's draft question, active conversation or project into
+    # the newly selected account/storage scope.
+    for key in (
+        "alba_active_conversation", "alba_new_chat_project",
+        "alba_pending_chat_text", "alba_pending_display_question",
+        "alba_pending_chat_error", "alba_chat_submit_staged",
+        "alba_browser_confirm_pending", "alba_browser_confirm_exchange",
+    ):
+        st.session_state.pop(key, None)
+    if previous_scope and previous_scope.startswith("account:") and not persistent:
+        # A returning guest must re-read their browser snapshot rather than
+        # accidentally relying on a stale, account-era in-memory workspace.
+        st.session_state.pop("alba_browser_ready", None)
+        st.session_state.pop("alba_browser_available", None)
+        st.session_state.pop("alba_browser_error", None)
+        old_demo = st.session_state.pop("alba_demo_store", None)
+        if old_demo is not None:
+            old_demo.close()
+        st.session_state.pop("alba_demo_owner", None)
+        st.rerun()
 
 if not persistent:
     initialize_browser_history(store, owner)
@@ -124,6 +149,14 @@ if not persistent:
         pending_text=st.session_state.get("alba_pending_chat_text"),
         pending_project_id=st.session_state.get("alba_new_chat_project"),
     )
+    st.caption(chat_history_status(
+        account_saved=False,
+        browser_available=bool(st.session_state.get("alba_browser_available")),
+        browser_confirmed=browser_saved,
+        browser_error=st.session_state.get("alba_browser_error"),
+    ))
+    if st.session_state.get("alba_browser_error"):
+        st.warning(st.session_state["alba_browser_error"])
     if st.session_state.get("alba_browser_confirm_pending"):
         if st.session_state.get("alba_browser_available") and not browser_saved:
             st.caption("Saving your question in this browser…")
@@ -151,10 +184,12 @@ if not persistent:
         else:
             st.session_state["alba_browser_confirm_exchange"] = False
 
-if not persistent and st.session_state.get("alba_browser_error"):
-    st.warning(st.session_state["alba_browser_error"])
+if persistent:
+    st.caption(chat_history_status(account_saved=True))
 
-if _oidc_configured():
+# Never imply that sign-in alone provides cloud persistence. The account
+# route requires BOTH a configured OIDC provider and a PostgreSQL database.
+if _oidc_configured() and _secret("ALBA_DATABASE_URL"):
     with st.sidebar:
         if _verified_owner():
             if st.button("Log out", key="alba_logout"):
@@ -174,6 +209,12 @@ def _start_chat(project_id: str | None = None) -> None:
     st.session_state["alba_new_chat_project"] = project_id
     st.session_state["alba_pending_chat_text"] = None
     st.session_state["alba_pending_chat_error"] = None
+
+
+def _mark_history_changed() -> None:
+    """Require confirmation that every guest mutation reaches the browser."""
+    if not persistent:
+        st.session_state["alba_browser_confirm_exchange"] = True
 
 
 with st.sidebar:
@@ -206,6 +247,7 @@ with st.sidebar:
                     st.error("Enter a valid project name.")
                 else:
                     _start_chat(created)
+                    _mark_history_changed()
                     st.rerun()
 
     for project in projects:
@@ -256,6 +298,92 @@ with st.sidebar:
             _open_conversation(chat["id"])
             st.rerun()
 
+# Keep backup and recovery under one optional menu rather than adding
+# controls throughout the ChatGPT-style sidebar.
+with st.sidebar:
+    with st.popover("History backup", icon=":material/history:"):
+        try:
+            workspace_json = export_guest_workspace(
+                store, owner,
+                active_id=st.session_state.get("alba_active_conversation"),
+                pending_text=st.session_state.get("alba_pending_chat_text"),
+                pending_project_id=st.session_state.get("alba_new_chat_project"),
+            )
+        except ValueError:
+            st.caption(
+                "Full workspace backup unavailable at the current size. "
+                "Download important conversations individually."
+            )
+        else:
+            st.download_button(
+                "Download all chats and projects (.json)",
+                data=workspace_json.encode("utf-8"),
+                file_name="ALBA_workspace_backup.json",
+                mime="application/json",
+                key="alba_download_workspace",
+                use_container_width=True,
+            )
+
+        restore_file = st.file_uploader(
+            "Import a conversation backup (.json)",
+            type=["json"],
+            key="alba_restore_single_file",
+        )
+        if restore_file is not None and st.button(
+            "Restore conversation", key="alba_restore_single",
+        ):
+            try:
+                backup = parse_backup_file(restore_file.getvalue())
+                restored = store.import_conversation_backup(owner, backup)
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                _open_conversation(restored)
+                _mark_history_changed()
+                st.rerun()
+
+        if not persistent:
+            workspace_file = st.file_uploader(
+                "Import a full workspace backup (.json) into an empty workspace",
+                type=["json"],
+                key="alba_restore_workspace_file",
+            )
+            if workspace_file is not None and st.button(
+                "Restore full workspace", key="alba_restore_workspace",
+            ):
+                if store.list_conversations(owner) or store.list_projects(owner):
+                    st.error(
+                        "Full workspace restoration requires an empty workspace. "
+                        "Existing chats will not be overwritten."
+                    )
+                else:
+                    try:
+                        raw = workspace_file.getvalue().decode("utf-8-sig")
+                        clean = validate_guest_workspace(raw)
+                        recovered = restore_guest_workspace(store, owner, raw)
+                    except (ValueError, UnicodeError) as exc:
+                        st.error(str(exc))
+                    else:
+                        st.session_state["alba_active_conversation"] = recovered
+                        st.session_state["alba_pending_chat_text"] = clean["pending"]
+                        st.session_state["alba_pending_display_question"] = (
+                            clean["pending"].split(
+                                "\n\n[PUBLIC DOCUMENT EXCERPT:", 1
+                            )[0] if clean["pending"] else None
+                        )
+                        st.session_state["alba_pending_chat_error"] = (
+                            "This question was not answered. Select Retry to continue."
+                            if clean["pending"] else None
+                        )
+                        project_index = clean["pending_project"]
+                        st.session_state["alba_new_chat_project"] = (
+                            store.list_projects(owner)[project_index]["id"]
+                            if project_index is not None else None
+                        )
+                        _mark_history_changed()
+                        st.rerun()
+
+
 active_id = st.session_state.get("alba_active_conversation")
 conversation = (
     store.get_conversation(owner, active_id) if active_id else None
@@ -278,6 +406,66 @@ def _render_chat_content(value: str) -> None:
 if conversation:
     st.subheader(conversation["title"])
     mode = conversation["mode"]
+    messages = store.list_messages(owner, active_id)
+
+    with st.popover("Chat options", icon=":material/more_horiz:"):
+        new_title = st.text_input(
+            "Conversation title",
+            value=conversation["title"],
+            key="alba_rename_title_" + active_id,
+            max_chars=MAX_CHAT_TITLE,
+        )
+        if st.button("Save title", key="alba_save_title_" + active_id):
+            try:
+                updated = store.rename_conversation(owner, active_id, new_title)
+            except ValueError:
+                st.error("Please enter a valid, public conversation title.")
+            except Exception:
+                st.error("Could not rename the conversation. Try again.")
+            else:
+                if updated:
+                    _mark_history_changed()
+                    st.rerun()
+                st.error("The conversation is no longer available.")
+
+        try:
+            portable_chat = backup_bytes(conversation, messages)
+        except ValueError:
+            st.caption(
+                "This conversation exceeds the single-chat backup limit. "
+                "Try the full workspace backup."
+            )
+        else:
+            st.download_button(
+                "Export conversation (.json)",
+                data=portable_chat,
+                file_name="ALBA_chat_" + active_id[:12] + ".json",
+                mime="application/json",
+                key="alba_export_chat_" + active_id,
+                use_container_width=True,
+            )
+
+        confirmed = st.checkbox(
+            "I confirm permanent deletion",
+            value=False,
+            key="alba_delete_confirm_" + active_id,
+        )
+        if st.button(
+            "Delete conversation",
+            key="alba_delete_chat_" + active_id,
+            disabled=not confirmed,
+        ):
+            try:
+                deleted = store.delete_conversation(owner, active_id)
+            except Exception:
+                st.error("Could not delete the conversation. Try again.")
+            else:
+                if deleted:
+                    _start_chat()
+                    _mark_history_changed()
+                    st.rerun()
+                st.error("The conversation is no longer available.")
+
     with st.popover("Move to project", icon=":material/folder_open:"):
         projects = store.list_projects(owner)
         names = {item["id"]: item["name"] for item in projects}
@@ -303,15 +491,16 @@ if conversation:
                 try:
                     created = store.create_project(owner, new_name)
                     store.set_conversation_project(owner, active_id, created)
+                    _mark_history_changed()
                     st.rerun()
                 except ValueError:
                     st.error("Enter a valid project name.")
         elif target != conversation["project_id"]:
             if st.button("Move", key="alba_move_" + active_id):
                 store.set_conversation_project(owner, active_id, target)
+                _mark_history_changed()
                 st.rerun()
 
-    messages = store.list_messages(owner, active_id)
     for message in messages:
         with st.chat_message(message["role"]):
             _render_chat_content(message["content"])
