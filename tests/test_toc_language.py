@@ -40,11 +40,14 @@ class TocLanguageTests(unittest.TestCase):
 
     def test_page_does_not_offer_manual_source_language_switch(self):
         page = (ROOT / "pages" / "1_ToC_Builder.py").read_text(encoding="utf-8")
+        workflow = (ROOT / "toc_workflow.py").read_text(encoding="utf-8")
         ast.parse(page)
+        ast.parse(workflow)
         self.assertNotIn('"Content of column 2"', page)
         self.assertNotIn('"Literal Albanian translation (AI)"', page)
         self.assertNotIn('"Original text (no translation)"', page)
-        self.assertIn("detect_toc_language(units)", page)
+        self.assertIn("detect_toc_language(units)", workflow)
+        self.assertIn("prepare_toc(", page)
 
 
 if __name__ == "__main__":

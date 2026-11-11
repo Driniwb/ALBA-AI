@@ -120,15 +120,15 @@ class PublicDocumentModulesTests(unittest.TestCase):
         self.assertEqual(len(app.exception), 0)
         self.assertFalse(app.error)
 
-    def test_toc_public_reference_and_blank_templates_use_same_check(self):
+    def test_toc_single_public_upload_is_screened_locally(self):
         src = (ROOT / "pages" / "1_ToC_Builder.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn("public_legal=True", src)
-        self.assertIn(
-            "screen_upload(template.name, template.getvalue(), "
-            "max_chars=50000, public_legal=True)", src
-        )
+        workflow = (ROOT / "toc_workflow.py").read_text(encoding="utf-8")
+        self.assertIn("prepare_toc(source.name, file_bytes)", src)
+        self.assertIn("screen_upload(", workflow)
+        self.assertIn("public_legal=True", workflow)
+        self.assertEqual(src.count("st.file_uploader("), 1)
         for file_name in (
             "writing_assistant.py",
             "pages/2_Communication_Studio.py",

@@ -41,11 +41,13 @@ class EnglishInterfaceTests(unittest.TestCase):
         self.assertIn('st.title("Writing Assistant")', writing)
         self.assertIn(".alba-hero", _CSS)
 
-    def test_toc_defaults_to_blank_title_and_up_to_eight_articles(self):
+    def test_toc_has_one_upload_and_no_manual_format_configuration(self):
         toc = (ROOT / "pages" / "1_ToC_Builder.py").read_text(encoding="utf-8")
-        self.assertIn('value=""', toc)
-        self.assertIn('max_value=MAX_SELECTED_ARTICLES', toc)
-        self.assertIn('Enter the directive number and title', toc)
+        self.assertEqual(toc.count("st.file_uploader("), 1)
+        self.assertNotIn("st.text_input(", toc)
+        self.assertNotIn("st.number_input(", toc)
+        self.assertNotIn("st.selectbox(", toc)
+        self.assertNotIn("template = st.file_uploader", toc)
 
     def test_all_format_display_names_are_english(self):
         labels = {item["label"] for item in FORMATS.values()}

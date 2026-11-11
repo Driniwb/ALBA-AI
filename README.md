@@ -9,7 +9,7 @@ Launch `streamlit run app.py` for six named pages:
 - **EU Communication & Reporting:** dedicated sidebar page for Information Note, Administrative Capacity Note, Benchmark/Acquis Progress Report, Negotiating Position section and Reply to the European Commission, in English or Albanian.
 - **Legal Drafting:** create, minimally amend, review or draft literal-first acquis approximations for four distinct Albanian normative act types (law, Council of Ministers decision, ministerial instruction, regulation).
 - **Communication Studio:** create, review or adapt Albanian public communication in Press & Media (press release, press statement), Newsletter & Web (newsletter, website article) and Social Media (Instagram, LinkedIn, Facebook, X), plus five EU Communication & Reporting formats (English or Albanian). One button can generate separate drafts for all four social channels.
-- **ToC Builder:** upload a *public or synthetic* English-language EU directive (text PDF or DOCX), select up to 120 articles, and download a **seven-column Word Table of Concordance**. A public-source synthetic template is included; the user can upload a blank 7-column DOCX to preserve the exact desired structure and style.
+- **ToC Builder:** upload a public English- or Albanian-language EU directive (PDF/DOCX); ALBA structures its provisions and exports the seven-column Word Table of Concordance. English documents use one-click literal Albanian translation, while Albanian documents are exported directly. The supplied blank/filled ToC informed the built-in seven-column structure; its original binary styling is not embedded in this repository.
 
 The ToC Builder identifies source language locally; its output depends on the detected language:
 
@@ -485,3 +485,38 @@ The chat assistant is also aware of the actual ALBA modules: when
 asked how to build a ToC, it first explains the *Table of Concordance*
 workflow in ToC Builder, not Word/Google Docs' table of contents. Users
 can click the matching **Continue in** action to open a module.
+
+## One-upload ToC Builder (simplified workflow)
+
+The active **ToC Builder** now has one visible input: **Ngarko direktivën**
+(PDF or DOCX). It automatically detects English or Albanian, extracts the
+whole directive within capacity bounds and structures it into the familiar
+seven columns. The article number and title are joined with the first
+substantive paragraph, while subsequent paragraphs and letters keep their
+own references. Introductory text and annexes are included; they are not
+silently removed just because the user did not select an article range.
+
+- **Albanian input**: a Word download is immediately available without AI.
+- **English input**: a single **Krijo ToC në Word** action explicitly starts
+  the existing Cloudflare translator, which processes sequential units
+  automatically and persists intermediate results in the current session.
+  If quota/service errors interrupt translation, **Vazhdo konvertimin**
+  resumes from already completed units. Once finished, download the
+  Albanian Word ToC.
+- **The Word format is built in:** users no longer upload an empty template,
+  choose article counts, set a language switch, edit each translation in
+  a separate screen, or click multiple translation batches.
+- National-law mapping, compliance grades and comments are deliberately
+  blank. The result is **not** a certified translation or transposition
+  assessment and requires verification against the EU source.
+- Source logos/images are included where the supported extraction permits.
+  For PDF, image location can be approximate and vector drawings may not
+  transfer as originals.
+
+The original user-supplied ToC blank and completed sample are available as
+indexed content rather than exportable raw DOCX bytes in this workspace.
+The repository's built-in template reproduces the **identified seven-column
+structure**; it should not be described as a byte-identical copy of the
+user's original Word template. If the exact binary template becomes available
+for authorized reuse, it can be embedded as the bundled baseline without
+adding a second user-facing upload step.
