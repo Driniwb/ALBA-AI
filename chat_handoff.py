@@ -109,16 +109,15 @@ def app_help_answer(query: str) -> str | None:
         return None
     explanations = {
         "toc": (
-            "Në ALBA, **ToC do të thotë Tabela e Përputhshmërisë "
-            "(Table of Concordance)**, jo tabela e përmbajtjes. Hape "
-            "**ToC Builder**. Ngarko direktivën publike në PDF ose DOCX, "
-            "vendos titullin dhe numrin e neneve, dhe, nëse ke një model "
-            "bosh me 7 kolona, ngarkoje. Për dokumente anglisht, përkthe "
-            "dispozitat në shqip me grupe dhe kontrolloji. Në fund shkarko "
-            "tabelën **Word (.docx)** sipas modelit. ALBA plotëson "
-            "referencat dhe tekstin e dispozitave të BE-së; kolonat e "
-            "legjislacionit shqiptar dhe vlerësimit të përputhshmërisë "
-            "mbeten bosh për analizë juridike."
+            "Në ALBA, **ToC** është **Tabela e Përputhshmërisë "
+            "(Table of Concordance)**, jo tabela e përmbajtjes. "
+            "Hap **ToC Builder** dhe ngarko direktivën publike në PDF "
+            "ose DOCX. ALBA identifikon automatikisht gjuhën dhe "
+            "përgatit tabelën Word me shtatë kolonat sipas modelit. "
+            "Nëse burimi është shqip, shkarko menjëherë dokumentin; "
+            "nëse është anglisht, kliko **Krijo ToC në Word** për "
+            "përkthim literal në shqip. Kolonat për legjislacionin "
+            "shqiptar dhe vlerësimin juridik mbeten bosh."
         ),
         "legal": (
             "Përdor **Legal Drafting** në ALBA. Zgjidh aktin (ligj, VKM, "
