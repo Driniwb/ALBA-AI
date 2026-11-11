@@ -125,7 +125,7 @@ class PublicDocumentModulesTests(unittest.TestCase):
             encoding="utf-8"
         )
         workflow = (ROOT / "toc_workflow.py").read_text(encoding="utf-8")
-        self.assertIn("prepare_toc(source.name, source.getvalue())", src)
+        self.assertIn("prepare_toc(source.name, file_bytes)", src)
         self.assertIn("screen_upload(", workflow)
         self.assertIn("public_legal=True", workflow)
         self.assertEqual(src.count("st.file_uploader("), 1)
