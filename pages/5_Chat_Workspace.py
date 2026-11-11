@@ -605,44 +605,10 @@ else:
     mode = "general"
     messages = []
 
+# A single compact '+' gives access to attachments and external AI sites.
+# All content screening and selected-excerpt limits are preserved.
 attachment_text = ""
 attachment_name = ""
-with st.expander("Attach a public document (optional)"):
-    doc_nonce = st.session_state.get("alba_doc_nonce", 0)
-    doc = st.file_uploader(
-        "Attach public legislation, directive or report",
-        type=["pdf", "docx", "txt", "md"],
-        key="alba_public_doc_" + str(doc_nonce),
-    )
-    if doc:
-        checked = screen_upload(
-            doc.name, doc.getvalue(),
-            public_legal=True, max_chars=150000,
-        )
-        if checked.blocked:
-            st.error(upload_block_message(checked.reason))
-        else:
-            if checked.warning:
-                st.warning(checked.warning)
-            if len(checked.text) > 3200:
-                st.caption("Long document: select the section to analyse.")
-                digest = hashlib.sha256(doc.getvalue()).hexdigest()[:12]
-                with st.expander("Read extracted public source"):
-                    st.text_area(
-                        "Full extracted text (read-only)",
-                        value=checked.text, height=260, disabled=True,
-                        key="alba_full_source_" + digest,
-                    )
-                attachment_text = st.text_area(
-                    "Source excerpt for your next question",
-                    value=checked.text[:3200], max_chars=3200,
-                    height=180, key="alba_source_selection_" + digest,
-                )
-            else:
-                attachment_text = checked.text
-            if attachment_text.strip():
-                attachment_name = doc.name
-
 account, api_key = (
     _secret("CLOUDFLARE_ACCOUNT_ID"), _secret("CLOUDFLARE_API_TOKEN"),
 )
@@ -652,21 +618,79 @@ if not account or not api_key:
         "CLOUDFLARE_API_TOKEN in Streamlit Cloud → App settings → Secrets."
     )
 
-doc_context = (
-    "\n\n[PUBLIC DOCUMENT EXCERPT: " + attachment_name + "]\n"
-    + attachment_text + "\n[/PUBLIC DOCUMENT EXCERPT]"
-    if attachment_name else ""
-)
-available_chars = max(100, MAX_USER_CHARS - len(doc_context))
-# Rendering inside the earlier container makes st.chat_input inline at
-# the top of the page, rather than pinned full-width to the viewport bottom.
+# Rendering inside the earlier top container keeps this compact composer
+# in page flow; the popover has one visible '+' attachment/links control.
 with chat_composer:
-    prompt = st.chat_input(
-        "Ask ALBA a question or continue the conversation…",
-        key="alba_chat_prompt",
-        max_chars=available_chars,
-        disabled=not (account and api_key),
+    plus_col, question_col = st.columns(
+        [1, 13], vertical_alignment="bottom", gap="small"
     )
+    with plus_col:
+        with st.popover("＋", help="Attach a document or open another AI platform"):
+            doc_nonce = st.session_state.get("alba_doc_nonce", 0)
+            doc = st.file_uploader(
+                "Attach a public document",
+                type=["pdf", "docx", "txt", "md"],
+                key="alba_public_doc_" + str(doc_nonce),
+            )
+            if doc:
+                checked = screen_upload(
+                    doc.name, doc.getvalue(),
+                    public_legal=True, max_chars=150000,
+                )
+                if checked.blocked:
+                    st.error(upload_block_message(checked.reason))
+                else:
+                    if checked.warning:
+                        st.warning(checked.warning)
+                    if len(checked.text) > 3200:
+                        st.caption("Long document: select the section to analyse.")
+                        digest = hashlib.sha256(doc.getvalue()).hexdigest()[:12]
+                        with st.expander("Read extracted public source"):
+                            st.text_area(
+                                "Full extracted text (read-only)",
+                                value=checked.text, height=260, disabled=True,
+                                key="alba_full_source_" + digest,
+                            )
+                        attachment_text = st.text_area(
+                            "Source excerpt for your next question",
+                            value=checked.text[:3200], max_chars=3200,
+                            height=180, key="alba_source_selection_" + digest,
+                        )
+                    else:
+                        attachment_text = checked.text
+                    if attachment_text.strip():
+                        attachment_name = doc.name
+
+            st.divider()
+            st.caption("Other AI platforms · opens in a new tab")
+            st.link_button(
+                "ChatGPT", "https://chatgpt.com/",
+                use_container_width=True,
+            )
+            st.link_button(
+                "Claude", "https://claude.ai/",
+                use_container_width=True,
+            )
+            st.link_button(
+                "Gemini", "https://gemini.google.com/",
+                use_container_width=True,
+            )
+
+    doc_context = (
+        "\n\n[PUBLIC DOCUMENT EXCERPT: " + attachment_name + "]\n"
+        + attachment_text + "\n[/PUBLIC DOCUMENT EXCERPT]"
+        if attachment_name else ""
+    )
+    available_chars = max(100, MAX_USER_CHARS - len(doc_context))
+    with question_col:
+        prompt = st.chat_input(
+            "Ask a question or continue the conversation…",
+            key="alba_chat_prompt",
+            max_chars=available_chars,
+            disabled=not (account and api_key),
+        )
+        if attachment_name:
+            st.caption("Attached: " + attachment_name + " · public excerpt ready")
 
 if prompt:
     st.session_state["alba_pending_chat_text"] = prompt + doc_context
