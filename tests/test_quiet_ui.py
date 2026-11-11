@@ -49,8 +49,9 @@ class QuietUiTests(unittest.TestCase):
                 "scan_text_fields(", "safe = st.checkbox(",
             ),
             "pages/1_ToC_Builder.py": (
-                "screen_upload(", "confirmed = st.checkbox(",
+                "prepare_toc(", "translate_unit(",
             ),
+            "toc_workflow.py": ("screen_upload(",),
             "writing_assistant.py": (
                 "scan_text(", "selected_public_attachment(",
             ),
