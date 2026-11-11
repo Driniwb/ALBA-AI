@@ -138,6 +138,18 @@ if not persistent:
                 st.stop()
         else:
             st.session_state["alba_browser_confirm_pending"] = False
+    if st.session_state.get("alba_browser_confirm_exchange"):
+        if st.session_state.get("alba_browser_available") and not browser_saved:
+            st.caption("Saving the conversation in this browser…")
+            if st.button(
+                "Continue without confirmed conversation saving",
+                key="alba_skip_exchange_save",
+            ):
+                st.session_state["alba_browser_confirm_exchange"] = False
+            else:
+                st.stop()
+        else:
+            st.session_state["alba_browser_confirm_exchange"] = False
 
 if not persistent and st.session_state.get("alba_browser_error"):
     st.warning(st.session_state["alba_browser_error"])
@@ -463,6 +475,8 @@ if (prompt or retry or staged_submission) and pending:
                         title=title,
                     )
                 store.append_exchange(owner, active_id, pending, reply)
+                if not persistent:
+                    st.session_state["alba_browser_confirm_exchange"] = True
                 st.session_state["alba_active_conversation"] = active_id
                 st.session_state["alba_new_chat_project"] = None
                 st.session_state["alba_pending_chat_text"] = None
