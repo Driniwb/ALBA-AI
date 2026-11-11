@@ -159,6 +159,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertEqual(source.count("save_browser_history("), 1)
         self.assertIn('"alba_chat_submit_staged"', source)
         self.assertIn('"alba_browser_confirm_pending"', source)
+        self.assertIn('"alba_browser_confirm_exchange"', source)
         self.assertIn('staged_submission = bool(', source)
         self.assertIn('st.stop()', source)
         self.assertLess(
