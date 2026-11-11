@@ -9,7 +9,7 @@ Launch `streamlit run app.py` for six named pages:
 - **EU Communication & Reporting:** dedicated sidebar page for Information Note, Administrative Capacity Note, Benchmark/Acquis Progress Report, Negotiating Position section and Reply to the European Commission, in English or Albanian.
 - **Legal Drafting:** create, minimally amend, review or draft literal-first acquis approximations for four distinct Albanian normative act types (law, Council of Ministers decision, ministerial instruction, regulation).
 - **Communication Studio:** create, review or adapt Albanian public communication in Press & Media (press release, press statement), Newsletter & Web (newsletter, website article) and Social Media (Instagram, LinkedIn, Facebook, X), plus five EU Communication & Reporting formats (English or Albanian). One button can generate separate drafts for all four social channels.
-- **ToC Builder:** upload a *public or synthetic* English-language EU directive (text PDF or DOCX), select from one to eight articles, and download a **seven-column Word Table of Concordance**. A public-source synthetic template is included; the user can upload a blank 7-column DOCX to preserve the exact desired structure and style.
+- **ToC Builder:** upload a *public or synthetic* English-language EU directive (text PDF or DOCX), select up to 120 articles, and download a **seven-column Word Table of Concordance**. A public-source synthetic template is included; the user can upload a blank 7-column DOCX to preserve the exact desired structure and style.
 
 The ToC Builder identifies source language locally; its output depends on the detected language:
 
@@ -18,7 +18,7 @@ The ToC Builder identifies source language locally; its output depends on the de
 
 Output columns reproduce the seven-column Albanian model: `Neni | Teksti | Referenca | Neni | Përmbajtja | Përputhshmëria | Komente`. Only the first two are filled; the national legislative reference, national clause, approximation grade F/P/N/N/A, and remarks remain **blank**. The summary at the top is clearly labelled `[për vlerësim juridik]` rather than claiming that full approximation has been established.
 
-**Important limitations:** This is a **drafting prototype**, not a certified legal translation or a conformity assessment. Scanned PDFs are not supported; PDF text extraction may omit footnotes, misjoin words, or preserve page markers. Automated splitting at sentence level (particularly after lettered lists) is not reliable. A user **must** check each unit against the authentic, current EU publication and confirm all translated meanings, numbering and annex references. The model's translation quality has not been established by live human evaluation. The pilot supports Articles 1–8; entire directives should be handled section by section.
+**Important limitations:** This is a **drafting prototype**, not a certified legal translation or a conformity assessment. Scanned PDFs are not supported; PDF text extraction may omit footnotes, misjoin words, or preserve page markers. Automated splitting at sentence level (particularly after lettered lists) is not reliable. A user **must** check each unit against the authentic, current EU publication and confirm all translated meanings, numbering and annex references. The model's translation quality has not been established by live human evaluation. The expanded pilot accepts up to 120 articles and 750 legal-unit rows, subject to document, model and quota limits. Large directives should be translated in batches and checked article by article.
 
 **Privacy:** The repository is public. No user-uploaded blank or completed ToC was committed. The built-in template is generated synthetically from general seven-column characteristics. Do not upload internal government/partner drafts, non-public legal documents, confidential notes, sensitive data, or personal information. When a user clicks translation, selected text is transmitted to **Cloudflare Workers AI**, an external AI service. Original file bytes are not sent as files; working data and progress are held in the Streamlit process/session, not a persistent database.
 
@@ -120,7 +120,7 @@ Internal Albanian error messages are surfaced as English messages through `ui_co
 
 The product name displayed in Streamlit is now **ALBA** (no trailing AI). The default navigation item is explicitly **Writing Assistant** rather than the entrypoint filename "app". Other navigation entries are ToC Builder and Communication Studio. This uses a Streamlit `st.navigation` router and named `st.Page` scripts.
 
-The previously visible sentence directing readers to explore other pages is removed from the Writing Assistant. The **Directive title** field in ToC Builder is intentionally **empty until entered** by the user. The article selector supports the first **1 through 8** articles (default: first 3). Both modes still require verification of extraction and literal Albanian translation against official legal sources.
+The previously visible sentence directing readers to explore other pages is removed from the Writing Assistant. The **Directive title** field in ToC Builder is intentionally **empty until entered** by the user. The article selector supports the first **1 through 120** articles (default: first 20). Both modes still require verification of extraction and literal Albanian translation against official legal sources.
 
 The shared interface now takes inspiration from 1950s–1960s **atomic-age retro-futurist editorial and analogue control-panel styling**, familiar from the Fallout TV series' set design, without borrowing its logos, artwork, proprietary fonts or imagery. Original CSS-only concentric dials and restrained mechanical details use aged ivory, olive and teal surfaces, brass amber and rust accents. Responsive layout and readable text remain priorities.
 
@@ -435,7 +435,7 @@ Cloudflare generation logic are retained.
 ### Simplified conversational handoff
 
 Chat Workspace now shows only New Chat, recent conversation history, a
-message composer, optional public-document attachment, and **Move to project**
+message composer, optional public-document attachment, **Move to project**, and visible **Projects** folders in the sidebar
 (with a Create project option inside the same control). Long-form history
 management, backup import/export, language mode selection and connection
 diagnostics are no longer on the chat screen; existing backend safety and
@@ -451,3 +451,37 @@ Writing Assistant and ToC Builder. The ToC Builder still requires the user
 to select an actual directive file; Streamlit file uploads cannot be moved
 silently between pages. A general informational question never forces a
 redirect. Navigation is user-initiated, not an extra Cloudflare API call.
+
+## ToC Builder: broader Word exports and embedded source pictures (November 2026)
+
+The ToC Builder now removes the **Characters** diagnostic column from the
+preview and generates the same standard **seven-column** Word ToC. The
+article heading and title stay with the **first substantive row** (for
+example, reference `1` with `Article 1 / Purpose / 1. ...` in column 2),
+instead of creating an extra `Neni 1 (hyrja)` row. Point 2 and letters
+remain on separate rows with references `1.2`, `1.2.a` etc. The
+full text is preserved across those units; no legal equivalence is inferred.
+
+The new input bounds allow up to 120 articles, 750 ToC rows, 180 PDF pages,
+12 MB source files and 240,000 extracted characters, provided the public
+document passes existing security screening. The Cloudflare translator
+still caps each *request* at 4,200 characters; a legal unit longer than
+that is divided into complete, consecutive source chunks (up to 40,000
+characters per unit), and its result requires expert review. A large
+number of translated units can exhaust free quota; this is not a
+promise of unlimited cost-free translation.
+
+Pictures in supported formats (PNG/JPEG and other compatible raster
+formats) from DOCX, or extractable PDF page images, are inserted in the
+corresponding Word ToC text cell when feasible. Source image pixels are
+not regenerated. The original DOCX template's logos are preserved.
+Pixel placement from PDF is approximate; vector illustrations, charts,
+embedded objects and unsupported pictures may require the author to
+convert the source figure to PNG or revise the ToC manually. An image
+retention failure must produce an explicit error, not a falsely
+successful export. No OCR is performed.
+
+The chat assistant is also aware of the actual ALBA modules: when
+asked how to build a ToC, it first explains the *Table of Concordance*
+workflow in ToC Builder, not Word/Google Docs' table of contents. Users
+can click the matching **Continue in** action to open a module.
