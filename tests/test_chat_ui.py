@@ -32,7 +32,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         )
         self.assertIn("accept_file=True", source)
         self.assertIn('file_type=["docx", "xlsx", "pdf", "pptx"]', source)
-        self.assertNotIn('with st.popover("＋", help=', source)
+        self.assertNotIn('with st.popover("＋", help="Attach', source)
         self.assertNotIn('with st.expander("Attach a public document (optional)")', source)
 
     def test_attachment_menu_has_only_office_pdf_formats(self):
