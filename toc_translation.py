@@ -15,7 +15,9 @@ from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields
 
 MODEL = "@cf/google/gemma-4-26b-a4b-it"
 API_ROOT = "https://api.cloudflare.com/client/v4/accounts"
-MAX_SOURCE_CHARS = 4200
+MAX_SOURCE_CHARS = 4200  # limit of one Cloudflare request
+MAX_UNIT_CHARS = 40000   # larger legal units are translated in ordered chunks
+
 
 SYSTEM_TRANSLATE = """Je përkthyes/redaktor i specializuar për tekstin normativ të BE-së.
 Përkthe anglisht -> shqip juridike STANDARDE, SHUMË LITERALISHT.
@@ -93,58 +95,102 @@ def translation_warnings(source: str, translation: str) -> list[str]:
     return issues
 
 
+def split_translation_chunks(text: str) -> list[str]:
+    """Bound API requests, prioritising complete lines and sentence boundaries.
+
+    Source substrings concatenate exactly. Never shorten the source silently,
+    nor send more than the declared limit to one model call.
+    """
+    if not text.strip():
+        raise ValueError("Njësia burimore është bosh.")
+    if len(text) > MAX_UNIT_CHARS:
+        raise ValueError(
+            "Një dispozitë kalon 40,000 karaktere; duhet ndarë manualisht "
+            "pa prishur strukturën juridike."
+        )
+    result = []
+    start = 0
+    while start < len(text):
+        window = text[start:start + MAX_SOURCE_CHARS]
+        if start + len(window) < len(text):
+            floor = MAX_SOURCE_CHARS // 2
+            line_end = window.rfind("\n", floor)
+            stop = (line_end + 1) if line_end >= floor else 0
+            if not stop:
+                space_end = window.rfind(" ", floor)
+                stop = space_end + 1 if space_end >= floor else len(window)
+        else:
+            stop = len(window)
+        result.append(window[:stop])
+        start += stop
+    if "".join(result) != text:
+        raise AssertionError("Text was lost while splitting the legal unit.")
+    return result
+
+
 def translate_unit(
     unit: Provision, account_id: str, api_token: str,
     post: Callable | None = None,
 ) -> tuple[str, list[str]]:
-    """Translate one selected EU unit with bounded input and safe errors."""
+    """Translate one full unit, using ordered bounded requests if necessary."""
     if scan_text_fields(unit.reference, unit.text, public_legal=True).blocked:
         raise ValueError(BLOCK_NOTICE_SQ)
     if not account_id.strip() or not api_token.strip():
         raise ValueError("Konfigurimi i Cloudflare Workers AI mungon.")
-    if not unit.text.strip():
-        raise ValueError("Njësia burimore është bosh.")
-    if len(unit.text) > MAX_SOURCE_CHARS:
-        raise ValueError(
-            "Dispozita tejkalon 4,200 karaktere. Ndaje ose përdor më pak tekst."
-        )
+    chunks = split_translation_chunks(unit.text)
     post_fn = post or requests.post
-    try:
-        response = post_fn(
-            f"{API_ROOT}/{account_id}/ai/run/{MODEL}",
-            headers={
-                "Authorization": f"Bearer {api_token}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "messages": [
-                    {"role": "system", "content": SYSTEM_TRANSLATE},
-                    {"role": "user", "content": (
-                        "Njësia e referencës (vetëm për kontekst, mos e shto "
-                        "veçmas në përgjigje): " + unit.reference
-                        + "\n\nTEKSTI PËR PËRKTHIM:\n" + unit.text
-                    )},
-                ],
-                "chat_template_kwargs": {"enable_thinking": False},
-                "max_tokens": 2500,
-                "stream": False,
-            },
-            timeout=90,
+    translations = []
+    for index, source_chunk in enumerate(chunks, 1):
+        context = (
+            " (pjesa " + str(index) + " nga " + str(len(chunks)) + ")"
+            if len(chunks) > 1 else ""
         )
-        if response.status_code != 200:
-            raise ValueError(
-                f"Cloudflare e refuzoi kërkesën (HTTP {response.status_code})."
+        try:
+            response = post_fn(
+                f"{API_ROOT}/{account_id}/ai/run/{MODEL}",
+                headers={
+                    "Authorization": f"Bearer {api_token}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_TRANSLATE},
+                        {"role": "user", "content": (
+                            "Njësia e referencës (vetëm për kontekst, mos e shto "
+                            "veçmas në përgjigje): " + unit.reference + context
+                            + "\n\nTEKSTI PËR PËRKTHIM:\n" + source_chunk
+                        )},
+                    ],
+                    "chat_template_kwargs": {"enable_thinking": False},
+                    "max_tokens": 2500,
+                    "stream": False,
+                },
+                timeout=90,
             )
-        translated = extract_translation(response.json())
-    except requests.exceptions.Timeout as exc:
-        raise ValueError("Shërbimi AI nuk u përgjigj në kohë.") from exc
-    except requests.exceptions.RequestException as exc:
-        raise ValueError("Problem lidhjeje me shërbimin AI.") from exc
-    except (TypeError, KeyError) as exc:
-        raise ValueError("Përgjigjja e modelit nuk mund të interpretohet.") from exc
-    if scan_text_fields(translated, public_legal=True).blocked:
-        raise ValueError(BLOCK_NOTICE_SQ)
-    return translated, translation_warnings(unit.text, translated)
+            if response.status_code != 200:
+                if response.status_code == 429:
+                    raise ValueError(
+                        "Kufiri ditor ose i shpejtësisë në Cloudflare u arrit "
+                        "(429). Ruaj përkthimet ekzistuese dhe provo më vonë."
+                    )
+                raise ValueError(
+                    f"Cloudflare e refuzoi kërkesën (HTTP {response.status_code})."
+                )
+            translated = extract_translation(response.json())
+        except requests.exceptions.Timeout as exc:
+            raise ValueError("Shërbimi AI nuk u përgjigj në kohë.") from exc
+        except requests.exceptions.RequestException as exc:
+            raise ValueError("Problem lidhjeje me shërbimin AI.") from exc
+        except (TypeError, KeyError) as exc:
+            raise ValueError("Përgjigjja e modelit nuk mund të interpretohet.") from exc
+        if scan_text_fields(translated, public_legal=True).blocked:
+            raise ValueError(BLOCK_NOTICE_SQ)
+        translations.append(translated)
+
+    # Model outputs for chunks may normalise whitespace; do not claim the
+    # translation is certified or character-for-character equivalent.
+    result = translations[0] if len(translations) == 1 else "\n".join(translations)
+    return result, translation_warnings(unit.text, result)
 
 
 def translated_provisions(
