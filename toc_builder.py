@@ -15,10 +15,10 @@ from docx.enum.section import WD_ORIENT
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.shared import Cm, Pt
 
-MAX_FILE_BYTES = 8 * 1024 * 1024
-MAX_PAGES = 60
-MAX_CHARS = 150_000
-MAX_SECTIONS = 160
+MAX_FILE_BYTES = 12 * 1024 * 1024
+MAX_PAGES = 180
+MAX_CHARS = 240_000
+MAX_SECTIONS = 3000
 
 ARTICLE_HEADING = re.compile(
     r"^(?:Article|Neni)\s+\d+[a-z]?(?:\s*[–-]\s*\d+[a-z]?)?\s*\.?\s*$",
@@ -52,7 +52,7 @@ def extract_document(filename: str, data: bytes) -> Extracted:
     if not filename or not isinstance(data, bytes) or not data:
         raise ValueError("Choose a non-empty PDF or DOCX document.")
     if len(data) > MAX_FILE_BYTES:
-        raise ValueError("File exceeds the 8 MB prototype limit.")
+        raise ValueError("File exceeds the 12 MB limit.")
 
     name = filename.lower()
     warnings = []
@@ -88,7 +88,7 @@ def extract_document(filename: str, data: bytes) -> Extracted:
             if pdf.is_encrypted:
                 raise ValueError("Encrypted PDFs are not supported.")
             if len(pdf.pages) > MAX_PAGES:
-                raise ValueError("PDF exceeds the 60-page prototype limit.")
+                raise ValueError("PDF exceeds the 180-page limit.")
             pages = [(page.extract_text() or "") for page in pdf.pages]
         except ValueError:
             raise
@@ -113,7 +113,7 @@ def extract_document(filename: str, data: bytes) -> Extracted:
             "No extractable text. Scanned PDFs require OCR, not available here."
         )
     if len(text) > MAX_CHARS:
-        raise ValueError("Document exceeds the 150,000-character prototype limit.")
+        raise ValueError("Document exceeds the 240,000-character limit.")
     return Extracted(text=text, warnings=tuple(dict.fromkeys(warnings)))
 
 
@@ -180,7 +180,7 @@ def split_provisions(text: str) -> list[Provision]:
         if segment.strip():
             rows.append(Provision(name, segment))
     if len(rows) > MAX_SECTIONS:
-        raise ValueError("More than 160 sections detected; split the source.")
+        raise ValueError("More than 3,000 sections detected; split the source.")
     return rows
 
 
