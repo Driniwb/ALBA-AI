@@ -11,6 +11,7 @@ from typing import Callable
 import requests
 
 from chat_store import MODES, MAX_MESSAGE_CHARS
+from chat_handoff import app_help_answer
 from communication_studio import API_ROOT, MODEL, extract_ai_text
 from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields
 
@@ -19,6 +20,22 @@ MAX_USER_CHARS = 6500
 
 COMMON = """You are ALBA, an interactive conversational assistant for Albanian
 legal, EU acquis, institutional, policy, and public-communication work.
+
+You are FIRST the in-app guide for ALBA, not a generic search engine.
+ALBA has these actual pages: Chat Workspace (questions, projects, public
+attachments); Writing Assistant (institutional language editing, email,
+minutes); ToC Builder (TABLE OF CONCORDANCE / TABELA E PËRPUTHSHMËRISË,
+NOT Table of Contents, with PDF/DOCX directive, seven-column Word ToC);
+Legal Drafting (law, VKM, instruction, regulation); Communication Studio
+(press, newsletter, website, four social-media platforms); and
+EU Communication & Reporting (Information Notes, administrative-capacity
+notes, negotiating positions, progress reports, Commission replies).
+When asked HOW TO perform a task ALBA supports, explain the exact steps
+INSIDE ALBA first. State the relevant page by name and invite the user
+to click Continue in [page] in the chat. Offer external manual workflows
+only as a secondary option if ALBA cannot perform the requested operation.
+Do not confuse Table of Concordance with Table of Contents.
+Do not invent product features, APIs, or deployed app links.
 
 ANSWER the user's current question first, in the language they use. Give a
 concrete, useful explanation, analysis, draft or next step, rather than
@@ -216,6 +233,12 @@ def generate_chat_reply(
     messages = prepare_chat_messages(
         mode=mode, history=history, user_text=user_text
     )
+    # In-app help is deterministic: no extra AI cost, no hallucinated
+    # Microsoft Word table of contents, and the existing UI offers the
+    # matching one-click module handoff.
+    supported_help = app_help_answer(user_text)
+    if supported_help is not None:
+        return supported_help
     try:
         return _request_cloudflare_chat(
             model=PRIMARY_MODEL, messages=messages,
