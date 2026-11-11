@@ -100,6 +100,23 @@ class ChatBackendTests(unittest.TestCase):
                 user_text="x" * (MAX_USER_CHARS + 1),
             )
 
+    def test_short_greetings_do_not_trigger_a_module_catalogue(self):
+        def forbidden_post(*args, **kwargs):
+            raise AssertionError("A short greeting should not call a model")
+        for message, expected in (
+            ("prsh", "Përshëndetje!"),
+            ("Përshëndetje!", "Përshëndetje!"),
+            ("Hi", "Hello!"),
+        ):
+            with self.subTest(message=message):
+                answer = generate_chat_reply(
+                    mode="general", history=[], user_text=message,
+                    account_id="SYNTHETIC", api_token="SYNTHETIC",
+                    post=forbidden_post,
+                )
+                self.assertTrue(answer.startswith(expected))
+                self.assertNotIn("ToC Builder", answer)
+
     def test_primary_model_outage_uses_only_free_cloudflare_model(self):
         calls = []
         class Outage:
