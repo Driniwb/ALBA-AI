@@ -31,50 +31,51 @@ UNAVAILABLE = "__ALBA_UNAVAILABLE__"
 # No user-generated data is inserted into this script. Component v2 runs at
 # the ALBA app origin and accesses localStorage for that origin only.
 _BROWSER_JS = """
-export default function ({parentElement, data, setStateValue}) {
+export default function ({data, setStateValue}) {
   const key = "alba-public-workspace-v1";
-  const label = parentElement.querySelector(".alba-browser-sync");
-  if (data?.phase === "load") {
-    try {
+  try {
+    if (data?.phase === "load") {
       const raw = window.localStorage.getItem(key);
-      if (label) label.textContent = "Restoring browser history…";
       setStateValue("loaded", raw === null ? "__ALBA_EMPTY__" : raw);
       setStateValue("error", "");
-    } catch (error) {
-      setStateValue("loaded", "__ALBA_UNAVAILABLE__");
-      setStateValue("error", "Browser storage is unavailable or blocked.");
-    }
-  } else if (data?.phase === "save") {
-    try {
-      if (typeof data?.payload !== "string") throw new Error("No snapshot");
-      // Avoid redundant writes and reruns for identical snapshots.
+    } else if (data?.phase === "save") {
+      if (typeof data?.payload !== "string" ||
+          typeof data?.revision !== "string") {
+        throw new Error("Invalid snapshot");
+      }
       if (window.localStorage.getItem(key) !== data.payload) {
         window.localStorage.setItem(key, data.payload);
       }
-      if (label) label.textContent = "Saved in this browser";
-      setStateValue("saved", data?.revision ?? "");
+      // A write is only acknowledged after it can be read back. Never
+      // report that a chat is saved merely because Python rendered it.
+      if (window.localStorage.getItem(key) !== data.payload) {
+        throw new Error("Snapshot verification failed");
+      }
+      setStateValue("saved", data.revision);
       setStateValue("error", "");
-    } catch (error) {
-      setStateValue("error", "Browser storage is unavailable or full.");
     }
+  } catch (error) {
+    if (data?.phase === "load") {
+      setStateValue("loaded", "__ALBA_UNAVAILABLE__");
+    }
+    setStateValue("error", "Browser storage is unavailable or full.");
   }
 }
 """
-_BROWSER_HTML = '<span class="alba-browser-sync" style="font-size:0.8em;opacity:0.65">Browser history</span>'
+_BROWSER_HTML = '<span style="display:none" aria-hidden="true"></span>'
 
-
-def _bridge():
-    return st.components.v2.component(
-        name="alba_browser_guest_history",
-        html=_BROWSER_HTML,
-        js=_BROWSER_JS,
-        isolate_styles=True,
-    )
+# Register ONCE per process, rather than re-registering the same component
+# on every Streamlit rerun. Keep one stable widget key and mount position.
+_BROWSER_COMPONENT = st.components.v2.component(
+    name="alba_browser_guest_history",
+    html=_BROWSER_HTML,
+    js=_BROWSER_JS,
+    isolate_styles=True,
+)
 
 
 def _mount(data: dict):
-    component = _bridge()
-    return component(
+    return _BROWSER_COMPONENT(
         key="alba_browser_guest_history_widget",
         data=data,
         default={"loaded": None, "saved": None, "error": ""},
