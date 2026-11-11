@@ -21,7 +21,6 @@ class ProductGuidanceTests(unittest.TestCase):
         pairs = [
             ("Si mund te hartoj nje VKM ne ALBA?", "legal", "Legal Drafting"),
             ("How to prepare an administrative capacity note?", "eu", "EU Communication & Reporting"),
-            ("Si mund te pergatis nje postim ne LinkedIn?", "communication", "Communication Studio"),
             ("How can I write an official email?", "writing", "Writing Assistant"),
         ]
         for query, key, label in pairs:
@@ -58,7 +57,7 @@ class ProductGuidanceTests(unittest.TestCase):
         self.assertIn("TABLE OF CONCORDANCE", msg)
         self.assertIn("NOT Table of Contents", msg)
         self.assertIn("Legal Drafting", msg)
-        self.assertIn("Communication Studio", msg)
+        self.assertNotIn("Communication Studio", msg)
 
 
 if __name__ == "__main__":
