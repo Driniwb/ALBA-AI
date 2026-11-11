@@ -17,7 +17,8 @@ from toc_builder import (
 )
 from toc_template import built_in_blank_toc, create_toc_using_template
 from toc_translation import translate_unit, translated_provisions
-from toc_units import first_n_articles
+from toc_units import first_n_articles, MAX_SELECTED_ARTICLES
+from toc_media import extract_source_media, group_pictures_by_unit
 from toc_language import detect_toc_language
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from ui_theme import apply_theme
@@ -68,14 +69,13 @@ with c1:
         max_chars=200,
     )
 with c2:
-    article_count = st.selectbox(
-        "Articles to include in this pilot",
-        list(range(1, 9)),
-        index=2,
-        help=(
-            "Select Articles 1 through N, up to Article 8. "
-            "Large selections may require more manual review and several translation batches."
-        ),
+    article_count = st.number_input(
+        "Articles to include",
+        min_value=1,
+        max_value=MAX_SELECTED_ARTICLES,
+        value=20,
+        step=1,
+        help="Include Articles 1 through N. For full directives, set up to 120.",
     )
 cleanup = st.checkbox(
     "Clean PDF page markers and line-break artifacts",
@@ -99,7 +99,7 @@ if not confirmed:
 # Uploaded bytes are not sent to Cloudflare. Block files with uninspectable
 # pages, embedded images, sensitive markers or personal identifiers.
 toc_file_check = screen_upload(
-    source.name, source.getvalue(), max_chars=250000, public_legal=True
+    source.name, source.getvalue(), max_chars=240000, public_legal=True
 )
 template_file_check = (
     screen_upload(template.name, template.getvalue(), max_chars=50000, public_legal=True)
@@ -122,7 +122,14 @@ if (
 
 try:
     extracted = extract_document(source.name, source.getvalue())
-    units = first_n_articles(extracted.text, article_count)
+    original_units = first_n_articles(extracted.text, int(article_count))
+    source_media = extract_source_media(
+        source.name, source.getvalue(), extracted.text
+    )
+    media_by_ref, omitted_images = group_pictures_by_unit(
+        extracted.text, original_units, source_media
+    )
+    units = original_units
     found = pdf_extraction_flags("\n".join(unit.text for unit in units))
     if extracted.warnings:
         st.warning(
@@ -133,6 +140,13 @@ try:
         st.warning(
             "Possible PDF page markers or split words were detected. "
             "Review the extracted text before using it."
+        )
+    for warning in source_media.warnings:
+        st.warning(warning)
+    if omitted_images:
+        st.warning(
+            f"{omitted_images} picture(s) are outside the selected Articles "
+            "and will not appear in the Word table."
         )
     if source.name.lower().endswith(".pdf") and cleanup:
         units = [
@@ -156,7 +170,6 @@ st.dataframe(
     [
         {
             "Article / subdivision": u.reference,
-            "Characters": len(u.text),
             "Source text preview": u.text[:120],
         }
         for u in units
@@ -183,7 +196,11 @@ if source_language == "sq":
         st.stop()
 
     try:
-        docx = create_toc_using_template(template_bytes, units, title.strip())
+        docx = create_toc_using_template(
+            template_bytes, units, title.strip(),
+            media_by_ref=media_by_ref,
+            text_positions_valid=not (source.name.lower().endswith(".pdf") and cleanup),
+        )
         st.download_button(
             "Download Albanian ToC – Word (.docx)",
             data=docx,
@@ -235,7 +252,7 @@ st.progress((len(units) - len(pending)) / len(units))
 st.write(f"Translated: **{len(units) - len(pending)} / {len(units)}**")
 batch = st.selectbox(
     "Provisions to translate per click",
-    [1, 2, 3, 4],
+    [1, 2, 3, 4, 6, 8],
     index=2,
 )
 
@@ -307,7 +324,9 @@ if all(translated.get(u.reference, "").strip() for u in units):
     try:
         translated_units = translated_provisions(units, translated)
         docx = create_toc_using_template(
-            template_bytes, translated_units, title.strip()
+            template_bytes, translated_units, title.strip(),
+            media_by_ref=media_by_ref,
+            text_positions_valid=False,
         )
         st.download_button(
             "Download Albanian ToC – Word (.docx)",
