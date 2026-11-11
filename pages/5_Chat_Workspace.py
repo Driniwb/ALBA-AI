@@ -236,6 +236,67 @@ def _mark_history_changed() -> None:
         st.session_state["alba_browser_confirm_exchange"] = True
 
 
+def _sidebar_chat_entry(chat: dict, available_projects: list[dict]) -> None:
+    """One-click open, plus compact rename and move controls for each chat."""
+    open_col, menu_col = st.columns([5, 1], vertical_alignment="center", gap="small")
+    with open_col:
+        if st.button(
+            chat["title"][:58],
+            key="alba_open_" + chat["id"],
+            type=(
+                "primary" if chat["id"] ==
+                st.session_state.get("alba_active_conversation")
+                else "secondary"
+            ),
+            use_container_width=True,
+        ):
+            _open_conversation(chat["id"])
+            st.rerun()
+    with menu_col:
+        with st.popover("⋯", help="Rename chat or move to project"):
+            renamed = st.text_input(
+                "Rename chat", value=chat["title"],
+                max_chars=MAX_CHAT_TITLE,
+                key="alba_sidebar_chat_name_" + chat["id"],
+            )
+            if st.button("Save chat name", key="alba_sidebar_save_name_" + chat["id"]):
+                try:
+                    changed = store.rename_conversation(owner, chat["id"], renamed)
+                except ValueError:
+                    st.error("Enter a valid public chat name.")
+                else:
+                    if changed:
+                        _mark_history_changed()
+                        st.rerun()
+                    st.error("Chat is no longer available.")
+
+            choices = [None] + [project["id"] for project in available_projects]
+            names = {project["id"]: project["name"] for project in available_projects}
+            target = st.selectbox(
+                "Move to project", choices,
+                index=choices.index(chat["project_id"])
+                if chat["project_id"] in choices else 0,
+                format_func=lambda item: (
+                    names.get(item, "Project") if item is not None else "No project"
+                ),
+                key="alba_sidebar_move_target_" + chat["id"],
+            )
+            if st.button(
+                "Move chat",
+                key="alba_sidebar_move_chat_" + chat["id"],
+                disabled=target == chat["project_id"],
+            ):
+                try:
+                    moved = store.set_conversation_project(owner, chat["id"], target)
+                except ValueError:
+                    st.error("This project is not available.")
+                else:
+                    if moved:
+                        _mark_history_changed()
+                        st.rerun()
+                    st.error("Chat is no longer available.")
+
+
 with st.sidebar:
     if st.button("＋ New chat", key="alba_new_chat", use_container_width=True):
         _start_chat()
@@ -281,41 +342,42 @@ with st.sidebar:
                 )
             ),
         ):
-            if st.button(
-                "＋ New chat in project",
-                key="alba_project_new_" + project["id"],
-                use_container_width=True,
-            ):
-                _start_chat(project["id"])
-                st.rerun()
-            for chat in related[:50]:
+            project_action, project_options = st.columns(
+                [5, 1], vertical_alignment="center", gap="small"
+            )
+            with project_action:
                 if st.button(
-                    chat["title"][:60],
-                    key="alba_open_" + chat["id"],
-                    type=(
-                        "primary" if chat["id"] ==
-                        st.session_state.get("alba_active_conversation")
-                        else "secondary"
-                    ),
+                    "＋ New chat in project",
+                    key="alba_project_new_" + project["id"],
                     use_container_width=True,
                 ):
-                    _open_conversation(chat["id"])
+                    _start_chat(project["id"])
                     st.rerun()
+            with project_options:
+                with st.popover("⋯", help="Rename project"):
+                    project_name = st.text_input(
+                        "Rename project", value=project["name"],
+                        max_chars=75, key="alba_project_rename_" + project["id"],
+                    )
+                    if st.button(
+                        "Save project name",
+                        key="alba_project_save_name_" + project["id"],
+                    ):
+                        try:
+                            changed = store.rename_project(owner, project["id"], project_name)
+                        except ValueError:
+                            st.error("Enter a valid public project name.")
+                        else:
+                            if changed:
+                                _mark_history_changed()
+                                st.rerun()
+                            st.error("Project is no longer available.")
+            for chat in related[:50]:
+                _sidebar_chat_entry(chat, projects)
 
     st.subheader("Chats")
     for chat in unassigned_chats[:50]:
-        if st.button(
-            chat["title"][:65],
-            key="alba_open_" + chat["id"],
-            use_container_width=True,
-            type=(
-                "primary" if chat["id"] ==
-                st.session_state.get("alba_active_conversation")
-                else "secondary"
-            ),
-        ):
-            _open_conversation(chat["id"])
-            st.rerun()
+        _sidebar_chat_entry(chat, projects)
 
 # Keep backup and recovery under one optional menu rather than adding
 # controls throughout the ChatGPT-style sidebar.
