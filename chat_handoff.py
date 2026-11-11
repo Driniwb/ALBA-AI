@@ -83,12 +83,11 @@ _WRITING = (
 # ALBA is an application first. "How can I do X?" means help the user use
 # the relevant ALBA page, not Microsoft Word/Google Docs instructions.
 _APP_HOWTO = (
-    r"\\b(?:si\\s+(?:(?:mund|duhet|b[eë]het|krijohet|realizohet)\\b|"
-    r"(?:t[eë]\\s+)?(?:krijoj|nd[eë]rtoj|p[eë]rgatis|hartoj|gjeneroj)\\b)|"
-    r"how\\s+(?:do|can|to)\\b|where\\s+(?:can|do)\\b|"
-    r"ku\\s+(?:mund|e)\\b|how\\s+does\\s+alba\\b)\\b"
+    r"\b(?:si\s+(?:mund|duhet|b[eë]het|krijohet|realizohet|"
+    r"(?:t[eë]\s+)?(?:krijoj|nd[eë]rtoj|p[eë]rgatis|hartoj|gjeneroj))"
+    r"|how\s+(?:do|can|to)|where\s+(?:can|do)|"
+    r"ku\s+(?:mund|e)|how\s+does\s+alba)\b"
 )
-
 
 def is_app_howto_question(query: str) -> bool:
     if not isinstance(query, str):
@@ -153,7 +152,7 @@ def app_help_answer(query: str) -> str | None:
         ),
     }
     return explanations[route.key] + (
-        "\\n\\nPër të vazhduar, kliko **Continue in "
+        "\n\nPër të vazhduar, kliko **Continue in "
         + route.label + "** poshtë kësaj përgjigjeje."
     )
 
