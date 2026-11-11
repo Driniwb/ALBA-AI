@@ -31,24 +31,64 @@ st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout=
 apply_theme("WORKSPACE")
 # The shared workspace hero remains; omit duplicate page-level title.
 
-# Keep the composer in the top content flow instead of Streamlit's default
-# bottom-docked chat bar. The keyed container scopes styling to this page.
+# ChatGPT-like layout: a centered empty-state composer and a docked composer
+# for ongoing conversations. The native Streamlit attachment + lives inside it.
 st.markdown(
     """
     <style>
-    .st-key-alba_chat_composer {
-        width: 100%;
-        max-width: 740px;
-        margin: 0.35rem auto 1.35rem;
+    /* The application-wide decorative hero is not a chat message. */
+    .alba-hero {display: none !important;}
+    [data-testid="stMainBlockContainer"] {
+        max-width: 1040px;
+        padding-top: 1.25rem;
+        padding-bottom: 9rem;
     }
-    .st-key-alba_chat_composer [data-testid="stChatInput"] {
+    .st-key-alba_chat_empty {
+        max-width: 760px;
         width: 100%;
+        margin: clamp(80px, 20vh, 210px) auto 0;
+    }
+    .st-key-alba_chat_empty [data-testid="stChatInput"],
+    [data-testid="stBottom"] [data-testid="stChatInput"] {
+        max-width: 760px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    [data-testid="stBottom"] {
+        background: transparent !important;
+    }
+    [data-testid="stBottom"] > div {
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    /* The transcript is the primary content, not a list of form controls. */
+    [data-testid="stChatMessage"] {
+        max-width: 860px;
+        margin: 0 auto 1rem;
+        border-radius: 16px;
+    }
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
+        max-width: min(76%, 730px);
+        margin-right: max(0px, calc((100% - 860px) / 2));
+        margin-left: auto;
+        background: rgba(111, 137, 123, .19);
+        border: 1px solid rgba(169,201,180,.12);
+    }
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
+        background: transparent;
+    }
+    @media (max-width: 760px) {
+        .st-key-alba_chat_empty {margin-top: 16vh;}
+        [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
+            max-width: 90%;
+            margin-right: 0;
+        }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
-chat_composer = st.container(key="alba_chat_composer")
 
 
 def _secret(name: str) -> str:
@@ -214,6 +254,7 @@ def _open_conversation(chat_id: str) -> None:
     st.session_state["alba_new_chat_project"] = None
     st.session_state["alba_pending_chat_text"] = None
     st.session_state["alba_pending_chat_error"] = None
+    st.session_state.pop("alba_pending_attachment", None)
 
 
 def _start_chat(project_id: str | None = None) -> None:
@@ -221,6 +262,7 @@ def _start_chat(project_id: str | None = None) -> None:
     st.session_state["alba_new_chat_project"] = project_id
     st.session_state["alba_pending_chat_text"] = None
     st.session_state["alba_pending_chat_error"] = None
+    st.session_state.pop("alba_pending_attachment", None)
 
 
 def _mark_history_changed() -> None:
@@ -478,102 +520,107 @@ def _render_chat_content(value: str) -> None:
 
 
 if conversation:
-    st.subheader(conversation["title"])
     mode = conversation["mode"]
     messages = store.list_messages(owner, active_id)
 
-    with st.popover("Chat options", icon=":material/more_horiz:"):
-        new_title = st.text_input(
-            "Conversation title",
-            value=conversation["title"],
-            key="alba_rename_title_" + active_id,
-            max_chars=MAX_CHAT_TITLE,
-        )
-        if st.button("Save title", key="alba_save_title_" + active_id):
-            try:
-                updated = store.rename_conversation(owner, active_id, new_title)
-            except ValueError:
-                st.error("Please enter a valid, public conversation title.")
-            except Exception:
-                st.error("Could not rename the conversation. Try again.")
-            else:
-                if updated:
-                    _mark_history_changed()
-                    st.rerun()
-                st.error("The conversation is no longer available.")
-
-        try:
-            portable_chat = backup_bytes(conversation, messages)
-        except ValueError:
-            st.caption(
-                "This conversation exceeds the single-chat backup limit. "
-                "Try the full workspace backup."
+    chat_heading, chat_actions = st.columns([12, 1], vertical_alignment="center")
+    with chat_heading:
+        st.caption(conversation["title"])
+    with chat_actions:
+        with st.popover("⋯", help="Chat options: rename, move, export or delete"):
+            new_title = st.text_input(
+                "Conversation title",
+                value=conversation["title"],
+                key="alba_rename_title_" + active_id,
+                max_chars=MAX_CHAT_TITLE,
             )
-        else:
-            st.download_button(
-                "Export conversation (.json)",
-                data=portable_chat,
-                file_name="ALBA_chat_" + active_id[:12] + ".json",
-                mime="application/json",
-                key="alba_export_chat_" + active_id,
-                use_container_width=True,
-            )
-
-        confirmed = st.checkbox(
-            "I confirm permanent deletion",
-            value=False,
-            key="alba_delete_confirm_" + active_id,
-        )
-        if st.button(
-            "Delete conversation",
-            key="alba_delete_chat_" + active_id,
-            disabled=not confirmed,
-        ):
-            try:
-                deleted = store.delete_conversation(owner, active_id)
-            except Exception:
-                st.error("Could not delete the conversation. Try again.")
-            else:
-                if deleted:
-                    _start_chat()
-                    _mark_history_changed()
-                    st.rerun()
-                st.error("The conversation is no longer available.")
-
-    with st.popover("Move to project", icon=":material/folder_open:"):
-        projects = store.list_projects(owner)
-        names = {item["id"]: item["name"] for item in projects}
-        choices = [None] + [item["id"] for item in projects] + ["__new__"]
-        project_index = (
-            choices.index(conversation["project_id"])
-            if conversation["project_id"] in choices else 0
-        )
-        target = st.selectbox(
-            "Project", choices, index=project_index,
-            format_func=lambda item: (
-                "Create new project" if item == "__new__"
-                else ("No project" if item is None else names.get(item, "Project"))
-            ),
-            key="alba_project_target_" + active_id,
-        )
-        if target == "__new__":
-            new_name = st.text_input(
-                "Project name", key="alba_new_project_name_" + active_id,
-                max_chars=75,
-            )
-            if st.button("Create and move", key="alba_create_move_" + active_id):
+            if st.button("Save title", key="alba_save_title_" + active_id):
                 try:
-                    created = store.create_project(owner, new_name)
-                    store.set_conversation_project(owner, active_id, created)
+                    updated = store.rename_conversation(owner, active_id, new_title)
+                except ValueError:
+                    st.error("Please enter a valid, public conversation title.")
+                except Exception:
+                    st.error("Could not rename the conversation. Try again.")
+                else:
+                    if updated:
+                        _mark_history_changed()
+                        st.rerun()
+                    st.error("The conversation is no longer available.")
+    
+            try:
+                portable_chat = backup_bytes(conversation, messages)
+            except ValueError:
+                st.caption(
+                    "This conversation exceeds the single-chat backup limit. "
+                    "Try the full workspace backup."
+                )
+            else:
+                st.download_button(
+                    "Export conversation (.json)",
+                    data=portable_chat,
+                    file_name="ALBA_chat_" + active_id[:12] + ".json",
+                    mime="application/json",
+                    key="alba_export_chat_" + active_id,
+                    use_container_width=True,
+                )
+    
+            confirmed = st.checkbox(
+                "I confirm permanent deletion",
+                value=False,
+                key="alba_delete_confirm_" + active_id,
+            )
+            if st.button(
+                "Delete conversation",
+                key="alba_delete_chat_" + active_id,
+                disabled=not confirmed,
+            ):
+                try:
+                    deleted = store.delete_conversation(owner, active_id)
+                except Exception:
+                    st.error("Could not delete the conversation. Try again.")
+                else:
+                    if deleted:
+                        _start_chat()
+                        _mark_history_changed()
+                        st.rerun()
+                    st.error("The conversation is no longer available.")
+
+            st.divider()
+            st.caption("Project")
+            projects = store.list_projects(owner)
+            names = {item["id"]: item["name"] for item in projects}
+            choices = [None] + [item["id"] for item in projects] + ["__new__"]
+            project_index = (
+                choices.index(conversation["project_id"])
+                if conversation["project_id"] in choices else 0
+            )
+            target = st.selectbox(
+                "Project", choices, index=project_index,
+                format_func=lambda item: (
+                    "Create new project" if item == "__new__"
+                    else ("No project" if item is None else names.get(item, "Project"))
+                ),
+                key="alba_project_target_" + active_id,
+            )
+            if target == "__new__":
+                new_name = st.text_input(
+                    "Project name", key="alba_new_project_name_" + active_id,
+                    max_chars=75,
+                )
+                if st.button("Create and move", key="alba_create_move_" + active_id):
+                    try:
+                        created = store.create_project(owner, new_name)
+                        store.set_conversation_project(owner, active_id, created)
+                        _mark_history_changed()
+                        st.rerun()
+                    except ValueError:
+                        st.error("Enter a valid project name.")
+            elif target != conversation["project_id"]:
+                if st.button("Move", key="alba_move_" + active_id):
+                    store.set_conversation_project(owner, active_id, target)
                     _mark_history_changed()
                     st.rerun()
-                except ValueError:
-                    st.error("Enter a valid project name.")
-        elif target != conversation["project_id"]:
-            if st.button("Move", key="alba_move_" + active_id):
-                store.set_conversation_project(owner, active_id, target)
-                _mark_history_changed()
-                st.rerun()
+    
 
     for message in messages:
         with st.chat_message(message["role"]):
@@ -597,10 +644,9 @@ else:
     mode = "general"
     messages = []
 
-# The '+' contains only four supported Office/PDF attachment formats.
-# All existing screening and selected-excerpt limits are preserved.
-attachment_text = ""
-attachment_name = ""
+# Use Streamlit's native attachment '+' rather than a separate popover.
+# A new chat is isolated: only this conversation's own messages are passed
+# to the model. Changing project or creating a new chat never links histories.
 account, api_key = (
     _secret("CLOUDFLARE_ACCOUNT_ID"), _secret("CLOUDFLARE_API_TOKEN"),
 )
@@ -610,65 +656,112 @@ if not account or not api_key:
         "CLOUDFLARE_API_TOKEN in Streamlit Cloud → App settings → Secrets."
     )
 
-# Rendering inside the earlier top container keeps this compact composer
-# in page flow; the popover has one compact attachment control.
-with chat_composer:
-    plus_col, question_col = st.columns(
-        [1, 13], vertical_alignment="bottom", gap="small"
+def _document_context(name: str, excerpt: str) -> str:
+    return (
+        "\n\n[PUBLIC DOCUMENT EXCERPT: " + name + "]\n"
+        + excerpt + "\\n[/PUBLIC DOCUMENT EXCERPT]"
     )
-    with plus_col:
-        with st.popover("＋", help="Attach a Word, Excel, PDF or PowerPoint file"):
-            doc_nonce = st.session_state.get("alba_doc_nonce", 0)
-            doc = st.file_uploader(
-                "Attach a public document",
-                type=["docx", "xlsx", "pdf", "pptx"],
-                key="alba_public_doc_" + str(doc_nonce),
-            )
-            if doc:
-                checked = screen_upload(
-                    doc.name, doc.getvalue(),
-                    public_legal=True, max_chars=150000,
+
+# Long files must be deliberately excerpted: no silent 3,200-character cut.
+pending_attachment = st.session_state.get("alba_pending_attachment")
+if pending_attachment:
+    st.info(
+        "The attached document is long. Select the public passage you want "
+        "to use in this conversation (up to 3,200 characters)."
+    )
+    excerpt = st.text_area(
+        "Document excerpt", value=pending_attachment["text"][:3200],
+        max_chars=3200, height=180,
+        key="alba_pending_attachment_excerpt",
+    )
+    selection, cancel = st.columns([1, 1])
+    with selection:
+        if st.button("Use selected excerpt", key="alba_confirm_attachment"):
+            if not excerpt.strip() or scan_text_fields(
+                excerpt, public_legal=True
+            ).blocked:
+                st.error("Select a valid public passage.")
+            else:
+                question = pending_attachment["question"]
+                content = question + _document_context(
+                    pending_attachment["name"], excerpt.strip(),
                 )
-                if checked.blocked:
-                    st.error(upload_block_message(checked.reason))
+                if len(content) > MAX_USER_CHARS:
+                    st.error("The message is too long; shorten the excerpt.")
                 else:
-                    if checked.warning:
-                        st.warning(checked.warning)
-                    if len(checked.text) > 3200:
-                        st.caption("Long document: select the section to analyse.")
-                        digest = hashlib.sha256(doc.getvalue()).hexdigest()[:12]
-                        with st.expander("Read extracted public source"):
-                            st.text_area(
-                                "Full extracted text (read-only)",
-                                value=checked.text, height=260, disabled=True,
-                                key="alba_full_source_" + digest,
-                            )
-                        attachment_text = st.text_area(
-                            "Source excerpt for your next question",
-                            value=checked.text[:3200], max_chars=3200,
-                            height=180, key="alba_source_selection_" + digest,
-                        )
-                    else:
-                        attachment_text = checked.text
-                    if attachment_text.strip():
-                        attachment_name = doc.name
+                    st.session_state["alba_pending_chat_text"] = content
+                    st.session_state["alba_pending_display_question"] = question
+                    st.session_state["alba_pending_chat_error"] = None
+                    st.session_state["alba_chat_submit_staged"] = True
+                    if not persistent:
+                        st.session_state["alba_browser_confirm_pending"] = True
+                    st.session_state.pop("alba_pending_attachment", None)
+                    st.rerun()
+    with cancel:
+        if st.button("Cancel attachment", key="alba_cancel_attachment"):
+            st.session_state.pop("alba_pending_attachment", None)
+            st.rerun()
 
-
-    doc_context = (
-        "\n\n[PUBLIC DOCUMENT EXCERPT: " + attachment_name + "]\n"
-        + attachment_text + "\n[/PUBLIC DOCUMENT EXCERPT]"
-        if attachment_name else ""
+# A blank chat gets a centered input. Once it has messages, the very same
+# native chat widget is placed at root level and Streamlit docks it below.
+chat_input_options = dict(
+    key="alba_chat_prompt",
+    max_chars=MAX_USER_CHARS,
+    max_upload_size=12,
+    accept_file=True,
+    file_type=["docx", "xlsx", "pdf", "pptx"],
+    disabled=not (account and api_key) or bool(pending_attachment),
+)
+if conversation:
+    submission = st.chat_input(
+        "Message…", **chat_input_options,
     )
-    available_chars = max(100, MAX_USER_CHARS - len(doc_context))
-    with question_col:
-        prompt = st.chat_input(
-            "Ask a question or continue the conversation…",
-            key="alba_chat_prompt",
-            max_chars=available_chars,
-            disabled=not (account and api_key),
+else:
+    with st.container(key="alba_chat_empty"):
+        submission = st.chat_input(
+            "Message…", **chat_input_options,
         )
-        if attachment_name:
-            st.caption("Attached: " + attachment_name + " · public excerpt ready")
+
+prompt = None
+doc_context = ""
+if submission:
+    question = (
+        submission.strip() if isinstance(submission, str)
+        else (submission.text or "").strip()
+    )
+    uploads = (
+        [] if isinstance(submission, str)
+        else list(submission.files)
+    )
+    if uploads:
+        # The native + permits one file and only Office/PDF formats. The
+        # server-side privacy gate validates actual bytes and content.
+        document = uploads[0]
+        checked = screen_upload(
+            document.name, document.getvalue(),
+            public_legal=True, max_chars=150000,
+        )
+        if checked.blocked:
+            st.error(upload_block_message(checked.reason))
+        else:
+            question = question or "Review the attached public document."
+            if checked.warning:
+                st.warning(checked.warning)
+            if len(checked.text) > 3200:
+                st.session_state["alba_pending_attachment"] = {
+                    "name": document.name,
+                    "text": checked.text,
+                    "question": question,
+                }
+                st.rerun()
+            else:
+                doc_context = _document_context(document.name, checked.text)
+                if len(question + doc_context) > MAX_USER_CHARS:
+                    st.error("The question and attachment exceed the chat limit.")
+                else:
+                    prompt = question
+    else:
+        prompt = question or None
 
 if prompt:
     st.session_state["alba_pending_chat_text"] = prompt + doc_context
