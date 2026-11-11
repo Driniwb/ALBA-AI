@@ -385,6 +385,66 @@ def _render_chat_content(value: str) -> None:
 if conversation:
     st.subheader(conversation["title"])
     mode = conversation["mode"]
+    messages = store.list_messages(owner, active_id)
+
+    with st.popover("Chat options", icon=":material/more_horiz:"):
+        new_title = st.text_input(
+            "Conversation title",
+            value=conversation["title"],
+            key="alba_rename_title_" + active_id,
+            max_chars=MAX_CHAT_TITLE,
+        )
+        if st.button("Save title", key="alba_save_title_" + active_id):
+            try:
+                updated = store.rename_conversation(owner, active_id, new_title)
+            except ValueError:
+                st.error("Please enter a valid, public conversation title.")
+            except Exception:
+                st.error("Could not rename the conversation. Try again.")
+            else:
+                if updated:
+                    _mark_history_changed()
+                    st.rerun()
+                st.error("The conversation is no longer available.")
+
+        try:
+            portable_chat = backup_bytes(conversation, messages)
+        except ValueError:
+            st.caption(
+                "This conversation exceeds the single-chat backup limit. "
+                "Try the full workspace backup."
+            )
+        else:
+            st.download_button(
+                "Export conversation (.json)",
+                data=portable_chat,
+                file_name="ALBA_chat_" + active_id[:12] + ".json",
+                mime="application/json",
+                key="alba_export_chat_" + active_id,
+                use_container_width=True,
+            )
+
+        confirmed = st.checkbox(
+            "I confirm permanent deletion",
+            value=False,
+            key="alba_delete_confirm_" + active_id,
+        )
+        if st.button(
+            "Delete conversation",
+            key="alba_delete_chat_" + active_id,
+            disabled=not confirmed,
+        ):
+            try:
+                deleted = store.delete_conversation(owner, active_id)
+            except Exception:
+                st.error("Could not delete the conversation. Try again.")
+            else:
+                if deleted:
+                    _start_chat()
+                    _mark_history_changed()
+                    st.rerun()
+                st.error("The conversation is no longer available.")
+
     with st.popover("Move to project", icon=":material/folder_open:"):
         projects = store.list_projects(owner)
         names = {item["id"]: item["name"] for item in projects}
@@ -420,7 +480,6 @@ if conversation:
                 _mark_history_changed()
                 st.rerun()
 
-    messages = store.list_messages(owner, active_id)
     for message in messages:
         with st.chat_message(message["role"]):
             _render_chat_content(message["content"])
