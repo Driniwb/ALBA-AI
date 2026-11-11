@@ -562,3 +562,37 @@ The communication implementation and reference library are retained, and
 **EU Communication & Reporting remains available** because it uses shared
 communication back-end functions. Ordinary questions about social posts
 can still be answered in the chat, but no link to the hidden page is offered.
+
+## Phase 1 — Chat Workspace history management
+
+The home Chat Workspace now shows one truthful storage state:
+
+- **Saved to your account** only when a valid OIDC identity and a working
+  external PostgreSQL database are both available.
+- **Saved in this browser** only when the guest localStorage component
+  acknowledges the exact current snapshot revision.
+- **Saving in this browser** while a new guest revision is unconfirmed.
+- **Not saved** if storage is disabled, blocked, full or cannot be verified.
+  The app does not silently substitute session memory for an account database
+  outage.
+
+**Chat options** offers rename, portable JSON download and explicit
+confirmation before permanent deletion. A compact **History backup** menu
+downloads the complete bounded workspace (chats and Projects), restores one
+conversation from a validated JSON backup, and restores a complete workspace
+only when the guest workspace is empty (so existing data cannot be overwritten).
+These tools store only screened public/synthetic content. The browser snapshot
+uses the same v1 format and storage key as before.
+
+The application awaits browser-save acknowledgment for new exchanges and
+project moves as well as rename, deletion, creation and imports; account scope
+transitions clear pending drafts to prevent cross-user leakage. Per-browser
+storage remains limited; downloading a backup is prudent for important public
+work. **This release does not activate cross-device history by itself.**
+Production cloud persistence needs OIDC `[auth]` settings and
+`ALBA_DATABASE_URL` with an authenticated TLS PostgreSQL service in the
+Streamlit deployment secrets. No credentials belong in GitHub.
+
+Testing: synthetic Streamlit AppTests and the database/backup layer run in
+GitHub Actions. Live browser localStorage, authentication and external
+PostgreSQL deployment must still be checked manually after deployment.
