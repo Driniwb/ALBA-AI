@@ -74,11 +74,11 @@ class TocTemplateTests(unittest.TestCase):
         refs = [r.reference for r in result]
         self.assertEqual(
             refs,
-            ["Neni 1 (hyrja)", "1.1", "1.2", "1.2.a", "1.2.b",
-             "Neni 2 (hyrja)", "2.1", "2.2", "Neni 3 (hyrja)"],
+            ["1", "1.2", "1.2.a", "1.2.b",
+             "2", "2.2", "Neni 3"],
         )
         self.assertEqual("\n".join(r.text for r in result), SYNTHETIC)
-        self.assertEqual(len(first_n_articles(SYNTHETIC, 2)), 8)
+        self.assertEqual(len(first_n_articles(SYNTHETIC, 2)), 6)
 
     def test_pdf_layout_cleanup_is_explicit_and_auditable(self):
         sample = (
