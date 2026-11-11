@@ -31,11 +31,6 @@ class ChatHandoffTests(unittest.TestCase):
                 "Draft a reply to the European Commission.",
                 "Prepare the negotiating position for the transport chapter.",
             ],
-            "communication": [
-                "Write a press release about the public consultation.",
-                "Draft a social media post for LinkedIn.",
-                "Përgatit një postim në Instagram.",
-            ],
             "writing": [
                 "Draft an official email using these public notes.",
                 "Përgatit procesverbalin e takimit nga këto shënime.",
@@ -49,6 +44,24 @@ class ChatHandoffTests(unittest.TestCase):
                     self.assertIsNotNone(handoff)
                     self.assertEqual(handoff.key, key)
                     self.assertEqual(handoff.page, MODULES[key][1])
+
+    def test_hidden_communication_studio_does_not_receive_handoffs(self):
+        from chat_handoff import Handoff
+        from alba_features import COMMUNICATION_STUDIO_VISIBLE
+        self.assertFalse(COMMUNICATION_STUDIO_VISIBLE)
+        for question in (
+            "Write a press release about the public consultation.",
+            "Draft a social media post for LinkedIn.",
+            "Përgatit një postim në Instagram.",
+            "How can I create a newsletter?",
+        ):
+            self.assertIsNone(suggest_handoff(question))
+        with self.assertRaisesRegex(ValueError, "temporarily hidden"):
+            prepare_handoff(
+                Handoff("communication", "Communication Studio",
+                        "pages/2_Communication_Studio.py", "comm_source", 8000),
+                "Prepare a LinkedIn post.", {},
+            )
 
     def test_general_questions_stay_in_the_chat(self):
         for message in (
@@ -78,9 +91,6 @@ class ChatHandoffTests(unittest.TestCase):
             ),
             "Prepare an Administrative Capacity Note.": (
                 "eu", "eu_source", "eu_document_type", "administrative_capacity",
-            ),
-            "Draft a LinkedIn post.": (
-                "communication", "comm_source", "comm_group", "Social Media",
             ),
             "Draft an official email.": (
                 "writing", "alba_writing_source",
