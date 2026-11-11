@@ -1,5 +1,6 @@
 """Local-only privacy gate regression tests with entirely synthetic fixtures."""
 from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
 import unittest
 
 from docx import Document
@@ -32,6 +33,39 @@ def make_pdf(*lines: str) -> bytes:
     for n, line in enumerate(lines):
         c.drawString(40, 770 - 20*n, line)
     c.save()
+    return data.getvalue()
+
+
+def make_office_package(extension: str, value: str) -> bytes:
+    """Small synthetic OOXML documents for text extraction tests."""
+    data = BytesIO()
+    with ZipFile(data, "w", compression=ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", "<Types/>")
+        if extension == ".xlsx":
+            z.writestr("xl/workbook.xml", "<workbook/>")
+            z.writestr(
+                "xl/sharedStrings.xml",
+                '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                "<si><t>" + value + "</t></si></sst>",
+            )
+            z.writestr(
+                "xl/worksheets/sheet1.xml",
+                '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                '<sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row></sheetData>'
+                "</worksheet>",
+            )
+        elif extension == ".pptx":
+            z.writestr("ppt/presentation.xml", "<presentation/>")
+            z.writestr(
+                "ppt/slides/slide1.xml",
+                '<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+                'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+                "<p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>"
+                + value
+                + "</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>",
+            )
+        else:
+            raise ValueError("Invalid fixture")
     return data.getvalue()
 
 
@@ -111,6 +145,29 @@ class PrivacyGuardTests(unittest.TestCase):
         writer.write(blank)
         blocked = screen_upload("scan.pdf", blank.getvalue())
         self.assertTrue(blocked.blocked)
+
+    def test_public_excel_and_powerpoint_are_readable_and_screened(self):
+        for ext, phrase in (
+            (".xlsx", "Public transport regulation"),
+            (".pptx", "Public consultation agenda"),
+        ):
+            with self.subTest(extension=ext):
+                result = screen_upload(
+                    "public" + ext,
+                    make_office_package(ext, phrase),
+                    public_legal=True,
+                )
+                self.assertFalse(result.blocked, result.reason)
+                self.assertIn(phrase, result.text)
+                self.assertFalse(screen_upload("wrong" + ext, b"PKbad").text)
+                self.assertTrue(screen_upload("wrong" + ext, b"PKbad").blocked)
+                blocked = screen_upload(
+                    "private" + ext,
+                    make_office_package(ext, "Email: private.user@example.org"),
+                    public_legal=True,
+                )
+                self.assertTrue(blocked.blocked)
+                self.assertEqual(blocked.text, "")
 
     def test_unsupported_type_and_binary_text_are_blocked(self):
         self.assertTrue(screen_upload("photo.jpg", b"\xff\xd8\xff").blocked)
