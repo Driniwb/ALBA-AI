@@ -27,8 +27,28 @@ class ChatWorkspaceUITests(unittest.TestCase):
                              for item in app.selectbox))
         self.assertFalse(any("Connection settings" in str(item.label)
                              for item in app.expander))
-        self.assertTrue(any("Attach a public document" in str(item.label)
-                            for item in app.expander))
+        source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('with st.popover("＋", help=', source)
+        self.assertIn('st.file_uploader(\n                "Attach a public document",', source)
+        self.assertNotIn('with st.expander("Attach a public document (optional)")', source)
+
+    def test_attachment_menu_and_external_links_are_explicit(self):
+        source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('with st.popover("＋", help=', source)
+        self.assertIn('"https://chatgpt.com/"', source)
+        self.assertIn('"https://claude.ai/"', source)
+        self.assertIn('"https://gemini.google.com/"', source)
+        self.assertIn('screen_upload(', source)
+        self.assertIn('doc_context = (', source)
+        self.assertNotIn('Ask ALBA a question', source)
+        self.assertIn('"Ask a question or continue the conversation…"', source)
+        self.assertIn('"Save project name"', source)
+        self.assertIn('"Save chat name"', source)
+        self.assertIn('"Move chat"', source)
 
     def test_sidebar_can_create_project_and_start_new_chat_in_it(self):
         class Response:
@@ -230,12 +250,13 @@ class ChatWorkspaceUITests(unittest.TestCase):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(encoding="utf-8")
         self.assertNotIn("Sending a message shares it with Cloudflare", source)
         self.assertNotIn("Connection settings", source)
-        self.assertIn("Attach a public document (optional)", source)
+        self.assertIn("Attach a public document", source)
         self.assertIn("Move to project", source)
         # The compact composer is inline and centered at the top, not
         # Streamlit's default fixed bottom chat bar.
         self.assertIn('chat_composer = st.container(key="alba_chat_composer")', source)
-        self.assertIn("with chat_composer:\n    prompt = st.chat_input(", source)
+        self.assertIn("with chat_composer:\n    plus_col, question_col = st.columns(", source)
+        self.assertIn("with question_col:\n        prompt = st.chat_input(", source)
         self.assertIn("max-width: 740px;", source)
         self.assertLess(
             source.index('chat_composer = st.container('),
