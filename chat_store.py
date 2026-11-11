@@ -217,6 +217,21 @@ class ChatStore:
             """, (owner,)).fetchall()
         return [dict(row) for row in rows]
 
+    def rename_project(self, owner: str, project_id: str, name: str) -> bool:
+        """Rename only an owned project; validate like project creation."""
+        _check_owner(owner)
+        _check_id(project_id)
+        name = name.strip() if isinstance(name, str) else ""
+        if (not name or len(name) > MAX_PROJECT_NAME
+                or scan_text_fields(name, public_legal=True).blocked):
+            raise ValueError("A project name of 1–75 characters is required.")
+        with self._connect() as db:
+            cursor = self._execute(db, """
+                UPDATE alba_projects SET name = ?
+                WHERE id = ? AND owner_key = ?
+            """, (name, project_id, owner))
+            return cursor.rowcount == 1
+
     def delete_project(self, owner: str, project_id: str) -> bool:
         _check_owner(owner)
         _check_id(project_id)
