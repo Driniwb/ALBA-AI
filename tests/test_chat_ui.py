@@ -14,7 +14,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
             default_timeout=25,
         ).run()
         self.assertEqual(len(app.exception), 0)
-        self.assertTrue(any("ALBA" in item.value for item in app.title))
+        self.assertEqual(len(app.title), 0)
         self.assertFalse(any(
             "Browser saving unavailable" in str(item.value) for item in app.warning
         ))
@@ -32,16 +32,21 @@ class ChatWorkspaceUITests(unittest.TestCase):
         )
         self.assertIn('with st.popover("＋", help=', source)
         self.assertIn('st.file_uploader(\n                "Attach a public document",', source)
+        self.assertIn('type=["docx", "xlsx", "pdf", "pptx"]', source)
         self.assertNotIn('with st.expander("Attach a public document (optional)")', source)
 
-    def test_attachment_menu_and_external_links_are_explicit(self):
+    def test_attachment_menu_has_only_office_pdf_formats(self):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(
             encoding="utf-8"
         )
         self.assertIn('with st.popover("＋", help=', source)
-        self.assertIn('"https://chatgpt.com/"', source)
-        self.assertIn('"https://claude.ai/"', source)
-        self.assertIn('"https://gemini.google.com/"', source)
+        self.assertNotIn('"https://chatgpt.com/"', source)
+        self.assertNotIn('"https://claude.ai/"', source)
+        self.assertNotIn('"https://gemini.google.com/"', source)
+        self.assertIn('type=["docx", "xlsx", "pdf", "pptx"]', source)
+        self.assertNotIn('st.title("ALBA")', source)
+        self.assertNotIn('st.subheader("How can I help?")', source)
+        self.assertNotIn('st.caption(chat_history_status(', source)
         self.assertIn('screen_upload(', source)
         self.assertIn('doc_context = (', source)
         self.assertNotIn('Ask ALBA a question', source)
