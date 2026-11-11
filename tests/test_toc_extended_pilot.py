@@ -11,7 +11,7 @@ class ExtendedPilotTests(unittest.TestCase):
         ) + "\n"
         selected = first_n_articles(directive, count=8)
         refs = [item.reference for item in selected]
-        self.assertTrue(any(item.startswith("8.") for item in refs))
+        self.assertTrue(any(item == "8" for item in refs))
         self.assertTrue(any(item.startswith("1.") for item in refs))
         self.assertFalse(any(item.startswith("9.") for item in refs))
         self.assertFalse(any(item.startswith("Neni 9") for item in refs))
