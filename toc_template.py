@@ -110,8 +110,8 @@ def create_toc_using_template(
     validate_blank_template(template)
     if not units:
         raise ValueError("Nuk u identifikuan dispozita për tabelën.")
-    if len(units) > 160:
-        raise ValueError("Maksimumi 160 rreshta; zgjidh më pak nene.")
+    if len(units) > 750:
+        raise ValueError("Maksimumi 750 rreshta; zgjidh më pak nene.")
     if not directive_title.strip() or len(directive_title) > 220:
         raise ValueError("Titulli i direktivës duhet të jetë i shkurtër.")
 
