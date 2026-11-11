@@ -15,7 +15,7 @@ import os
 import streamlit as st
 
 from chat_backup import validate_backup, backup_bytes
-from chat_store import ChatStore, MAX_PROJECT_NAME
+from chat_store import ChatStore, MAX_PROJECT_NAME, MAX_MESSAGE_CHARS
 from privacy_guard import scan_text_fields
 
 WORKSPACE_FORMAT = "alba-browser-chats"
@@ -91,7 +91,9 @@ def _for_tests() -> bool:
 
 
 def export_guest_workspace(
-    store: ChatStore, owner: str, *, active_id: str | None = None
+    store: ChatStore, owner: str, *, active_id: str | None = None,
+    pending_text: str | None = None,
+    pending_project_id: str | None = None,
 ) -> str:
     """Export fully screened workspace; bounds prevent browser quota abuse."""
     projects = store.list_projects(owner)
@@ -117,12 +119,25 @@ def export_guest_workspace(
             "project": project_index.get(item["project_id"]),
             "chat": backup,
         })
+    if pending_text is not None and (
+        not isinstance(pending_text, str) or not pending_text.strip()
+        or len(pending_text) > MAX_MESSAGE_CHARS
+        or scan_text_fields(pending_text, public_legal=True).blocked
+    ):
+        raise ValueError("The pending question cannot be saved safely.")
+    if pending_project_id is not None and pending_project_id not in project_index:
+        raise ValueError("The pending project no longer exists.")
     snapshot = {
         "format": WORKSPACE_FORMAT,
         "version": WORKSPACE_VERSION,
         "projects": [p["name"] for p in projects],
         "chats": collected,
         "active": active_index,
+        "pending": pending_text,
+        "pending_project": (
+            project_index.get(pending_project_id)
+            if pending_text is not None else None
+        ),
     }
     payload = json.dumps(snapshot, ensure_ascii=False, separators=(",", ":"))
     if len(payload.encode("utf-8")) > MAX_WORKSPACE_BYTES:
@@ -148,6 +163,14 @@ def validate_guest_workspace(text: str) -> dict:
     projects = data.get("projects")
     chats = data.get("chats")
     active = data.get("active")
+    pending = data.get("pending")
+    pending_project = data.get("pending_project")
+    if pending is not None and (
+        not isinstance(pending, str) or not pending.strip()
+        or len(pending) > MAX_MESSAGE_CHARS
+        or scan_text_fields(pending, public_legal=True).blocked
+    ):
+        raise ValueError("Invalid pending question in browser history.")
     if (not isinstance(projects, list) or len(projects) > MAX_PROJECTS
             or not isinstance(chats, list) or len(chats) > MAX_CHATS):
         raise ValueError("Browser history has invalid project or chat lists.")
@@ -158,6 +181,12 @@ def validate_guest_workspace(text: str) -> dict:
                 scan_text_fields(name, public_legal=True).blocked):
             raise ValueError("Invalid public project name in browser history.")
         names.append(name)
+    if pending_project is not None and (
+        pending is None or isinstance(pending_project, bool)
+        or not isinstance(pending_project, int)
+        or pending_project < 0 or pending_project >= len(names)
+    ):
+        raise ValueError("Invalid pending project in browser history.")
     clean_chats = []
     count = 0
     for item in chats:
@@ -179,7 +208,10 @@ def validate_guest_workspace(text: str) -> dict:
         or active < 0 or active >= len(clean_chats)
     ):
         raise ValueError("Invalid active conversation index.")
-    return {"projects": names, "chats": clean_chats, "active": active}
+    return {
+        "projects": names, "chats": clean_chats, "active": active,
+        "pending": pending, "pending_project": pending_project,
+    }
 
 
 def restore_guest_workspace(
