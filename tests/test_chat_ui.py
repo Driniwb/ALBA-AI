@@ -15,7 +15,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         ).run()
         self.assertEqual(len(app.exception), 0)
         self.assertTrue(any("ALBA" in item.value for item in app.title))
-        self.assertTrue(any(
+        self.assertFalse(any(
             "Browser saving unavailable" in str(item.value) for item in app.warning
         ))
         self.assertTrue(any("New chat" in str(item.label) for item in app.button))
@@ -147,6 +147,24 @@ class ChatWorkspaceUITests(unittest.TestCase):
             open_chat.click().run()
             self.assertEqual(len(app.exception), 0)
             self.assertEqual(len(app.chat_message), 4)
+
+    def test_browser_autosave_runs_before_model_and_stages_prompt(self):
+        source = (ROOT / "pages/5_Chat_Workspace.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertLess(
+            source.index("browser_saved = save_browser_history("),
+            source.index("with st.sidebar:"),
+        )
+        self.assertEqual(source.count("save_browser_history("), 1)
+        self.assertIn('"alba_chat_submit_staged"', source)
+        self.assertIn('"alba_browser_confirm_pending"', source)
+        self.assertIn('staged_submission = bool(', source)
+        self.assertIn('st.stop()', source)
+        self.assertLess(
+            source.index("browser_saved = save_browser_history("),
+            source.index("generate_chat_reply("),
+        )
 
     def test_failed_question_is_kept_and_retried_successfully(self):
         class RateLimited:
