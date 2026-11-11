@@ -19,13 +19,61 @@ class ChatWorkspaceUITests(unittest.TestCase):
             "Browser saving unavailable" in str(item.value) for item in app.warning
         ))
         self.assertTrue(any("New chat" in str(item.label) for item in app.button))
-        self.assertFalse(any("Create project" in str(item.label) for item in app.button))
+        self.assertTrue(any(
+            "Create project" in str(item.label) for item in app.button
+        ))
+        self.assertTrue(any("Projects" in str(h.value) for h in app.subheader))
         self.assertFalse(any("Assistant specialism" in str(item.label)
                              for item in app.selectbox))
         self.assertFalse(any("Connection settings" in str(item.label)
                              for item in app.expander))
         self.assertTrue(any("Attach a public document" in str(item.label)
                             for item in app.expander))
+
+    def test_sidebar_can_create_project_and_start_new_chat_in_it(self):
+        class Response:
+            status_code = 200
+            def json(self):
+                return {"success": True, "result": {
+                    "response": "A synthetic project response."
+                }}
+
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"), default_timeout=25
+        )
+        app.secrets["CLOUDFLARE_ACCOUNT_ID"] = "SYNTHETIC_ACCOUNT"
+        app.secrets["CLOUDFLARE_API_TOKEN"] = "SYNTHETIC_TOKEN"
+        app.run()
+        self.assertEqual(len(app.exception), 0)
+        app.text_input(key="alba_sidebar_project_name").set_value(
+            "Chapter 14"
+        ).run()
+        app.button(key="alba_sidebar_create_project").click().run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any(
+            "Chapter 14" in e.label for e in app.expander
+        ))
+        projects = app.session_state["alba_demo_store"].list_projects(
+            app.session_state["alba_demo_owner"]
+        )
+        self.assertEqual(len(projects), 1)
+        self.assertEqual(projects[0]["name"], "Chapter 14")
+        self.assertEqual(
+            app.session_state["alba_new_chat_project"], projects[0]["id"]
+        )
+        with patch("chat_backend.requests.post", return_value=Response()):
+            app.chat_input[0].set_value(
+                "Please review this synthetic public item."
+            ).run()
+        self.assertEqual(len(app.exception), 0)
+        owner = app.session_state["alba_demo_owner"]
+        chats = app.session_state["alba_demo_store"].list_conversations(owner)
+        self.assertEqual(len(chats), 1)
+        self.assertEqual(chats[0]["project_id"], projects[0]["id"])
+        self.assertTrue(any(
+            "Chapter 14" in e.label and "(1)" in e.label
+            for e in app.expander
+        ))
 
     def test_project_control_appears_only_in_existing_chat(self):
         class Response:

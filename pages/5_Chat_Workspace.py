@@ -128,26 +128,98 @@ if _oidc_configured():
         elif st.button("Sign in to save conversations", key="alba_login"):
             st.login()
 
+def _open_conversation(chat_id: str) -> None:
+    st.session_state["alba_active_conversation"] = chat_id
+    st.session_state["alba_new_chat_project"] = None
+    st.session_state["alba_pending_chat_text"] = None
+    st.session_state["alba_pending_chat_error"] = None
+
+
+def _start_chat(project_id: str | None = None) -> None:
+    st.session_state["alba_active_conversation"] = None
+    st.session_state["alba_new_chat_project"] = project_id
+    st.session_state["alba_pending_chat_text"] = None
+    st.session_state["alba_pending_chat_error"] = None
+
+
 with st.sidebar:
     if st.button("＋ New chat", key="alba_new_chat", use_container_width=True):
-        st.session_state["alba_active_conversation"] = None
-        st.session_state["alba_pending_chat_text"] = None
-        st.session_state["alba_pending_chat_error"] = None
+        _start_chat()
         st.rerun()
 
-    st.subheader("Chats")
+    projects = store.list_projects(owner)
     conversations = store.list_conversations(owner)
-    for chat in conversations[:45]:
-        current = chat["id"] == st.session_state["alba_active_conversation"]
+    chats_by_project = {item["id"]: [] for item in projects}
+    unassigned_chats = []
+    for chat in conversations:
+        if chat["project_id"] in chats_by_project:
+            chats_by_project[chat["project_id"]].append(chat)
+        else:
+            unassigned_chats.append(chat)
+
+    heading, add_project = st.columns([3, 1], vertical_alignment="center")
+    with heading:
+        st.subheader("Projects")
+    with add_project:
+        with st.popover("＋", help="Create a project"):
+            project_name = st.text_input(
+                "Project name", max_chars=75, key="alba_sidebar_project_name"
+            )
+            if st.button("Create project", key="alba_sidebar_create_project"):
+                try:
+                    created = store.create_project(owner, project_name)
+                except ValueError:
+                    st.error("Enter a valid project name.")
+                else:
+                    _start_chat(created)
+                    st.rerun()
+
+    for project in projects:
+        related = chats_by_project[project["id"]]
+        with st.expander(
+            "📁 " + project["name"] + " (" + str(len(related)) + ")",
+            expanded=(
+                project["id"] == st.session_state.get("alba_new_chat_project")
+                or any(
+                    chat["id"] == st.session_state.get("alba_active_conversation")
+                    for chat in related
+                )
+            ),
+        ):
+            if st.button(
+                "＋ New chat in project",
+                key="alba_project_new_" + project["id"],
+                use_container_width=True,
+            ):
+                _start_chat(project["id"])
+                st.rerun()
+            for chat in related[:50]:
+                if st.button(
+                    chat["title"][:60],
+                    key="alba_open_" + chat["id"],
+                    type=(
+                        "primary" if chat["id"] ==
+                        st.session_state.get("alba_active_conversation")
+                        else "secondary"
+                    ),
+                    use_container_width=True,
+                ):
+                    _open_conversation(chat["id"])
+                    st.rerun()
+
+    st.subheader("Chats")
+    for chat in unassigned_chats[:50]:
         if st.button(
             chat["title"][:65],
             key="alba_open_" + chat["id"],
             use_container_width=True,
-            type="primary" if current else "secondary",
+            type=(
+                "primary" if chat["id"] ==
+                st.session_state.get("alba_active_conversation")
+                else "secondary"
+            ),
         ):
-            st.session_state["alba_active_conversation"] = chat["id"]
-            st.session_state["alba_pending_chat_text"] = None
-            st.session_state["alba_pending_chat_error"] = None
+            _open_conversation(chat["id"])
             st.rerun()
 
 active_id = st.session_state.get("alba_active_conversation")
@@ -353,11 +425,13 @@ if (prompt or retry) and pending:
                         "alba_pending_display_question", pending
                     ).strip().replace("\n", " ")[:75][:75]
                     active_id = store.create_conversation(
-                        owner, mode=mode, project_id=None,
+                        owner, mode=mode,
+                        project_id=st.session_state.get("alba_new_chat_project"),
                         title=title,
                     )
                 store.append_exchange(owner, active_id, pending, reply)
                 st.session_state["alba_active_conversation"] = active_id
+                st.session_state["alba_new_chat_project"] = None
                 st.session_state["alba_pending_chat_text"] = None
                 st.session_state["alba_pending_chat_error"] = None
                 st.session_state["alba_pending_display_question"] = None
