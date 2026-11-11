@@ -12,7 +12,7 @@ class ProductGuidanceTests(unittest.TestCase):
         self.assertIsNotNone(reply)
         self.assertIn("Table of Concordance", reply)
         self.assertIn("ToC Builder", reply)
-        self.assertIn("Word (.docx)", reply)
+        self.assertIn("Krijo ToC në Word", reply)
         self.assertNotIn("Google Docs", reply)
         self.assertNotIn("References →", reply)
         self.assertEqual(suggest_handoff(query).key, "toc")
