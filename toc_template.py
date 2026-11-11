@@ -9,10 +9,11 @@ from io import BytesIO
 import re
 
 from docx import Document
-from docx.shared import Cm, Pt
+from docx.shared import Cm, Pt, Emu
 from docx.enum.section import WD_ORIENT
 
 from toc_builder import Provision
+from toc_media import SourcePicture
 
 MAX_TEMPLATE_BYTES = 4 * 1024 * 1024
 EXPECTED = (
@@ -103,8 +104,68 @@ def validate_blank_template(template: bytes) -> None:
             )
 
 
+def _replace_text_preserving_pictures(paragraph, text: str) -> None:
+    """Update placeholder text without deleting logos or drawing relationships."""
+    if paragraph._p.xpath(".//w:drawing") or paragraph._p.xpath(".//w:pict"):
+        for node in paragraph._p.xpath(".//w:t"):
+            node.text = ""
+        paragraph.add_run(text)
+    else:
+        paragraph.text = text
+
+
+def _set_cell_source_and_pictures(
+    cell, source: str,
+    pictures: list[tuple[int, SourcePicture]],
+    *, text_positions_valid: bool,
+) -> None:
+    """Insert unchanged picture binaries in source order and within row width."""
+    if not pictures:
+        cell.paragraphs[0].text = source
+        return
+    paragraph = cell.paragraphs[0]
+    paragraph.text = ""
+    last = 0
+    max_width = min(
+        max(int(cell.width) - int(Cm(0.35)), int(Cm(2.0)))
+        if cell.width else int(Cm(6.5)),
+        int(Cm(12)),
+    )
+    for raw_offset, pic in pictures:
+        # After English-to-Albanian translation or PDF layout cleanup, the
+        # source offsets no longer correspond to translated characters.
+        # Retain each picture within its same legal unit, after the text.
+        position = min(max(raw_offset, last), len(source)) if text_positions_valid else len(source)
+        if position > last:
+            paragraph.add_run(source[last:position])
+        run = paragraph.add_run()
+        width = pic.width_emu or max_width
+        height = pic.height_emu
+        if width > max_width:
+            scale = max_width / width
+            width = max_width
+            height = round(height * scale) if height else None
+        try:
+            if height:
+                run.add_picture(
+                    BytesIO(pic.data), width=Emu(width), height=Emu(height)
+                )
+            else:
+                run.add_picture(BytesIO(pic.data), width=Emu(width))
+        except Exception as exc:
+            raise ValueError(
+                "An embedded source picture cannot be added to the Word table. "
+                "Check that it uses PNG, JPEG, GIF, BMP or TIFF."
+            ) from exc
+        last = position
+    if last < len(source):
+        paragraph.add_run(source[last:])
+
+
 def create_toc_using_template(
-    template: bytes, units: list[Provision], directive_title: str
+    template: bytes, units: list[Provision], directive_title: str,
+    *, media_by_ref: dict[str, list[tuple[int, SourcePicture]]] | None = None,
+    text_positions_valid: bool = True,
 ) -> bytes:
     """Reproduce the uploaded template's styles, widths and 7-column layout."""
     validate_blank_template(template)
@@ -125,15 +186,23 @@ def create_toc_using_template(
         table._tbl.append(deepcopy(prototype))
         row = table.rows[-1]
         row.cells[0].paragraphs[0].text = unit.reference
-        row.cells[1].paragraphs[0].text = unit.text
+        _set_cell_source_and_pictures(
+            row.cells[1], unit.text,
+            (media_by_ref or {}).get(unit.reference, []),
+            text_positions_valid=text_positions_valid,
+        )
         for col in range(2, 7):
             row.cells[col].paragraphs[0].text = ""
 
     # Keep the original title block, merge layout, and style.
     first = next((p for p in doc.paragraphs if p.text.strip()), None)
     if first is not None:
-        first.text = directive_title + " (Tabelë përputhshmërie — draft teknik)"
-    table.rows[0].cells[0].paragraphs[0].text = directive_title
+        _replace_text_preserving_pictures(
+            first, directive_title + " (Tabelë përputhshmërie — draft teknik)"
+        )
+    _replace_text_preserving_pictures(
+        table.rows[0].cells[0].paragraphs[0], directive_title
+    )
     if len(doc.paragraphs) > 1 and not doc.paragraphs[1].text.strip():
         doc.paragraphs[1].text = (
             "PROVË TEKNIKE: teksti i nxjerrë duhet krahasuar me burimin autentik; "
@@ -144,10 +213,12 @@ def create_toc_using_template(
     right = table.rows[0].cells[2]
     for paragraph in right.paragraphs:
         if "Shkalla e përputhshmërisë:" in paragraph.text:
-            paragraph.text = re.sub(
-                r"Shkalla e përputhshmërisë:\s*F\s*\(e plotë\)",
-                "Shkalla e përputhshmërisë: [për vlerësim juridik]",
-                paragraph.text,
+            _replace_text_preserving_pictures(
+                paragraph, re.sub(
+                    r"Shkalla e përputhshmërisë:\s*F\s*\(e plotë\)",
+                    "Shkalla e përputhshmërisë: [për vlerësim juridik]",
+                    paragraph.text,
+                ),
             )
     # Do not imply that F/P/N/N/A or national references have been decided.
     out = BytesIO()
