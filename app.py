@@ -5,6 +5,7 @@ called 'Writing Assistant', not 'app' or 'ALBA AI'. All existing functionality
 is implemented by the selected page scripts.
 """
 import streamlit as st
+from alba_features import COMMUNICATION_STUDIO_VISIBLE
 
 st.set_page_config(
     page_title="ALBA",
@@ -33,11 +34,13 @@ pages = [
         title="ToC Builder",
         icon=":material/table_chart:",
     ),
-    st.Page(
-        "pages/2_Communication_Studio.py",
-        title="Communication Studio",
-        icon=":material/campaign:",
-    ),
+    *([
+        st.Page(
+            "pages/2_Communication_Studio.py",
+            title="Communication Studio",
+            icon=":material/campaign:",
+        )
+    ] if COMMUNICATION_STUDIO_VISIBLE else []),
     st.Page(
         "pages/3_Legal_Drafting.py",
         title="Legal Drafting",
