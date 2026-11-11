@@ -31,6 +31,25 @@ st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout=
 apply_theme("WORKSPACE")
 st.title("ALBA")
 
+# Keep the composer in the top content flow instead of Streamlit's default
+# bottom-docked chat bar. The keyed container scopes styling to this page.
+st.markdown(
+    """
+    <style>
+    .st-key-alba_chat_composer {
+        width: 100%;
+        max-width: 740px;
+        margin: 0.35rem auto 1.35rem;
+    }
+    .st-key-alba_chat_composer [data-testid="stChatInput"] {
+        width: 100%;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+chat_composer = st.container(key="alba_chat_composer")
+
 
 def _secret(name: str) -> str:
     try:
@@ -577,12 +596,15 @@ doc_context = (
     if attachment_name else ""
 )
 available_chars = max(100, MAX_USER_CHARS - len(doc_context))
-prompt = st.chat_input(
-    "Ask ALBA a question or continue the conversation…",
-    key="alba_chat_prompt",
-    max_chars=available_chars,
-    disabled=not (account and api_key),
-)
+# Rendering inside the earlier container makes st.chat_input inline at
+# the top of the page, rather than pinned full-width to the viewport bottom.
+with chat_composer:
+    prompt = st.chat_input(
+        "Ask ALBA a question or continue the conversation…",
+        key="alba_chat_prompt",
+        max_chars=available_chars,
+        disabled=not (account and api_key),
+    )
 
 if prompt:
     st.session_state["alba_pending_chat_text"] = prompt + doc_context
