@@ -138,13 +138,17 @@ class ChatWorkspaceUITests(unittest.TestCase):
             "Renamed conversation",
         )
 
+        destination = store.create_project(owner, "Destination project")
+        app.run()
         app.selectbox(
             key="alba_sidebar_move_target_" + chat_id
-        ).set_value(None).run()
+        ).set_value(destination).run()
         app.button(
             key="alba_sidebar_move_chat_" + chat_id
         ).click().run()
-        self.assertIsNone(store.get_conversation(owner, chat_id)["project_id"])
+        self.assertEqual(
+            store.get_conversation(owner, chat_id)["project_id"], destination
+        )
         self.assertEqual(len(app.exception), 0)
 
     def test_project_control_appears_only_in_existing_chat(self):
