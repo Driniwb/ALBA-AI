@@ -29,7 +29,7 @@ from ui_theme import apply_theme
 
 st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
 apply_theme("WORKSPACE")
-st.title("ALBA")
+# The shared workspace hero remains; omit duplicate page-level title.
 
 # Keep the composer in the top content flow instead of Streamlit's default
 # bottom-docked chat bar. The keyed container scopes styling to this page.
@@ -168,12 +168,7 @@ if not persistent:
         pending_text=st.session_state.get("alba_pending_chat_text"),
         pending_project_id=st.session_state.get("alba_new_chat_project"),
     )
-    st.caption(chat_history_status(
-        account_saved=False,
-        browser_available=bool(st.session_state.get("alba_browser_available")),
-        browser_confirmed=browser_saved,
-        browser_error=st.session_state.get("alba_browser_error"),
-    ))
+    # Successful saves are silent; storage failures remain visible below.
     if st.session_state.get("alba_browser_error"):
         st.warning(st.session_state["alba_browser_error"])
     if st.session_state.get("alba_browser_confirm_pending"):
@@ -203,8 +198,6 @@ if not persistent:
         else:
             st.session_state["alba_browser_confirm_exchange"] = False
 
-if persistent:
-    st.caption(chat_history_status(account_saved=True))
 
 # Never imply that sign-in alone provides cloud persistence. The account
 # route requires BOTH a configured OIDC provider and a PostgreSQL database.
@@ -601,12 +594,11 @@ if conversation:
         prepare_handoff(recommended, latest_question, st.session_state)
         st.switch_page(recommended.page)
 else:
-    st.subheader("How can I help?")
     mode = "general"
     messages = []
 
-# A single compact '+' gives access to attachments and external AI sites.
-# All content screening and selected-excerpt limits are preserved.
+# The '+' contains only four supported Office/PDF attachment formats.
+# All existing screening and selected-excerpt limits are preserved.
 attachment_text = ""
 attachment_name = ""
 account, api_key = (
@@ -619,17 +611,17 @@ if not account or not api_key:
     )
 
 # Rendering inside the earlier top container keeps this compact composer
-# in page flow; the popover has one visible '+' attachment/links control.
+# in page flow; the popover has one compact attachment control.
 with chat_composer:
     plus_col, question_col = st.columns(
         [1, 13], vertical_alignment="bottom", gap="small"
     )
     with plus_col:
-        with st.popover("＋", help="Attach a document or open another AI platform"):
+        with st.popover("＋", help="Attach a Word, Excel, PDF or PowerPoint file"):
             doc_nonce = st.session_state.get("alba_doc_nonce", 0)
             doc = st.file_uploader(
                 "Attach a public document",
-                type=["pdf", "docx", "txt", "md"],
+                type=["docx", "xlsx", "pdf", "pptx"],
                 key="alba_public_doc_" + str(doc_nonce),
             )
             if doc:
@@ -661,20 +653,6 @@ with chat_composer:
                     if attachment_text.strip():
                         attachment_name = doc.name
 
-            st.divider()
-            st.caption("Other AI platforms · opens in a new tab")
-            st.link_button(
-                "ChatGPT", "https://chatgpt.com/",
-                use_container_width=True,
-            )
-            st.link_button(
-                "Claude", "https://claude.ai/",
-                use_container_width=True,
-            )
-            st.link_button(
-                "Gemini", "https://gemini.google.com/",
-                use_container_width=True,
-            )
 
     doc_context = (
         "\n\n[PUBLIC DOCUMENT EXCERPT: " + attachment_name + "]\n"
