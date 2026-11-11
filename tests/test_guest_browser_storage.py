@@ -56,6 +56,100 @@ class GuestBrowserStorageTests(unittest.TestCase):
         finally:
             new_db.close()
 
+    def test_restored_sidebar_keeps_recent_chat_order_and_active_chat(self):
+        first = self.db.create_conversation(OWNER1, title="Older public question")
+        self.db.append_exchange(
+            OWNER1, first, "Old synthetic public question.",
+            "Old synthetic public answer.",
+        )
+        second = self.db.create_conversation(
+            OWNER1, title="Newest public question"
+        )
+        self.db.append_exchange(
+            OWNER1, second, "New synthetic public question.",
+            "New synthetic public answer.",
+        )
+        snapshot = export_guest_workspace(
+            self.db, OWNER1, active_id=second
+        )
+        new_store = ChatStore.session_memory()
+        try:
+            new_active = restore_guest_workspace(new_store, OWNER2, snapshot)
+            recent = new_store.list_conversations(OWNER2)
+            self.assertEqual(
+                [chat["title"] for chat in recent],
+                ["Newest public question", "Older public question"],
+            )
+            self.assertEqual(new_active, recent[0]["id"])
+        finally:
+            new_store.close()
+
+    def test_unanswered_question_survives_a_new_browser_session(self):
+        project = self.db.create_project(OWNER1, "Legal drafting")
+        chat = self.db.create_conversation(
+            OWNER1, title="Legal review", project_id=project,
+        )
+        self.db.append_exchange(
+            OWNER1, chat, "Check synthetic Article 4.",
+            "Article 4 requires comparison with the annex.",
+        )
+        pending = "Please draft the next public provision."
+        saved = export_guest_workspace(
+            self.db, OWNER1, active_id=chat,
+            pending_text=pending, pending_project_id=project,
+        )
+        clean = validate_guest_workspace(saved)
+        self.assertEqual(clean["pending"], pending)
+        self.assertEqual(clean["pending_project"], 0)
+        restored = ChatStore.session_memory()
+        try:
+            restored_id = restore_guest_workspace(restored, OWNER2, saved)
+            self.assertIsNotNone(restored_id)
+            self.assertEqual(
+                len(restored.list_messages(OWNER2, restored_id)), 2
+            )
+            self.assertEqual(
+                restored.list_projects(OWNER2)[0]["name"], "Legal drafting"
+            )
+        finally:
+            restored.close()
+
+    def test_legacy_saved_workspace_without_pending_still_restores(self):
+        original = json.loads(export_guest_workspace(self.db, OWNER1))
+        original.pop("pending", None)
+        original.pop("pending_project", None)
+        self.assertIsNone(
+            validate_guest_workspace(json.dumps(original))["pending"]
+        )
+
+    def test_sensitive_unanswered_questions_never_enter_browser_snapshots(self):
+        with self.assertRaises(ValueError):
+            export_guest_workspace(
+                self.db, OWNER1,
+                pending_text="Email: private.person@example.org",
+            )
+        original = json.loads(export_guest_workspace(self.db, OWNER1))
+        original["pending"] = "Password: secretpassword"
+        with self.assertRaises(ValueError):
+            validate_guest_workspace(json.dumps(original))
+        original["pending"] = "Public drafting question."
+        original["pending_project"] = 99
+        with self.assertRaises(ValueError):
+            validate_guest_workspace(json.dumps(original))
+
+    def test_js_component_is_registered_once_and_checks_read_back(self):
+        from guest_browser_storage import _BROWSER_JS, _BROWSER_COMPONENT
+        source = (
+            Path(__file__).resolve().parents[1] /
+            "guest_browser_storage.py"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(source.count("st.components.v2.component("), 1)
+        self.assertIn("_BROWSER_COMPONENT = st.components.v2.component(", source)
+        self.assertIn('setStateValue("saved", data.revision)', _BROWSER_JS)
+        self.assertIn(
+            "window.localStorage.getItem(key) !== data.payload", _BROWSER_JS
+        )
+
     def test_empty_workspace_is_valid(self):
         raw = export_guest_workspace(self.db, OWNER1)
         result = validate_guest_workspace(raw)

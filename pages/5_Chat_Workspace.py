@@ -116,9 +116,43 @@ if st.session_state.get("alba_scope") != scope:
 
 if not persistent:
     initialize_browser_history(store, owner)
+    # Keep the component at the same position in EVERY rerun. Save new
+    # messages, project changes and unfinished questions immediately.
+    browser_saved = save_browser_history(
+        store, owner,
+        active_id=st.session_state.get("alba_active_conversation"),
+        pending_text=st.session_state.get("alba_pending_chat_text"),
+        pending_project_id=st.session_state.get("alba_new_chat_project"),
+    )
+    if st.session_state.get("alba_browser_confirm_pending"):
+        if st.session_state.get("alba_browser_available") and not browser_saved:
+            st.caption("Saving your question in this browser…")
+            if st.button(
+                "Continue without confirmed saving",
+                key="alba_skip_draft_save",
+            ):
+                st.session_state["alba_browser_confirm_pending"] = False
+            else:
+                # Do not send a newly submitted prompt to Cloudflare until
+                # localStorage has acknowledged the exact pending revision.
+                st.stop()
+        else:
+            st.session_state["alba_browser_confirm_pending"] = False
+    if st.session_state.get("alba_browser_confirm_exchange"):
+        if st.session_state.get("alba_browser_available") and not browser_saved:
+            st.caption("Saving the conversation in this browser…")
+            if st.button(
+                "Continue without confirmed conversation saving",
+                key="alba_skip_exchange_save",
+            ):
+                st.session_state["alba_browser_confirm_exchange"] = False
+            else:
+                st.stop()
+        else:
+            st.session_state["alba_browser_confirm_exchange"] = False
 
-if not persistent and not st.session_state.get("alba_browser_available"):
-    st.warning("Browser saving unavailable. Your chats may not persist.")
+if not persistent and st.session_state.get("alba_browser_error"):
+    st.warning(st.session_state["alba_browser_error"])
 
 if _oidc_configured():
     with st.sidebar:
@@ -365,6 +399,14 @@ if prompt:
     st.session_state["alba_pending_chat_text"] = prompt + doc_context
     st.session_state["alba_pending_display_question"] = prompt
     st.session_state["alba_pending_chat_error"] = None
+    if not persistent and not scan_text_fields(
+        st.session_state["alba_pending_chat_text"], public_legal=True
+    ).blocked:
+        # Stage the question, rerun, and wait for the browser to verify
+        # its save before making the (potentially long) AI request.
+        st.session_state["alba_chat_submit_staged"] = True
+        st.session_state["alba_browser_confirm_pending"] = True
+        st.rerun()
 
 pending = st.session_state.get("alba_pending_chat_text")
 error = st.session_state.get("alba_pending_chat_error")
@@ -385,7 +427,10 @@ if pending and error:
             st.session_state["alba_pending_chat_error"] = None
             st.rerun()
 
-if (prompt or retry) and pending:
+staged_submission = bool(
+    st.session_state.pop("alba_chat_submit_staged", False)
+)
+if (prompt or retry or staged_submission) and pending:
     if scan_text_fields(pending, public_legal=True).blocked:
         st.session_state["alba_pending_chat_error"] = BLOCK_NOTICE
         st.error(BLOCK_NOTICE)
@@ -430,6 +475,8 @@ if (prompt or retry) and pending:
                         title=title,
                     )
                 store.append_exchange(owner, active_id, pending, reply)
+                if not persistent:
+                    st.session_state["alba_browser_confirm_exchange"] = True
                 st.session_state["alba_active_conversation"] = active_id
                 st.session_state["alba_new_chat_project"] = None
                 st.session_state["alba_pending_chat_text"] = None
@@ -448,8 +495,3 @@ if (prompt or retry) and pending:
                 with st.chat_message("assistant"):
                     st.markdown(reply)
 
-if not persistent:
-    save_browser_history(
-        store, owner,
-        active_id=st.session_state.get("alba_active_conversation"),
-    )
