@@ -368,7 +368,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
     def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
         text = (ROOT / "app.py").read_text(encoding="utf-8")
         self.assertIn('"pages/5_Chat_Workspace.py"', text)
-        self.assertIn('title="Chat Workspace"', text)
+        self.assertIn('title="Legal Assistant"', text)
         for other in (
             "writing_assistant.py",
             "pages/1_ToC_Builder.py",
