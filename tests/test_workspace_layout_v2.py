@@ -108,6 +108,16 @@ class WorkspaceLayoutTests(unittest.TestCase):
             for item in app.markdown
         ))
 
+    def test_shortcut_navigates_to_existing_toc_tool(self):
+        app = AppTest.from_file(
+            str(ROOT / "app.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        app.button(key="alba_shortcut_toc").click().run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any("ToC Builder" in str(t.value) for t in app.title))
+
     def test_uploaded_excerpt_name_appears_in_document_tab(self):
         app = AppTest.from_file(
             str(ROOT / "pages" / "5_Chat_Workspace.py"),
