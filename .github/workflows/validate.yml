@@ -22,14 +22,3 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
-      - name: One-time EUR-Lex Cellar public API smoke test
-        if: github.ref == 'refs/heads/develop/alba-v2'
-        run: |
-          python - <<'PY'
-          from datetime import date
-          from dataclasses import asdict
-          from eurlex_cellar import probe_eurlex
-          evidence, text = probe_eurlex("32010L0035", as_of=date(2026, 11, 12))
-          print("CELLAR_OUTCOME", evidence.outcome, "CELEX", evidence.selected_consolidation)
-          print("CELLAR_HEADER", repr(text[:1300]))
-          PY
