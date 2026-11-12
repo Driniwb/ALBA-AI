@@ -68,3 +68,31 @@ def user_source_links(messages: list[dict], *, limit: int = 8) -> list[dict[str,
                 if len(found) >= limit:
                     return found
     return found
+
+
+_DOCUMENT_EXCERPT = re.compile(
+    r"\\[PUBLIC DOCUMENT EXCERPT:\\s*([^\\]\\n]{1,160})\\]\\n"
+)
+
+
+def user_document_excerpts(
+    messages: list[dict], *, limit: int = 8
+) -> list[str]:
+    """List labels of excerpts provided in this chat; no file-index claims.
+
+    This returns only user message labels. Binary documents are not persisted
+    by this helper and no document content is independently verified.
+    """
+    names: list[str] = []
+    observed: set[str] = set()
+    for item in reversed(messages):
+        if item.get("role") != "user" or not isinstance(item.get("content"), str):
+            continue
+        for name in _DOCUMENT_EXCERPT.findall(item["content"]):
+            cleaned = name.strip()
+            if cleaned and cleaned not in observed:
+                names.append(cleaned)
+                observed.add(cleaned)
+                if len(names) >= limit:
+                    return names
+    return names
