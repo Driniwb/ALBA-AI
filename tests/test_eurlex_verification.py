@@ -163,9 +163,19 @@ class LegalVerificationTests(TestCase):
         r = self.run_gate(
             content=HEADING.replace("2024/2749", "2024/1234")
         )
-        self.assertEqual(r.outcome, "amendment_mismatch")
-        self.assertEqual(r.missing_amendments_in_text, ["32024L2749"])
+        self.assertEqual(r.outcome, "amendment_reconciliation_incomplete")
+        self.assertEqual(r.unmatched_amendment_citations, ["32024L2749"])
         self.assertFalse(r.amendment_list_crosschecked)
+
+    def test_long_consolidation_header_does_not_create_false_missing_act(self):
+        long_heading = HEADING.replace(
+            "Amended by: ►M1 DIRECTIVE (EU) 2024/2749",
+            "Amended by: " + "amendment preamble " * 500
+            + "►M1 DIRECTIVE (EU) 2024/2749"
+        )
+        r = self.run_gate(content=long_heading)
+        self.assertEqual(r.unmatched_amendment_citations, [])
+        self.assertTrue(r.amendment_list_crosschecked)
 
     def test_repealing_act_is_flagged_for_review(self):
         r = self.run_gate(post=Post(repeals=["32025L0123"]))
