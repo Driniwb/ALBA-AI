@@ -121,6 +121,62 @@ st.markdown(
         font-weight: 650;
         margin-bottom: .18rem;
     }
+    .alba-welcome-eyebrow {
+        margin: 4.7rem 0 .8rem;
+        text-align: center;
+        font-size: .72rem;
+        font-weight: 720;
+        color: #a9c9b4;
+        letter-spacing: .17em;
+    }
+    .alba-welcome-title {
+        font-size: clamp(1.8rem, 3.3vw, 3rem);
+        font-weight: 680;
+        letter-spacing: -.046em;
+        line-height: 1.18;
+        color: #f5f7f2;
+        text-align: center;
+        max-width: 760px;
+        margin: 0 auto .75rem;
+    }
+    .alba-welcome-subtitle {
+        text-align: center;
+        max-width: 610px;
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #b5c6bc;
+        margin: 0 auto 1.2rem;
+    }
+    .st-key-alba_shortcut_legal_drafting button,
+    .st-key-alba_shortcut_toc button,
+    .st-key-alba_shortcut_reporting button {
+        min-height: 3.4rem;
+        border: 1px solid rgba(177,205,187,.22) !important;
+        background: #1d2b25 !important;
+        color: #dce9df !important;
+        box-shadow: none !important;
+        border-radius: 12px !important;
+        font-weight: 520 !important;
+    }
+    .st-key-alba_shortcut_legal_drafting button:hover,
+    .st-key-alba_shortcut_toc button:hover,
+    .st-key-alba_shortcut_reporting button:hover {
+        background: #293a31 !important;
+        border-color: #aacbb7 !important;
+    }
+    .st-key-alba_sidebar_chat_search input {
+        background: #1c2b24 !important;
+        border-radius: 11px !important;
+    }
+    .st-key-alba_sources_panel [data-testid="stTabs"] {
+        margin-top: .45rem;
+    }
+    .st-key-alba_sources_panel [data-testid="stLinkButton"] button {
+        border: 1px solid rgba(169,201,180,.22);
+        background: transparent;
+        text-align: left;
+        justify-content: flex-start;
+    }
     [data-testid="stChatMessage"] {
         max-width: 900px;
         border-radius: 13px;
