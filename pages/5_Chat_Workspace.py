@@ -26,7 +26,7 @@ from chat_auth import verified_chat_owner
 from chat_handoff import suggest_handoff, prepare_handoff
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from ui_theme import apply_theme
-from workspace_sources import user_source_links
+from workspace_sources import user_source_links, user_document_excerpts
 
 st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
 apply_theme("WORKSPACE")
@@ -394,15 +394,30 @@ def _sidebar_chat_entry(chat: dict, available_projects: list[dict]) -> None:
 
 
 with st.sidebar:
-    if st.button("＋ New chat", key="alba_new_chat", use_container_width=True):
+    if st.button("＋ New chat", key="alba_new_chat", icon=":material/add_comment:", use_container_width=True):
         _start_chat()
         st.rerun()
+
+    # Search filters only the displayed conversation list. All chats and
+    # projects remain in the owner-scoped store; no data are discarded.
+    search_text = st.text_input(
+        "Search conversations",
+        key="alba_sidebar_chat_search",
+        placeholder="Search chats…",
+        label_visibility="collapsed",
+    ).strip().casefold()
 
     projects = store.list_projects(owner)
     conversations = store.list_conversations(owner)
     chats_by_project = {item["id"]: [] for item in projects}
     unassigned_chats = []
+    project_names = {item["id"]: item["name"].casefold() for item in projects}
     for chat in conversations:
+        if search_text and not (
+            search_text in chat["title"].casefold()
+            or search_text in project_names.get(chat["project_id"], "")
+        ):
+            continue
         if chat["project_id"] in chats_by_project:
             chats_by_project[chat["project_id"]].append(chat)
         else:
@@ -428,6 +443,8 @@ with st.sidebar:
 
     for project in projects:
         related = chats_by_project[project["id"]]
+        if search_text and not related and search_text not in project["name"].casefold():
+            continue
         with st.expander(
             "📁 " + project["name"] + " (" + str(len(related)) + ")",
             expanded=(
@@ -472,6 +489,8 @@ with st.sidebar:
                 _sidebar_chat_entry(chat, projects)
 
     st.subheader("Chats")
+    if search_text and not unassigned_chats and not any(chats_by_project.values()):
+        st.caption("No conversations match your search.")
     for chat in unassigned_chats[:50]:
         _sidebar_chat_entry(chat, projects)
 
@@ -594,6 +613,7 @@ with header_right:
     if st.button(
         "Sources", key="alba_sources_toggle", icon=":material/bookmarks:",
         use_container_width=True,
+        help="Open the official references and document excerpts for this chat",
     ):
         st.session_state["alba_sources_open"] = not st.session_state.get(
             "alba_sources_open", False
@@ -732,39 +752,79 @@ with chat_area:
         mode = "general"
         messages = []
     if not conversation:
-        st.markdown("### How can ALBA help?")
-        st.caption(
-            "Ask a legal question, review a public document or use a "
-            "specialised tool from the sidebar."
+        st.markdown(
+            '<div class="alba-welcome-eyebrow">LEGAL RESEARCH & DRAFTING</div>'
+            '<div class="alba-welcome-title">How can I help with your legal work?</div>'
+            '<div class="alba-welcome-subtitle">'
+            'Ask about Albanian or EU law, analyse a public document, '
+            'or open a dedicated drafting tool.'
+            '</div>',
+            unsafe_allow_html=True,
         )
+        st.caption("ALBA answers in your language. Official legal status is confirmed only when the source has been checked.")
+        quick_a, quick_b, quick_c = st.columns(3, gap="small")
+        with quick_a:
+            if st.button(
+                "Legal drafting", key="alba_shortcut_legal_drafting",
+                icon=":material/gavel:", use_container_width=True,
+            ):
+                st.switch_page("pages/3_Legal_Drafting.py")
+        with quick_b:
+            if st.button(
+                "Table of Concordance", key="alba_shortcut_toc",
+                icon=":material/table_chart:", use_container_width=True,
+            ):
+                st.switch_page("pages/1_ToC_Builder.py")
+        with quick_c:
+            if st.button(
+                "EU reporting", key="alba_shortcut_reporting",
+                icon=":material/article:", use_container_width=True,
+            ):
+                st.switch_page("pages/4_EU_Reporting.py")
 
 if show_sources:
     with sources_area:
         with st.container(key="alba_sources_panel"):
-            st.markdown("**Sources**")
-            st.caption(
-                "Official links you shared. Their content, status and "
-                "consolidated versions have not yet been independently verified "
-                "by this chat."
-            )
-            cited_links = user_source_links(messages)
-            if cited_links:
-                for source in cited_links:
-                    st.link_button(
-                        source["label"], source["url"],
-                        use_container_width=True,
+            st.markdown("**Sources & documents**")
+            source_tab, document_tab = st.tabs(["Official sources", "Documents"])
+            with source_tab:
+                st.caption(
+                    "Official links you shared. Their content, status and "
+                    "consolidated versions have not yet been independently verified "
+                    "by this chat."
+                )
+                cited_links = user_source_links(messages)
+                if cited_links:
+                    for source in cited_links:
+                        st.link_button(
+                            source["label"], source["url"],
+                            use_container_width=True,
+                        )
+                else:
+                    st.caption("No official document links in this conversation.")
+                st.divider()
+                st.caption("Open official registers")
+                st.link_button(
+                    "QBZ", "https://qbz.gov.al/", use_container_width=True,
+                )
+                st.link_button(
+                    "EUR-Lex", "https://eur-lex.europa.eu/",
+                    use_container_width=True,
+                )
+            with document_tab:
+                document_names = user_document_excerpts(messages)
+                if document_names:
+                    for name in document_names:
+                        st.markdown("📄 " + name)
+                    st.caption(
+                        "These are excerpts attached to this conversation, "
+                        "not an indexed document library."
                     )
-            else:
-                st.caption("No official document links in this conversation.")
-            st.divider()
-            st.caption("Official registers")
-            st.link_button(
-                "QBZ", "https://qbz.gov.al/", use_container_width=True,
-            )
-            st.link_button(
-                "EUR-Lex", "https://eur-lex.europa.eu/",
-                use_container_width=True,
-            )
+                else:
+                    st.caption(
+                        "Documents uploaded using + appear here after "
+                        "their excerpts are added to the conversation."
+                    )
 
 # Use Streamlit's native attachment '+' rather than a separate popover.
 # A new chat is isolated: only this conversation's own messages are passed
