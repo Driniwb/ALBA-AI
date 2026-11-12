@@ -158,7 +158,12 @@ def _article_text(text: str, article: str, paragraph: str | None = None) -> str 
         return article_text[:2500]
     if not re.fullmatch(r"[1-9]\d?", paragraph):
         raise ValueError("Invalid paragraph identifier.")
-    boundaries = list(re.finditer(r"\b([1-9]\d?)\.\s+", article_text))
+    # Flattened HTML can contain a citation such as "Article 12." in
+    # paragraph 9; it is not the beginning of paragraph 12.
+    boundaries = list(re.finditer(
+        r"(?<!Article )(?<!article )\b([1-9]\d?)\.\s+",
+        article_text,
+    ))
     for i, boundary in enumerate(boundaries):
         if boundary.group(1) != paragraph:
             continue
