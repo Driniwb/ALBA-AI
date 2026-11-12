@@ -138,12 +138,12 @@ def _article_text(text: str, article: str, paragraph: str | None = None) -> str 
     if not re.fullmatch(r"\d{1,3}[a-z]?", article, re.I):
         raise ValueError("Invalid article identifier.")
     start = re.search(
-        rf"\bArticle\s+{re.escape(article)}\b", text, flags=re.IGNORECASE,
+        rf"\bArticle\s+{re.escape(article)}\s+(?=[A-Z])", text, flags=re.IGNORECASE,
     )
     if start is None:
         return None
     following = re.search(
-        r"\bArticle\s+\d{1,3}[a-z]?\b", text[start.end():],
+        r"\bArticle\s+\d{1,3}[a-z]?\s+(?=[A-Z])", text[start.end():],
         flags=re.IGNORECASE,
     )
     end = start.end() + following.start() if following else min(len(text), start.end()+15000)
@@ -200,8 +200,12 @@ def review_oj_amendment(
             reasons.append("Complete entry-into-force metadata for the amendment was not found.")
         if as_of != date.today():
             reasons.append("The present-day in-force flag cannot certify a historical status.")
+        if as_of != date.today():
+            reasons.append("Cellar's present-day in-force flag does not certify historical legal status.")
         if start_date and date.fromisoformat(start_date) > as_of:
             reasons.append("The amending act entered into force after the requested date.")
+        if application and date.fromisoformat(application) > as_of:
+            reasons.append("The published date for application of national measures is in the future.")
 
         relation_rows = _rows(
             relationships_query(amendment_celex), post=fetch,
@@ -258,10 +262,14 @@ def review_oj_amendment(
 
     if not source or not identity:
         outcome = "oj_source_unconfirmed"
+    elif not base_mentioned:
+        outcome = "operative_amendment_unconfirmed"
     elif not corr_checked:
         outcome = "change_history_unconfirmed"
     elif not consolidated_heading:
         outcome = "consolidated_text_unconfirmed"
+    elif provision_article and provision is None:
+        outcome = "provision_unconfirmed"
     else:
         outcome = "oj_and_change_metadata_checked"
 
