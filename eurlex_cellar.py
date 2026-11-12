@@ -97,6 +97,7 @@ def consolidation_query(base_celex: str) -> str:
         "  UNION\n"
         "  { ?cons cdm:act_consolidated_based_on_resource_legal ?base . }\n"
         "  ?cons cdm:resource_legal_id_celex ?celex .\n"
+        f'  FILTER(STRSTARTS(STR(?celex), "0{c[1:]}-"))\n'
         "} ORDER BY DESC(?celex) LIMIT 100"
     )
 
