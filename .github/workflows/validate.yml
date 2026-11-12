@@ -49,3 +49,26 @@ jobs:
                     c.corrected_text_matches_consolidation,"unresolved",
                     c.limitations[:1])
           PY
+      - name: One-time Cellar expression language scope probe
+        if: github.ref == 'refs/heads/develop/alba-v2'
+        run: |
+          python - <<'PY'
+          from eurlex_verification import _rows
+          import requests
+          for celex in ("32024L2749R(01)", "32024L2749R(02)",
+                        "32024L2749R(03)", "32024L2749R(04)"):
+              query=(
+                  "PREFIX cdm: <http://publications.europa.eu/ontology/cdm#> "
+                  "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
+                  "SELECT DISTINCT ?language WHERE { "
+                  f'?work cdm:resource_legal_id_celex "{celex}"^^xsd:string ; '
+                  "cdm:work_has_expression ?expression . "
+                  "?expression cdm:expression_uses_language ?language . } LIMIT 80"
+              )
+              try:
+                  rows=_rows(query,post=requests.post,row_limit=80)
+                  print("CORR_LANG",celex,
+                        [x.get("language",{}).get("value") for x in rows])
+              except Exception as e:
+                  print("CORR_LANG_ERROR",celex,type(e).__name__,str(e)[:140])
+          PY
