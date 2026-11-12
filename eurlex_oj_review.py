@@ -93,9 +93,15 @@ def _mentions_amended_base(text: str, base_celex: str) -> bool:
     label = {"L": "Directive", "R": "Regulation", "D": "Decision"}[kind]
     # An operative amendment clause is evidence; a title/preamble mention is
     # insufficient to locate which provision has changed.
+    target = rf"{label}\s+(?:\(EU\)\s+)?{year}/0*{int(number)}/(?:EU|EC|EEC)"
+    # The OJ commonly uses "Directive XXXX is amended as follows", not
+    # "In Directive XXXX". Require a verb showing an operative change.
     return bool(re.search(
-        rf"\b(?:In|to)\s+{label}\s+(?:\(EU\)\s+)?{year}/0*{int(number)}"
-        r"/(?:EU|EC|EEC)\b", text, re.IGNORECASE,
+        rf"\b{target}\s+is\s+amended\s+as\s+follows",
+        text, flags=re.IGNORECASE,
+    ) or re.search(
+        rf"\bIn\s+{target}\s*[,;:]?\s+the\s+following\s+amendments",
+        text, flags=re.IGNORECASE,
     ))
 
 
