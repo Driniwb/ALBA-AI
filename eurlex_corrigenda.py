@@ -31,6 +31,9 @@ CELLAR_WORK = re.compile(
     r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
 )
 MAX_CORRIGENDA = 12
+LANGUAGE_AUTHORITY = re.compile(
+    r"^http://publications\.europa\.eu/resource/authority/language/([A-Z]{3})$"
+)
 MAX_TEXT = 100_000
 DATE = re.compile(r"\b([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{4})\b")
 TARGET = re.compile(
@@ -52,6 +55,9 @@ class CorrigendumEvidence:
     checked_at_utc: str
     requested_language: str
     queried_as_of: str
+    available_languages: list[str]
+    language_scope_checked: bool
+    english_version_available: bool | None
     official_celex_url: str
     official_work_url: str | None
     official_content_url: str | None
@@ -84,9 +90,11 @@ class CorrigendaReview:
     reviewed: list[CorrigendumEvidence]
     relevant_corrigenda: list[str]
     unrelated_corrigenda: list[str]
+    language_excluded_corrigenda: list[str]
     unresolved_corrigenda: list[str]
     exact_correction_match_confirmed: bool
     all_corrigendum_texts_retrieved: bool
+    english_scope_complete: bool
     full_legal_verification: bool
     outcome: str
     limitations: list[str]
@@ -109,6 +117,33 @@ def work_query(corrigendum_celex: str) -> str:
         f'  ?work cdm:resource_legal_id_celex "{celex}"^^xsd:string .\n'
         "} LIMIT 10"
     )
+
+
+def language_query(corrigendum_celex: str) -> str:
+    """Query source expressions via the documented inverse WEMI relation."""
+    celex, _amendment = _validate_corrigendum(corrigendum_celex)
+    return (
+        "PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>\n"
+        "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
+        "SELECT DISTINCT ?language WHERE {\n"
+        f'  ?work cdm:resource_legal_id_celex "{celex}"^^xsd:string .\n'
+        "  ?expr cdm:expression_belongs_to_work ?work ;\n"
+        "        cdm:expression_uses_language ?language .\n"
+        "} LIMIT 80"
+    )
+
+
+def _expression_languages(celex: str, *, post: Callable) -> list[str]:
+    """Return official ISO 639-3 codes; empty means not established."""
+    bindings = _rows(language_query(celex), post=post, row_limit=80)
+    found = set()
+    for row in bindings:
+        uri = row.get("language", {}).get("value") if isinstance(row, dict) else None
+        match = LANGUAGE_AUTHORITY.fullmatch(uri or "")
+        if match is None:
+            raise ValueError("Unexpected language authority returned by Cellar.")
+        found.add(match.group(1))
+    return sorted(found)
 
 
 def _resolve_work(celex: str, *, post: Callable) -> str:
@@ -264,53 +299,69 @@ def inspect_corrigendum(
     before = after = None
     target_base = target_article = target_para = None
     confirmed = lang_confirmed = read = False
+    languages: list[str] = []
+    language_scope_checked = False
+    english_available: bool | None = None
     relevant = match = None
     outcome = "document_unavailable"
     limits = []
     try:
         work = _resolve_work(celex, post=post or requests.post)
-        url, text = _get_official_xhtml(work, get=get or requests.get)
-        read = True
-        digest = sha256(text.encode("utf-8")).hexdigest()
-        confirmed = _heading_ok(text, celex)
-        lang_confirmed = bool(re.search(
-            r"Official Journal of the European Union\s+EN\b",
-            text[:500], re.IGNORECASE,
-        ))
-        published = _date_from_heading(text)
-        target_base, target_article, target_para = _target(text)
-        changes = CHANGE.search(text[:9000])
-        if changes:
-            before, after = (re.sub(r"\s+", " ", v).strip() for v in changes.groups())
-        if published and date.fromisoformat(published) > as_of:
-            limits.append("This correction was published after the requested legal date.")
-            outcome = "not_published_at_requested_date"
-        elif not confirmed or not lang_confirmed:
-            limits.append("Corrigendum identity or EN language not confirmed from official text.")
-            outcome = "document_identity_unconfirmed"
-        elif target_base is None or target_article is None:
-            limits.append("Affected directive and paragraph were not explicitly identifiable.")
-            outcome = "target_unconfirmed"
-        else:
-            relevant = bool(
-                target_base == base_celex
-                and target_article == provision_article.casefold()
-                and target_para == provision_paragraph
+        languages = _expression_languages(celex, post=post or requests.post)
+        language_scope_checked = bool(languages)
+        english_available = "ENG" in languages if languages else None
+        if english_available is False:
+            # Do not issue an English GET for a Latvian/Swedish-only
+            # corrigendum and do not mislabel it as a missing source.
+            relevant = False
+            outcome = "not_published_in_english"
+            limits.append(
+                "Official Cellar language metadata excludes English; this "
+                "corrigendum does not correct the English expression."
             )
-            if not relevant:
-                outcome = "other_provision_or_act"
-            elif before is None or after is None:
-                outcome = "correction_pair_unconfirmed"
-                limits.append("For/read correction passage could not be extracted reliably.")
+        else:
+            url, text = _get_official_xhtml(work, get=get or requests.get)
+            read = True
+            digest = sha256(text.encode("utf-8")).hexdigest()
+            confirmed = _heading_ok(text, celex)
+            lang_confirmed = bool(re.search(
+                r"Official Journal of the European Union\s+EN\b",
+                text[:500], re.IGNORECASE,
+            ))
+            published = _date_from_heading(text)
+            target_base, target_article, target_para = _target(text)
+            changes = CHANGE.search(text[:9000])
+            if changes:
+                before, after = (re.sub(r"\s+", " ", v).strip() for v in changes.groups())
+            if published and date.fromisoformat(published) > as_of:
+                limits.append("This correction was published after the requested legal date.")
+                outcome = "not_published_at_requested_date"
+            elif not confirmed or not lang_confirmed:
+                limits.append("Corrigendum identity or EN language not confirmed from official text.")
+                outcome = "document_identity_unconfirmed"
+            elif target_base is None or target_article is None:
+                limits.append("Affected directive and paragraph were not explicitly identifiable.")
+                outcome = "target_unconfirmed"
             else:
-                match = _crosscheck(after, before, consolidated_provision)
-                if match is True:
-                    outcome = "corrected_text_consistent_with_consolidation"
-                elif match is False:
-                    outcome = "corrected_text_not_matched"
-                    limits.append("The corrected text was not matched against the selected consolidation.")
+                relevant = bool(
+                    target_base == base_celex
+                    and target_article == provision_article.casefold()
+                    and target_para == provision_paragraph
+                )
+                if not relevant:
+                    outcome = "other_provision_or_act"
+                elif before is None or after is None:
+                    outcome = "correction_pair_unconfirmed"
+                    limits.append("For/read correction passage could not be extracted reliably.")
                 else:
-                    outcome = "consolidated_provision_unavailable"
+                    match = _crosscheck(after, before, consolidated_provision)
+                    if match is True:
+                        outcome = "corrected_text_consistent_with_consolidation"
+                    elif match is False:
+                        outcome = "corrected_text_not_matched"
+                        limits.append("The corrected text was not matched against the selected consolidation.")
+                    else:
+                        outcome = "consolidated_provision_unavailable"
     except (ValueError, requests.RequestException, TypeError, KeyError) as exc:
         limits.append("Official source could not be retrieved or interpreted: " + str(exc)[:150])
     limits.append(
@@ -320,6 +371,9 @@ def inspect_corrigendum(
     return CorrigendumEvidence(
         celex=celex, checked_at_utc=checked,
         requested_language="EN", queried_as_of=as_of.isoformat(),
+        available_languages=languages,
+        language_scope_checked=language_scope_checked,
+        english_version_available=english_available,
         official_celex_url=official, official_work_url=work,
         official_content_url=url, official_text_sha256=digest,
         official_text_retrieved=read, heading_confirmed=confirmed,
@@ -348,6 +402,7 @@ def review_amendment_corrigenda(
     unresolved = []
     relevant = []
     unrelated = []
+    language_excluded = []
     corrigenda = oj.observed_corrigenda_celex
     if len(corrigenda) > MAX_CORRIGENDA:
         raise ValueError("Too many corrections for a bounded automatic review.")
@@ -363,21 +418,31 @@ def review_amendment_corrigenda(
             relevant.append(celex)
         elif e.affects_requested_provision is False:
             unrelated.append(celex)
+            if e.english_version_available is False and e.language_scope_checked:
+                language_excluded.append(celex)
         if (e.affects_requested_provision is None or
                 e.affects_requested_provision is True and
                 e.corrected_text_matches_consolidation is not True):
             unresolved.append(celex)
-    complete = bool(oj.corrigendum_discovery_checked and
+    all_read = bool(oj.corrigendum_discovery_checked and
                     len(corrigenda) == len(items) and
                     all(e.official_text_retrieved and e.heading_confirmed
                         and e.language_confirmed for e in items))
+    scope_complete = bool(oj.corrigendum_discovery_checked and
+                    len(corrigenda) == len(items) and
+                    all(
+                        (e.language_scope_checked and e.english_version_available is False)
+                        or (e.official_text_retrieved and e.heading_confirmed
+                            and e.language_confirmed)
+                        for e in items
+                    ))
     match = bool(relevant) and all(
         item.corrected_text_matches_consolidation is True
         for item in items if item.affects_requested_provision is True
     )
     if not oj.corrigendum_discovery_checked:
         outcome = "corrigendum_discovery_unconfirmed"
-    elif not complete or unresolved:
+    elif not scope_complete or unresolved:
         outcome = "corrigendum_review_incomplete"
     else:
         outcome = "corrigenda_inspected"
@@ -386,9 +451,11 @@ def review_amendment_corrigenda(
         as_of=day.isoformat(), requested_provision=f"{article}({paragraph})",
         observed_corrigenda_count=len(corrigenda), reviewed=items,
         relevant_corrigenda=relevant, unrelated_corrigenda=unrelated,
+        language_excluded_corrigenda=language_excluded,
         unresolved_corrigenda=unresolved,
         exact_correction_match_confirmed=match,
-        all_corrigendum_texts_retrieved=complete,
+        all_corrigendum_texts_retrieved=all_read,
+        english_scope_complete=scope_complete,
         full_legal_verification=False, outcome=outcome,
         limitations=oj.unresolved + [
             "Even a textually consistent corrigendum does not by itself "
