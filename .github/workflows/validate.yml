@@ -36,7 +36,7 @@ jobs:
                     "status=", record.in_force_flag,
                     "start=", record.entry_into_force,
                     "amendments=", len(record.observed_amendments),
-                    "unmatched=", len(record.missing_amendments_in_text),
+                    "unmatched=", len(record.unmatched_amendment_citations),
                     "corrigendum_citations=", record.observed_corrigendum_citations,
                     "fully_verified=", record.full_legal_verification,
                     "reasons=", record.reasons[:3])
