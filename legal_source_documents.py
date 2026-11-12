@@ -218,7 +218,7 @@ def _retrieve(
             outcome = "document_text_retrieved"
     except (requests.RequestException, ValueError, OSError, TypeError) as exc:
         outcome = "read_or_validation_failed"
-        warnings.append("Retrieval failed (" + type(exc).__name__ + ").")
+        warnings.append("Retrieval failed (" + type(exc).__name__ + ": " + str(exc)[:160] + ").")
     except Exception as exc:
         # PDF parsers raise several library-specific exceptions; never turn
         # those into legal verification or leak raw response contents.
