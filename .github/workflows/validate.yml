@@ -42,4 +42,13 @@ jobs:
                         "xml_multistatus","multistatus" in t.lower())
               except requests.RequestException as e:
                   print("DIAG",verb,type(e).__name__)
+          try:
+              u="https://qbz.gov.al/alfresco/api/-default-/public/alfresco/versions/1/search/versions/1/search"
+              body={"query":{"query":'cm:name:"vendim-2023-05-31-325.pdf"',"language":"afts"},"paging":{"maxItems":5}}
+              r=requests.post(u,json=body,timeout=12,allow_redirects=False)
+              print("DIAG AFTS",r.status_code,r.headers.get("Content-Type"),
+                    len(r.content),"entry_keys",
+                    list(r.json().keys()) if "json" in r.headers.get("Content-Type","") else "not_json")
+          except (requests.RequestException,ValueError) as e:
+              print("DIAG AFTS",type(e).__name__)
           PY
