@@ -4,6 +4,19 @@ The Streamlit prototype in this branch is ready for a **separate preview
 deployment**. The existing production app remains on `main`; do not
 change its deployment branch.
 
+## Direct deployment entry
+
+[Open ALBA 2.0 deployment in Streamlit Community Cloud](https://share.streamlit.io/deploy?repository=Driniwb%2FALBA-AI&branch=develop%2Falba-v2&mainModule=app.py)
+
+This is the **deployment form**, not a live ALBA 2.0 application URL.
+If Streamlit does not prefill the form, choose **Paste GitHub URL** and use:
+
+`https://github.com/Driniwb/ALBA-AI/blob/develop/alba-v2/app.py`
+
+Then confirm the branch and main file below, choose a distinct subdomain,
+and select Deploy. The Streamlit account owner must authorize publication.
+Only Streamlit can return the new live app URL after deployment.
+
 ## Deployment coordinates
 
 | Field | Value |
