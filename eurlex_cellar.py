@@ -187,6 +187,11 @@ def _approved_url(url: str) -> bool:
 def _download_text(celex: str, *, get: Callable) -> tuple[str, str]:
     url = CONTENT_ROOT + celex + "?language=en"
     for _ in range(MAX_REDIRECTS + 1):
+        # Cellar can emit a legacy HTTP Location for its own content stream.
+        # Upgrade the known official host to HTTPS without making an HTTP call.
+        parsed = urlsplit(url)
+        if parsed.scheme == "http" and parsed.hostname in ALLOWED_HOSTS:
+            url = parsed._replace(scheme="https").geturl()
         if not _approved_url(url):
             raise ValueError("Unapproved redirect target host/path: " + str(urlsplit(url).hostname) + urlsplit(url).path[:110])
         r = get(url, timeout=25, allow_redirects=False, headers={
