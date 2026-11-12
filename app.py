@@ -20,7 +20,7 @@ with st.sidebar:
 pages = [
     st.Page(
         "pages/5_Chat_Workspace.py",
-        title="Chat Workspace",
+        title="Legal Assistant",
         icon=":material/forum:",
         default=True,
     ),
