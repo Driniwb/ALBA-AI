@@ -44,6 +44,11 @@ class ProbeResult:
     outcome: str
     identity_observed: bool
     candidate_version_date: str | None
+    # QBZ publishes both a version timeline and the "Ndryshuar nga"
+    # cross-reference list. They are distinct evidence streams.
+    qbz_version_candidates: list[dict[str, str]]
+    qbz_amending_acts_declared: int | None
+    qbz_amending_acts_observed: list[dict[str, str]]
     version_verified: bool
     status_verified: bool
     details: str
@@ -102,16 +107,63 @@ def validate_official_url(url: str, jurisdiction: str) -> None:
             raise ValueError("Unsupported EU document endpoint for this pilot.")
 
 
-def _candidate_version(text: str, as_of: date) -> str | None:
-    entries = []
-    for _, day, month, year in VERSION.findall(text):
+def _qbz_version_candidates(text: str) -> list[dict[str, str]]:
+    """Observe the version timeline without certifying any version as current."""
+    versions: dict[int, str] = {}
+    for number, day, month, year in VERSION.findall(text):
         try:
-            observed = date(int(year), int(month), int(day))
+            when = date(int(year), int(month), int(day)).isoformat()
         except ValueError:
             continue
-        if observed <= as_of:
-            entries.append(observed)
-    return max(entries).isoformat() if entries else None
+        versions[int(number)] = when
+    return [
+        {"version": str(number), "effective_from": when}
+        for number, when in sorted(versions.items(), key=lambda item: item[0])
+    ]
+
+
+def _qbz_amending_acts(text: str) -> tuple[int | None, list[dict[str, str]]]:
+    """Read QBZ 'Ndryshuar nga' in Ndërvarësia, excluding other relations.
+
+    The displayed count and extracted references are *observations*, not
+    confirmation that amendments were incorporated into the latest version.
+    """
+    relation_marker = re.search(r"Nd[ëe]rvar[ëe]sia", text, re.IGNORECASE)
+    if relation_marker is None:
+        return None, []
+    relations = text[relation_marker.end():]
+    match = re.search(
+        r"Ndryshuar\s+nga\s*\(\s*(\d+)\s*\)", relations, re.IGNORECASE,
+    )
+    if match is None:
+        return None, []
+    declared = int(match.group(1))
+    section = relations[match.end():]
+    # Other linked acts (e.g. 'Bazë ligjore për') are NOT amendments.
+    section = re.split(r"Baz[ëe]\s+ligjore\s+p[ëe]r", section, 1, flags=re.IGNORECASE)[0]
+    act_pattern = re.compile(
+        r"(Ligj|Vendim|Udh[ëe]zim|Urdh[ëe]r|Dekret)\s+nr\.\s*"
+        r"(\d+(?:/\d+)?)\s*,\s*dat[ëe]\s*(\d{2}/\d{2}/\d{4})",
+        re.IGNORECASE,
+    )
+    seen: set[tuple[str, str, str]] = set()
+    observed: list[dict[str, str]] = []
+    for kind, number, when in act_pattern.findall(section):
+        key = (kind.casefold(), number, when)
+        if key in seen:
+            continue
+        seen.add(key)
+        observed.append({"type": kind, "number": number, "date": when})
+    return declared, observed
+
+
+def _candidate_version(versions: list[dict[str, str]], as_of: date) -> str | None:
+    applicable = [
+        date.fromisoformat(item["effective_from"])
+        for item in versions
+        if date.fromisoformat(item["effective_from"]) <= as_of
+    ]
+    return max(applicable).isoformat() if applicable else None
 
 
 def probe_case(
@@ -124,6 +176,9 @@ def probe_case(
     checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     identity = False
     candidate = None
+    version_candidates: list[dict[str, str]] = []
+    amendments_declared: int | None = None
+    amendments_observed: list[dict[str, str]] = []
     outcome, details = "unavailable", "Source was not fetched."
     fetch = get or requests.get
     current = source
@@ -170,7 +225,10 @@ def probe_case(
                     and re.search(r"Data\s+e\s+aktit", text, re.I)
                     and "Permalink ELI" in text
                 )
-                candidate = _candidate_version(text, as_of) if identity else None
+                if identity:
+                    version_candidates = _qbz_version_candidates(text)
+                    candidate = _candidate_version(version_candidates, as_of)
+                    amendments_declared, amendments_observed = _qbz_amending_acts(text)
             else:
                 celex = re.search(r"CELEX%3A([03][0-9]{4}[A-Z][0-9]{4}(?:-[0-9]{8})?)", source, re.I)
                 if not celex:
@@ -193,6 +251,9 @@ def probe_case(
         case_id=str(case["id"]), jurisdiction=jurisdiction, source_url=source,
         checked_at_utc=checked_at, outcome=outcome,
         identity_observed=identity, candidate_version_date=candidate,
+        qbz_version_candidates=version_candidates,
+        qbz_amending_acts_declared=amendments_declared,
+        qbz_amending_acts_observed=amendments_observed,
         version_verified=False, status_verified=False, details=details,
     )
 
