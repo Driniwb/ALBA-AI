@@ -22,28 +22,3 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
-      - name: Temporary live Official Journal legal-review pilot
-        if: github.ref == 'refs/heads/develop/alba-v2'
-        run: |
-          python - <<'PY'
-          from datetime import date
-          from eurlex_oj_review import review_oj_amendment
-          result=review_oj_amendment(
-              "32010L0035", "32024L2749",
-              as_of=date(2026,11,12),
-              provision_article="33c", provision_paragraph="9",
-          )
-          print("OJ_REVIEW",result.outcome,
-                "identity",result.oj_heading_identified,
-                "operative_clause",result.base_mentioned_in_amending_text,
-                "entry",result.amending_act_entry_into_force,
-                "transposition",result.national_transposition_deadline,
-                "application",result.national_measures_application_date,
-                "corrigenda",result.observed_corrigenda_celex,
-                "consolidation",result.selected_consolidation,
-                "provision_found",bool(result.provision_text),
-                "article12",("Article 12" in (result.provision_text or "")),
-                "emergency_condition",result.conditional_application_identified,
-                "fully_verified",result.complete_legal_verification,
-                "unresolved",result.unresolved[:4])
-          PY
