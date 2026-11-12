@@ -221,6 +221,20 @@ def _download_text(celex: str, *, get: Callable) -> tuple[str, str]:
     raise ValueError("Excessive official document redirects.")
 
 
+def _consolidated_document_identity(text: str, celex: str) -> bool:
+    """Match both CELEX family and consolidation date in the source heading."""
+    prefix, version = celex.rsplit("-", 1)
+    year, month, day = version[:4], version[4:6], version[6:8]
+    heading = re.sub(r"\\s+", " ", text[:2500]).upper()
+    if celex in heading:
+        return True
+    return prefix in heading and any(stamp in heading for stamp in (
+        f"{day}.{month}.{year}",
+        f"{day}/{month}/{year}",
+        f"{year}-{month}-{day}",
+    ))
+
+
 def probe_eurlex(
     celex: str, *, as_of: date | None = None,
     post: Callable | None = None, get: Callable | None = None
@@ -255,7 +269,7 @@ def probe_eurlex(
             official_url, text = _download_text(chosen, get=get or requests.get)
             downloaded = True
             digest = sha256(text.encode("utf-8")).hexdigest()
-            identity = chosen in text or chosen[:11] in text
+            identity = _consolidated_document_identity(text, chosen)
             outcome = "source_text_retrieved" if identity else "source_identity_unconfirmed"
             if not identity:
                 warnings.append("Visible text did not independently confirm CELEX identity.")
