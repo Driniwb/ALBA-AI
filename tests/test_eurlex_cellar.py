@@ -88,6 +88,8 @@ class EurlexCellarTests(unittest.TestCase):
             self.assertNotIn("DELETE", query)
         self.assertIn("act_consolidated_based_on_resource_legal",
                       consolidation_query(CELEX))
+        self.assertIn('STRSTARTS(STR(?celex), "02010L0035-")',
+                      consolidation_query(CELEX))
         self.assertIn("resource_legal_amends_resource_legal",
                       amendments_query(CELEX))
 
