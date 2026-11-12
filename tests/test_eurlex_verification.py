@@ -130,6 +130,8 @@ class LegalVerificationTests(TestCase):
         self.assertEqual(r.entry_into_force, "2010-07-20")
         self.assertFalse(r.full_legal_verification)
         self.assertTrue(any("Corrigenda" in reason for reason in r.reasons))
+        self.assertEqual(r.observed_corrigendum_citations,
+                         ["OJ L 90340, 22.4.2025"])
 
     def test_missing_or_false_in_force_flag_prevents_status_claim(self):
         for value in (None, False):
@@ -176,6 +178,15 @@ class LegalVerificationTests(TestCase):
             post=Post(corrections=["32010L0035R(01)"])
         )
         self.assertEqual(r.observed_corrigenda, ["32010L0035R(01)"])
+        self.assertFalse(r.full_legal_verification)
+
+    def test_no_corrigendum_oj_reference_must_not_be_invented(self):
+        text = HEADING.replace(
+            "Corrected by: ►C1 Corrigendum OJ L 90340, 22.4.2025.",
+            "Corrected by: unspecified correction."
+        )
+        r = self.run_gate(content=text)
+        self.assertEqual(r.observed_corrigendum_citations, [])
         self.assertFalse(r.full_legal_verification)
 
     def test_historical_as_of_flag_is_not_approximated_by_current_status(self):
