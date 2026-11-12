@@ -68,6 +68,69 @@ class WorkspaceLayoutTests(unittest.TestCase):
         ))
         self.assertEqual(len(app.chat_message), 2)
 
+    def test_search_filters_visible_chats_without_deleting_stored_history(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"),
+            default_timeout=25,
+        ).run()
+        owner = app.session_state["alba_demo_owner"]
+        store = app.session_state["alba_demo_store"]
+        one = store.create_conversation(owner, title="Directive research")
+        another = store.create_conversation(owner, title="Rail capacity note")
+        app.run()
+        app.text_input(key="alba_sidebar_chat_search").set_value("Rail").run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any(
+            item.key == "alba_open_" + another for item in app.button
+        ))
+        self.assertFalse(any(
+            item.key == "alba_open_" + one for item in app.button
+        ))
+        self.assertEqual(len(store.list_conversations(owner)), 2)
+        app.text_input(key="alba_sidebar_chat_search").set_value("").run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any(
+            item.key == "alba_open_" + one for item in app.button
+        ))
+
+    def test_empty_home_has_working_specialist_tool_shortcuts(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"),
+            default_timeout=25,
+        ).run()
+        self.assertEqual(len(app.exception), 0)
+        keys = {item.key for item in app.button}
+        self.assertIn("alba_shortcut_legal_drafting", keys)
+        self.assertIn("alba_shortcut_toc", keys)
+        self.assertIn("alba_shortcut_reporting", keys)
+        self.assertTrue(any(
+            "legal work" in str(item.value)
+            for item in app.markdown
+        ))
+
+    def test_uploaded_excerpt_name_appears_in_document_tab(self):
+        app = AppTest.from_file(
+            str(ROOT / "pages" / "5_Chat_Workspace.py"),
+            default_timeout=25,
+        ).run()
+        owner = app.session_state["alba_demo_owner"]
+        store = app.session_state["alba_demo_store"]
+        chat_id = store.create_conversation(owner, title="Public sample")
+        store.append_exchange(
+            owner, chat_id,
+            "Check this public act.\\n\\n[PUBLIC DOCUMENT EXCERPT: Public sample.pdf]\\n"
+            "This is a synthetic public test excerpt.\\n[/PUBLIC DOCUMENT EXCERPT]",
+            "The excerpt was reviewed without external retrieval.",
+        )
+        app.session_state["alba_active_conversation"] = chat_id
+        app.run()
+        app.button(key="alba_sources_toggle").click().run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertTrue(any(
+            "Public sample.pdf" in str(item.value)
+            for item in app.markdown
+        ))
+
 
 if __name__ == "__main__":
     unittest.main()
