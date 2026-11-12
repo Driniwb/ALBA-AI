@@ -51,11 +51,12 @@ class FakePost:
 
 
 class FakeGet:
-    def __init__(self, *, challenge=False, mismatched=False, redirect=False):
+    def __init__(self, *, challenge=False, mismatched=False, redirect=False, legacy_redirect=False):
         self.urls = []
         self.challenge = challenge
         self.mismatched = mismatched
         self.redirect = redirect
+        self.legacy_redirect = legacy_redirect
 
     def __call__(self, url, *, timeout, allow_redirects, headers):
         self.urls.append(url)
@@ -63,6 +64,11 @@ class FakeGet:
         if self.redirect:
             return Response("", status=302,
                             location="https://attacker.example/spoof")
+        if self.legacy_redirect and len(self.urls) == 1:
+            return Response("", status=302, location=(
+                "http://publications.europa.eu/resource/cellar/"
+                "176145a1-2d6a-11f1-906d-01aa75ed71a1.0008.02/DOC_1"
+            ))
         body = (
             "verify that you're not a robot"
             if self.challenge else
@@ -153,6 +159,15 @@ class EurlexCellarTests(unittest.TestCase):
         evidence, _ = probe_eurlex(CELEX, post=FakePost(), get=FakeGet(redirect=True))
         self.assertEqual(evidence.outcome, "source_unavailable")
         self.assertFalse(evidence.content_retrieved)
+
+    def test_legacy_official_http_redirect_upgraded_to_https(self):
+        get = FakeGet(legacy_redirect=True)
+        evidence, text = probe_eurlex(CELEX, post=FakePost(), get=get)
+        self.assertEqual(evidence.outcome, "source_text_retrieved")
+        self.assertEqual(len(get.urls), 2)
+        self.assertTrue(all(url.startswith("https://") for url in get.urls))
+        self.assertIn("02010L0035", text)
+        self.assertFalse(evidence.version_verified)
 
     def test_unknown_document_identity_is_not_verified(self):
         evidence, _ = probe_eurlex(
