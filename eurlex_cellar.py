@@ -225,7 +225,7 @@ def _consolidated_document_identity(text: str, celex: str) -> bool:
     """Match both CELEX family and consolidation date in the source heading."""
     prefix, version = celex.rsplit("-", 1)
     year, month, day = version[:4], version[4:6], version[6:8]
-    heading = re.sub(r"\\s+", " ", text[:2500]).upper()
+    heading = re.sub(r"\s+", " ", text[:2500]).upper()
     if celex in heading:
         return True
     return prefix in heading and any(stamp in heading for stamp in (
