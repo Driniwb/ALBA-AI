@@ -22,22 +22,3 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
-      - name: One-time EU law verification live smoke (read-only)
-        if: github.ref == 'refs/heads/develop/alba-v2'
-        run: |
-          python - <<'PY'
-          from datetime import date
-          from eurlex_verification import verify_eurlex
-          for act in ("32008L0068", "32010L0035", "32016L0798"):
-              record = verify_eurlex(act, as_of=date(2026, 11, 12))
-              print("LEGAL_GATE", act,
-                    "outcome=", record.outcome,
-                    "consolidated=", record.consolidated_celex,
-                    "status=", record.in_force_flag,
-                    "start=", record.entry_into_force,
-                    "amendments=", len(record.observed_amendments),
-                    "unmatched=", len(record.unmatched_amendment_citations),
-                    "corrigendum_citations=", record.observed_corrigendum_citations,
-                    "fully_verified=", record.full_legal_verification,
-                    "reasons=", record.reasons[:3])
-          PY
