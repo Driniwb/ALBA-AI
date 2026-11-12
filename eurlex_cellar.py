@@ -188,7 +188,7 @@ def _download_text(celex: str, *, get: Callable) -> tuple[str, str]:
     url = CONTENT_ROOT + celex + "?language=en"
     for _ in range(MAX_REDIRECTS + 1):
         if not _approved_url(url):
-            raise ValueError("Source redirected outside official permitted content URLs.")
+            raise ValueError("Unapproved redirect target host/path: " + str(urlsplit(url).hostname) + urlsplit(url).path[:110])
         r = get(url, timeout=25, allow_redirects=False, headers={
             "Accept": "application/xhtml+xml,text/html;q=0.9",
             "Accept-Language": "en",
