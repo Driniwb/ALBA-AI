@@ -51,3 +51,21 @@ jobs:
                           except requests.RequestException as e: print("CORR_RESOLVE_FAILURE",type(e).__name__)
           except (ValueError,requests.RequestException) as e: print("CORR_WORK_ERROR",type(e).__name__,str(e)[:130])
           PY
+      - name: One-time check Cellar correction XHTML redirect
+        if: github.ref == 'refs/heads/develop/alba-v2'
+        run: |
+          python - <<'PY'
+          import requests,re
+          from eurlex_cellar import _VisibleText
+          first="https://publications.europa.eu/resource/cellar/28137a49-1f13-11f0-b1a3-01aa75ed71a1?language=en"
+          a=requests.get(first,headers={"Accept":"application/xhtml+xml","Accept-Language":"eng"},timeout=20,allow_redirects=False)
+          print("CORRECTION_REDIRECT",a.status_code,a.headers.get("Location"))
+          if a.status_code in {301,302,303}:
+              dest=a.headers.get("Location","").replace("http://publications.europa.eu/","https://publications.europa.eu/")
+              if dest.startswith("https://publications.europa.eu/resource/cellar/"):
+                  b=requests.get(dest,headers={"Accept":"application/xhtml+xml","Accept-Language":"eng"},timeout=20,allow_redirects=False)
+                  print("CORRECTION_CONTENT",b.status_code,b.headers.get("Content-Type"),len(b.content))
+                  if b.status_code == 200 and len(b.content)<1000000:
+                      t=_VisibleText().plain_text(b.text)
+                      print("CORRECTION_HEAD",repr(t[:1850]))
+          PY
