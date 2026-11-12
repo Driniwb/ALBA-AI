@@ -66,6 +66,51 @@ class LegalSourcesProbeTests(unittest.TestCase):
         self.assertFalse(result.version_verified)
         self.assertFalse(result.status_verified)
 
+    def test_qbz_amendments_and_versions_are_separate_evidence(self):
+        html = """<html><body>
+        Nr. i aktit 69 Data e aktit 21/06/2012
+        Permalink ELI https://qbz.gov.al/eli/ligj/2012/06/21/69
+        Versioni 1, në fuqi nga 28/03/2019
+        Versioni 2, në fuqi nga 15/06/2023
+        Versioni 3, në fuqi nga 12/09/2024
+        Versioni 4, në fuqi nga 05/03/2026
+        Ndërvarësia
+        Ndryshuar nga (5)
+        Ligj nr. 26, datë 05/03/2026 Për disa shtesa
+        Ligj nr. 99, datë 12/09/2024 Për inspektimin
+        Ligj nr. 44, datë 15/06/2023 Për disa ndryshime
+        Ligj nr. 48, datë 23/07/2018 Për disa ndryshime
+        Ligj nr. 56, datë 28/05/2015 Për disa ndryshime
+        Bazë ligjore për (476)
+        Urdhër nr. 474, datë 23/09/2026 Për mbylljen
+        </body></html>"""
+        result = probe_case(
+            AL_CASE, get=fake_get(FakeResponse(html)), as_of=date(2026, 11, 12)
+        )
+        self.assertEqual(result.outcome, "identity_candidate")
+        self.assertEqual(result.candidate_version_date, "2026-03-05")
+        self.assertEqual(len(result.qbz_version_candidates), 4)
+        self.assertEqual(result.qbz_amending_acts_declared, 5)
+        self.assertEqual(len(result.qbz_amending_acts_observed), 5)
+        self.assertNotIn(
+            "474", [x["number"] for x in result.qbz_amending_acts_observed]
+        )
+        self.assertFalse(result.version_verified)
+        self.assertFalse(result.status_verified)
+
+    def test_qbz_partial_amendment_list_never_implies_certification(self):
+        html = """Nr. i aktit 69 Data e aktit 21/06/2012 Permalink ELI
+        Versioni 4, në fuqi nga 05/03/2026
+        Ndërvarësia Ndryshuar nga (5)
+        Ligj nr. 26, datë 05/03/2026 Për një ndryshim
+        Bazë ligjore për (476)"""
+        result = probe_case(AL_CASE, get=fake_get(
+            FakeResponse(html, content_type="text/plain")
+        ))
+        self.assertEqual(result.qbz_amending_acts_declared, 5)
+        self.assertEqual(len(result.qbz_amending_acts_observed), 1)
+        self.assertFalse(result.version_verified)
+
     def test_dated_request_does_not_select_future_version(self):
         html = """Nr. i aktit 69 Data e aktit 21/06/2012 Permalink ELI
         Versioni 1, në fuqi nga 28/03/2019
