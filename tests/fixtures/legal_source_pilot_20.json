@@ -1,0 +1,172 @@
+[
+  {
+    "id": "AL-01",
+    "jurisdiction": "AL",
+    "label": "Ligji nr. 90/2012 – organizimi dhe funksionimi i administratës shtetërore",
+    "url": "https://qbz.gov.al/eli/ligj/2012/09/27/90",
+    "scenario": "amended",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "AL-02",
+    "jurisdiction": "AL",
+    "label": "Ligji nr. 69/2012 – arsimi parauniversitar",
+    "url": "https://qbz.gov.al/eli/ligj/2012/06/21/69",
+    "scenario": "multiple_versions",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "AL-03",
+    "jurisdiction": "AL",
+    "label": "Ligji nr. 29/2023 – tatimi mbi të ardhurat",
+    "url": "https://qbz.gov.al/eli/ligj/2023/03/30/29",
+    "scenario": "multiple_versions",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "AL-04",
+    "jurisdiction": "AL",
+    "label": "Ligji nr. 10463/2011 – menaxhimi i integruar i mbetjeve",
+    "url": "https://qbz.gov.al/eli/ligj/2011/09/22/10463",
+    "scenario": "amended",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "AL-05",
+    "jurisdiction": "AL",
+    "label": "Ligji nr. 107/2016 – prefekti i qarkut",
+    "url": "https://qbz.gov.al/eli/ligj/2016/10/27/107-2016",
+    "scenario": "amended",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "AL-06",
+    "jurisdiction": "AL",
+    "label": "VKM nr. 389/2019 – pasaportat diplomatike dhe të shërbimit",
+    "url": "https://qbz.gov.al/eli/vendim/2019/06/12/389",
+    "scenario": "multiple_versions",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "AL-07",
+    "jurisdiction": "AL",
+    "label": "VKM nr. 686/2015 – vlerësimi i ndikimit në mjedis",
+    "url": "https://qbz.gov.al/eli/vendim/2015/07/29/686",
+    "scenario": "amended",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "AL-08",
+    "jurisdiction": "AL",
+    "label": "VKM nr. 325/2023 – strukturat e pagave",
+    "url": "https://qbz.gov.al/eli/vendim/2023/05/31/325",
+    "scenario": "many_versions",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "AL-09",
+    "jurisdiction": "AL",
+    "label": "Udhëzimi nr. 228/2024 – procedurat e shtetësisë",
+    "url": "https://qbz.gov.al/eli/udhezim/2024/11/20/228",
+    "scenario": "repeal_candidate",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "AL-10",
+    "jurisdiction": "AL",
+    "label": "VKM nr. 424/2024 – pagat e personelit shëndetësor",
+    "url": "https://qbz.gov.al/eli/vendim/2024/06/26/424",
+    "scenario": "baseline",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-01",
+    "jurisdiction": "EU",
+    "label": "Directive 2008/68/EC – inland transport of dangerous goods",
+    "celex": "32008L0068",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32008L0068",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-02",
+    "jurisdiction": "EU",
+    "label": "Directive 2010/35/EU – transportable pressure equipment",
+    "celex": "32010L0035",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32010L0035",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-03",
+    "jurisdiction": "EU",
+    "label": "Directive (EU) 2016/798 – railway safety",
+    "celex": "32016L0798",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32016L0798",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-04",
+    "jurisdiction": "EU",
+    "label": "Directive 2010/40/EU – intelligent transport systems",
+    "celex": "32010L0040",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32010L0040",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-05",
+    "jurisdiction": "EU",
+    "label": "Directive 2002/15/EC – road transport working time",
+    "celex": "32002L0015",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32002L0015",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-06",
+    "jurisdiction": "EU",
+    "label": "Directive 2014/45/EU – periodic roadworthiness tests",
+    "celex": "32014L0045",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32014L0045",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-07",
+    "jurisdiction": "EU",
+    "label": "Regulation (EC) No 561/2006 – driving and rest time",
+    "celex": "32006R0561",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32006R0561",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-08",
+    "jurisdiction": "EU",
+    "label": "Regulation (EU) No 165/2014 – tachographs",
+    "celex": "32014R0165",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32014R0165",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-09",
+    "jurisdiction": "EU",
+    "label": "Regulation (EU) No 305/2013 – eCall",
+    "celex": "32013R0305",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32013R0305",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  },
+  {
+    "id": "EU-10",
+    "jurisdiction": "EU",
+    "label": "Directive 2009/21/EC – flag State requirements",
+    "celex": "32009L0021",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32009L0021",
+    "scenario": "consolidation_to_be_checked",
+    "expected_verification": "UNKNOWN_UNTIL_LIVE_CHECK"
+  }
+]
