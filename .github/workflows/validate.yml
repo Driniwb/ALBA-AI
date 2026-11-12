@@ -22,3 +22,6 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
+      - name: One-time read-only QBZ source retrieval pilot
+        if: github.ref == 'refs/heads/develop/alba-v2'
+        run: python legal_source_documents.py https://qbz.gov.al/eli/vendim/2023/05/31/325 --as-of 2026-11-12
