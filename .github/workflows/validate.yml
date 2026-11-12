@@ -61,9 +61,9 @@ jobs:
                   "PREFIX cdm: <http://publications.europa.eu/ontology/cdm#> "
                   "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
                   "SELECT DISTINCT ?language WHERE { "
-                  f'?work cdm:resource_legal_id_celex "{celex}"^^xsd:string ; '
-                  "cdm:work_has_expression ?expression . "
-                  "?expression cdm:expression_uses_language ?language . } LIMIT 80"
+                  f'?work cdm:resource_legal_id_celex "{celex}"^^xsd:string . '
+                  "?expression cdm:expression_belongs_to_work ?work ; "
+                  "cdm:expression_uses_language ?language . } LIMIT 80"
               )
               try:
                   rows=_rows(query,post=requests.post,row_limit=80)
