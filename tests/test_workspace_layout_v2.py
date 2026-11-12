@@ -118,8 +118,8 @@ class WorkspaceLayoutTests(unittest.TestCase):
         chat_id = store.create_conversation(owner, title="Public sample")
         store.append_exchange(
             owner, chat_id,
-            "Check this public act.\\n\\n[PUBLIC DOCUMENT EXCERPT: Public sample.pdf]\\n"
-            "This is a synthetic public test excerpt.\\n[/PUBLIC DOCUMENT EXCERPT]",
+            "Check this public act.\n\n[PUBLIC DOCUMENT EXCERPT: Public sample.pdf]\n"
+            "This is a synthetic public test excerpt.\n[/PUBLIC DOCUMENT EXCERPT]",
             "The excerpt was reviewed without external retrieval.",
         )
         app.session_state["alba_active_conversation"] = chat_id
