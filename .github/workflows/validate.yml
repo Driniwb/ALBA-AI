@@ -22,50 +22,30 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
-      - name: One-time Cellar corrigendum work resolver diagnostic
+      - name: Temporary live audit of four authentic corrigenda
         if: github.ref == 'refs/heads/develop/alba-v2'
         run: |
           python - <<'PY'
-          import requests
-          p="https://publications.europa.eu/webapi/rdf/sparql"
-          q=(
-              "PREFIX cdm: <http://publications.europa.eu/ontology/cdm#> "
-              "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
-              'SELECT DISTINCT ?work ?expression WHERE { ?work cdm:resource_legal_id_celex "32024L2749R(01)"^^xsd:string . '
-              "OPTIONAL { ?work cdm:work_has_expression ?expression . } } LIMIT 40"
+          from datetime import date
+          from eurlex_corrigenda import review_amendment_corrigenda
+          report=review_amendment_corrigenda(
+              "32010L0035", "32024L2749",
+              article="33c", paragraph="9",
+              as_of=date(2026,11,12),
           )
-          try:
-              r=requests.post(p,data={"query":q},headers={"Accept":"application/sparql-results+json"},timeout=28,allow_redirects=False)
-              print("CORR_WORK",r.status_code,r.headers.get("Content-Type"),len(r.content))
-              if r.status_code == 200 and "json" in r.headers.get("Content-Type",""):
-                  rows=r.json()["results"]["bindings"]
-                  print("CORR_ROWS",[{k:v.get("value") for k,v in item.items()} for item in rows[:6]])
-                  works={item.get("work",{}).get("value","") for item in rows}
-                  for work in list(works)[:2]:
-                      if not work.startswith("http://publications.europa.eu/resource/cellar/"):continue
-                      u="https://"+work.removeprefix("http://")+"?language=en"
-                      for accept in ("application/xhtml+xml","application/pdf"):
-                          try:
-                              d=requests.get(u,headers={"Accept":accept,"Accept-Language":"eng"},timeout=20,allow_redirects=False)
-                              print("CORR_RESOLVE",accept,d.status_code,d.headers.get("Location","")[:180],d.headers.get("Content-Type"),len(d.content))
-                          except requests.RequestException as e: print("CORR_RESOLVE_FAILURE",type(e).__name__)
-          except (ValueError,requests.RequestException) as e: print("CORR_WORK_ERROR",type(e).__name__,str(e)[:130])
-          PY
-      - name: One-time check Cellar correction XHTML redirect
-        if: github.ref == 'refs/heads/develop/alba-v2'
-        run: |
-          python - <<'PY'
-          import requests,re
-          from eurlex_cellar import _VisibleText
-          first="https://publications.europa.eu/resource/cellar/28137a49-1f13-11f0-b1a3-01aa75ed71a1?language=en"
-          a=requests.get(first,headers={"Accept":"application/xhtml+xml","Accept-Language":"eng"},timeout=20,allow_redirects=False)
-          print("CORRECTION_REDIRECT",a.status_code,a.headers.get("Location"))
-          if a.status_code in {301,302,303}:
-              dest=a.headers.get("Location","").replace("http://publications.europa.eu/","https://publications.europa.eu/")
-              if dest.startswith("https://publications.europa.eu/resource/cellar/"):
-                  b=requests.get(dest,headers={"Accept":"application/xhtml+xml","Accept-Language":"eng"},timeout=20,allow_redirects=False)
-                  print("CORRECTION_CONTENT",b.status_code,b.headers.get("Content-Type"),len(b.content))
-                  if b.status_code == 200 and len(b.content)<1000000:
-                      t=_VisibleText().plain_text(b.text)
-                      print("CORRECTION_HEAD",repr(t[:1850]))
+          print("CORR_REPORT",report.outcome,
+                "found",report.observed_corrigenda_count,
+                "relevant",report.relevant_corrigenda,
+                "unrelated",report.unrelated_corrigenda,
+                "unresolved",report.unresolved_corrigenda,
+                "exact_match",report.exact_correction_match_confirmed,
+                "all_read",report.all_corrigendum_texts_retrieved,
+                "full_legal_verification",report.full_legal_verification)
+          for c in report.reviewed:
+              print("CORR_ITEM",c.celex,c.outcome,"lang",c.language_confirmed,
+                    "published",c.published_date,"target",c.target_base_celex,
+                    c.target_article,c.target_paragraph,"relevant",
+                    c.affects_requested_provision,"text_match",
+                    c.corrected_text_matches_consolidation,"unresolved",
+                    c.limitations[:1])
           PY
