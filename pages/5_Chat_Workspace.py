@@ -26,6 +26,7 @@ from chat_auth import verified_chat_owner
 from chat_handoff import suggest_handoff, prepare_handoff
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from ui_theme import apply_theme
+from workspace_sources import user_source_links
 
 st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
 apply_theme("WORKSPACE")
@@ -84,6 +85,66 @@ st.markdown(
             max-width: 90%;
             margin-right: 0;
         }
+    }
+
+    /* ALBA v2: a focused legal-workspace skin, not an analogue dashboard. */
+    [data-testid="stAppViewContainer"] {
+        background: #111a18 !important;
+        background-image: none !important;
+    }
+    [data-testid="stHeader"] {background: rgba(17,26,24,.95) !important;}
+    [data-testid="stSidebar"] {
+        background: #18221e !important;
+        border-right: 1px solid rgba(224,237,226,.13) !important;
+    }
+    [data-testid="stSidebar"]::after {display: none !important;}
+    [data-testid="stSidebar"] h2 {
+        font-family: inherit !important;
+        font-size: 1.45rem !important;
+        letter-spacing: -.025em !important;
+    }
+    [data-testid="stSidebarNav"] a[aria-current="page"] {
+        background: rgba(169,201,180,.10) !important;
+        border: 1px solid rgba(169,201,180,.14) !important;
+        box-shadow: none !important;
+    }
+    [data-testid="stMainBlockContainer"] {
+        max-width: 1280px;
+        padding-top: 1.05rem;
+        padding-bottom: 8.5rem;
+    }
+    .alba-workspace-kicker {
+        color: #a9c9b4;
+        text-transform: uppercase;
+        font-size: .73rem;
+        letter-spacing: .12em;
+        font-weight: 650;
+        margin-bottom: .18rem;
+    }
+    [data-testid="stChatMessage"] {
+        max-width: 900px;
+        border-radius: 13px;
+    }
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
+        background: #24352e !important;
+        border: 1px solid rgba(169,201,180,.11) !important;
+    }
+    .st-key-alba_sources_panel {
+        border-left: 1px solid rgba(169,201,180,.20);
+        padding-left: 1.1rem;
+        min-height: 240px;
+    }
+    .st-key-alba_chat_empty {margin-top: clamp(20px, 7vh, 75px);}
+    .stButton > button[kind="primary"] {
+        background: #aacbb7 !important;
+        color: #1a2b22 !important;
+        border-color: #aacbb7 !important;
+        box-shadow: none !important;
+    }
+    @media (max-width: 760px) {
+        [data-testid="stMainBlockContainer"] {padding-top: .55rem;}
+        .st-key-alba_sources_panel {border-left: 0; padding-left: 0; min-height: 0;}
+        .st-key-alba_chat_empty {margin-top: 1.2rem;}
     }
     </style>
     """,
@@ -519,130 +580,191 @@ def _render_chat_content(value: str) -> None:
         st.code(raw_source, language=None)
 
 
-if conversation:
-    mode = conversation["mode"]
-    messages = store.list_messages(owner, active_id)
-
-    chat_heading, chat_actions = st.columns([12, 1], vertical_alignment="center")
-    with chat_heading:
-        st.caption(conversation["title"])
-    with chat_actions:
-        with st.popover("⋯", help="Chat options: rename, move, export or delete"):
-            new_title = st.text_input(
-                "Conversation title",
-                value=conversation["title"],
-                key="alba_rename_title_" + active_id,
-                max_chars=MAX_CHAT_TITLE,
-            )
-            if st.button("Save title", key="alba_save_title_" + active_id):
-                try:
-                    updated = store.rename_conversation(owner, active_id, new_title)
-                except ValueError:
-                    st.error("Please enter a valid, public conversation title.")
-                except Exception:
-                    st.error("Could not rename the conversation. Try again.")
-                else:
-                    if updated:
-                        _mark_history_changed()
-                        st.rerun()
-                    st.error("The conversation is no longer available.")
-    
-            try:
-                portable_chat = backup_bytes(conversation, messages)
-            except ValueError:
-                st.caption(
-                    "This conversation exceeds the single-chat backup limit. "
-                    "Try the full workspace backup."
-                )
-            else:
-                st.download_button(
-                    "Export conversation (.json)",
-                    data=portable_chat,
-                    file_name="ALBA_chat_" + active_id[:12] + ".json",
-                    mime="application/json",
-                    key="alba_export_chat_" + active_id,
-                    use_container_width=True,
-                )
-    
-            confirmed = st.checkbox(
-                "I confirm permanent deletion",
-                value=False,
-                key="alba_delete_confirm_" + active_id,
-            )
-            if st.button(
-                "Delete conversation",
-                key="alba_delete_chat_" + active_id,
-                disabled=not confirmed,
-            ):
-                try:
-                    deleted = store.delete_conversation(owner, active_id)
-                except Exception:
-                    st.error("Could not delete the conversation. Try again.")
-                else:
-                    if deleted:
-                        _start_chat()
-                        _mark_history_changed()
-                        st.rerun()
-                    st.error("The conversation is no longer available.")
-
-            st.divider()
-            st.caption("Project")
-            projects = store.list_projects(owner)
-            names = {item["id"]: item["name"] for item in projects}
-            choices = [None] + [item["id"] for item in projects] + ["__new__"]
-            project_index = (
-                choices.index(conversation["project_id"])
-                if conversation["project_id"] in choices else 0
-            )
-            target = st.selectbox(
-                "Project", choices, index=project_index,
-                format_func=lambda item: (
-                    "Create new project" if item == "__new__"
-                    else ("No project" if item is None else names.get(item, "Project"))
-                ),
-                key="alba_project_target_" + active_id,
-            )
-            if target == "__new__":
-                new_name = st.text_input(
-                    "Project name", key="alba_new_project_name_" + active_id,
-                    max_chars=75,
-                )
-                if st.button("Create and move", key="alba_create_move_" + active_id):
-                    try:
-                        created = store.create_project(owner, new_name)
-                        store.set_conversation_project(owner, active_id, created)
-                        _mark_history_changed()
-                        st.rerun()
-                    except ValueError:
-                        st.error("Enter a valid project name.")
-            elif target != conversation["project_id"]:
-                if st.button("Move", key="alba_move_" + active_id):
-                    store.set_conversation_project(owner, active_id, target)
-                    _mark_history_changed()
-                    st.rerun()
-    
-
-    for message in messages:
-        with st.chat_message(message["role"]):
-            _render_chat_content(message["content"])
-
-    # If the last user turn requests a specialised ALBA workflow, offer
-    # exactly one direct handoff. General questions stay in the conversation.
-    latest_question = next(
-        (item["content"] for item in reversed(messages)
-         if item["role"] == "user"),
-        "",
-    )
-    recommended = suggest_handoff(latest_question)
-    if recommended and st.button(
-        "Continue in " + recommended.label,
-        key="alba_handoff_" + active_id + "_" + str(len(messages)),
+# Chat-first layout. The optional sources panel never claims that the
+# chat model retrieved or verified an official text: only user-shared
+# references are listed until a verified research connector is wired in.
+st.markdown(
+    '<div class="alba-workspace-kicker">ALBA / Legal workspace</div>',
+    unsafe_allow_html=True,
+)
+header_left, header_right = st.columns([5, 1], vertical_alignment="center")
+with header_left:
+    st.markdown("**Legal Assistant**")
+with header_right:
+    if st.button(
+        "Sources", key="alba_sources_toggle", icon=":material/bookmarks:",
+        use_container_width=True,
     ):
-        prepare_handoff(recommended, latest_question, st.session_state)
-        st.switch_page(recommended.page)
+        st.session_state["alba_sources_open"] = not st.session_state.get(
+            "alba_sources_open", False
+        )
+        st.rerun()
+
+show_sources = bool(st.session_state.get("alba_sources_open", False))
+if show_sources:
+    chat_area, sources_area = st.columns([3.1, 1], gap="large")
 else:
-    mode = "general"
-    messages = []
+    chat_area = st.container()
+
+with chat_area:
+    if conversation:
+        mode = conversation["mode"]
+        messages = store.list_messages(owner, active_id)
+
+        chat_heading, chat_actions = st.columns([12, 1], vertical_alignment="center")
+        with chat_heading:
+            st.caption(conversation["title"])
+        with chat_actions:
+            with st.popover("⋯", help="Chat options: rename, move, export or delete"):
+                new_title = st.text_input(
+                    "Conversation title",
+                    value=conversation["title"],
+                    key="alba_rename_title_" + active_id,
+                    max_chars=MAX_CHAT_TITLE,
+                )
+                if st.button("Save title", key="alba_save_title_" + active_id):
+                    try:
+                        updated = store.rename_conversation(owner, active_id, new_title)
+                    except ValueError:
+                        st.error("Please enter a valid, public conversation title.")
+                    except Exception:
+                        st.error("Could not rename the conversation. Try again.")
+                    else:
+                        if updated:
+                            _mark_history_changed()
+                            st.rerun()
+                        st.error("The conversation is no longer available.")
+        
+                try:
+                    portable_chat = backup_bytes(conversation, messages)
+                except ValueError:
+                    st.caption(
+                        "This conversation exceeds the single-chat backup limit. "
+                        "Try the full workspace backup."
+                    )
+                else:
+                    st.download_button(
+                        "Export conversation (.json)",
+                        data=portable_chat,
+                        file_name="ALBA_chat_" + active_id[:12] + ".json",
+                        mime="application/json",
+                        key="alba_export_chat_" + active_id,
+                        use_container_width=True,
+                    )
+        
+                confirmed = st.checkbox(
+                    "I confirm permanent deletion",
+                    value=False,
+                    key="alba_delete_confirm_" + active_id,
+                )
+                if st.button(
+                    "Delete conversation",
+                    key="alba_delete_chat_" + active_id,
+                    disabled=not confirmed,
+                ):
+                    try:
+                        deleted = store.delete_conversation(owner, active_id)
+                    except Exception:
+                        st.error("Could not delete the conversation. Try again.")
+                    else:
+                        if deleted:
+                            _start_chat()
+                            _mark_history_changed()
+                            st.rerun()
+                        st.error("The conversation is no longer available.")
+
+                st.divider()
+                st.caption("Project")
+                projects = store.list_projects(owner)
+                names = {item["id"]: item["name"] for item in projects}
+                choices = [None] + [item["id"] for item in projects] + ["__new__"]
+                project_index = (
+                    choices.index(conversation["project_id"])
+                    if conversation["project_id"] in choices else 0
+                )
+                target = st.selectbox(
+                    "Project", choices, index=project_index,
+                    format_func=lambda item: (
+                        "Create new project" if item == "__new__"
+                        else ("No project" if item is None else names.get(item, "Project"))
+                    ),
+                    key="alba_project_target_" + active_id,
+                )
+                if target == "__new__":
+                    new_name = st.text_input(
+                        "Project name", key="alba_new_project_name_" + active_id,
+                        max_chars=75,
+                    )
+                    if st.button("Create and move", key="alba_create_move_" + active_id):
+                        try:
+                            created = store.create_project(owner, new_name)
+                            store.set_conversation_project(owner, active_id, created)
+                            _mark_history_changed()
+                            st.rerun()
+                        except ValueError:
+                            st.error("Enter a valid project name.")
+                elif target != conversation["project_id"]:
+                    if st.button("Move", key="alba_move_" + active_id):
+                        store.set_conversation_project(owner, active_id, target)
+                        _mark_history_changed()
+                        st.rerun()
+        
+
+        for message in messages:
+            with st.chat_message(message["role"]):
+                _render_chat_content(message["content"])
+
+        # If the last user turn requests a specialised ALBA workflow, offer
+        # exactly one direct handoff. General questions stay in the conversation.
+        latest_question = next(
+            (item["content"] for item in reversed(messages)
+             if item["role"] == "user"),
+            "",
+        )
+        recommended = suggest_handoff(latest_question)
+        if recommended and st.button(
+            "Continue in " + recommended.label,
+            key="alba_handoff_" + active_id + "_" + str(len(messages)),
+        ):
+            prepare_handoff(recommended, latest_question, st.session_state)
+            st.switch_page(recommended.page)
+    else:
+        mode = "general"
+        messages = []
+    if not conversation:
+        st.markdown("### How can ALBA help?")
+        st.caption(
+            "Ask a legal question, review a public document or use a "
+            "specialised tool from the sidebar."
+        )
+
+if show_sources:
+    with sources_area:
+        with st.container(key="alba_sources_panel"):
+            st.markdown("**Sources**")
+            st.caption(
+                "Official links you shared. Their content, status and "
+                "consolidated versions have not yet been independently verified "
+                "by this chat."
+            )
+            cited_links = user_source_links(messages)
+            if cited_links:
+                for source in cited_links:
+                    st.link_button(
+                        source["label"], source["url"],
+                        use_container_width=True,
+                    )
+            else:
+                st.caption("No official document links in this conversation.")
+            st.divider()
+            st.caption("Official registers")
+            st.link_button(
+                "QBZ", "https://qbz.gov.al/", use_container_width=True,
+            )
+            st.link_button(
+                "EUR-Lex", "https://eur-lex.europa.eu/",
+                use_container_width=True,
+            )
 
 # Use Streamlit's native attachment '+' rather than a separate popover.
 # A new chat is isolated: only this conversation's own messages are passed
