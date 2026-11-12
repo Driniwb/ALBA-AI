@@ -39,3 +39,24 @@ jobs:
               except Exception as exc:
                   print("OJ_FAILURE",celex,type(exc).__name__,str(exc)[:180])
           PY
+      - name: Temporary official corrigendum relation and ELI access probe
+        if: github.ref == 'refs/heads/develop/alba-v2'
+        run: |
+          python - <<'PY'
+          from eurlex_verification import relationships_query,_rows
+          import requests
+          base="32024L2749"
+          try:
+              rows=_rows(relationships_query(base),post=requests.post,row_limit=100)
+              values=[(item.get("celex",{}).get("value"),item.get("predicate",{}).get("value","").split("#")[-1]) for item in rows]
+              print("CORR_RELATIONS",base,values)
+          except Exception as exc: print("CORR_RELATIONS_FAILED",type(exc).__name__,str(exc)[:180])
+          for u in (
+              "https://eur-lex.europa.eu/eli/dir/2024/2749/corrigendum/2025-04-22/oj/eng",
+              "https://publications.europa.eu/resource/eli/dir/2024/2749/corrigendum/2025-04-22/oj",
+          ):
+              try:
+                  r=requests.get(u,timeout=15,allow_redirects=False)
+                  print("CORR_ACCESS",u,r.status_code,r.headers.get("Content-Type"),r.headers.get("Location","")[:150],len(r.content))
+              except Exception as exc: print("CORR_ACCESS_FAILED",type(exc).__name__)
+          PY
