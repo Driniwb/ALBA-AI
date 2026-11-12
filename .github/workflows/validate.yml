@@ -22,3 +22,6 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
+      - name: One-time EU law verification live smoke (read-only)
+        if: github.ref == 'refs/heads/develop/alba-v2'
+        run: python eurlex_verification.py 32010L0035 --as-of 2026-11-12
