@@ -22,33 +22,3 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
-      - name: One-time read-only QBZ source retrieval pilot
-        if: github.ref == 'refs/heads/develop/alba-v2'
-        run: |
-          python legal_source_documents.py https://qbz.gov.al/eli/vendim/2023/05/31/325 --as-of 2026-11-12
-          python - <<'PY'
-          import requests
-          from legal_source_documents import directory_for_eli
-          u=directory_for_eli("https://qbz.gov.al/eli/vendim/2023/05/31/325")
-          for verb in ["GET","PROPFIND"]:
-              try:
-                  r=requests.request(verb,u,headers={"Depth":"1"},timeout=12,allow_redirects=False)
-                  t=r.text[:4500]
-                  import re
-                  matches=re.findall(r"(?i)<a[^>]+href=['\"]([^'\"]+)",t)[:6]
-                  print("DIAG",verb,r.status_code,r.headers.get("Content-Type"),len(r.content),
-                        "hrefs",matches,"has cons", "cons-2026" in t,
-                        "angular_shell", "angular" in t.lower(),
-                        "xml_multistatus","multistatus" in t.lower())
-              except requests.RequestException as e:
-                  print("DIAG",verb,type(e).__name__)
-          try:
-              u="https://qbz.gov.al/alfresco/api/-default-/public/alfresco/versions/1/search/versions/1/search"
-              body={"query":{"query":'cm:name:"vendim-2023-05-31-325.pdf"',"language":"afts"},"paging":{"maxItems":5}}
-              r=requests.post(u,json=body,timeout=12,allow_redirects=False)
-              print("DIAG AFTS",r.status_code,r.headers.get("Content-Type"),
-                    len(r.content),"entry_keys",
-                    list(r.json().keys()) if "json" in r.headers.get("Content-Type","") else "not_json")
-          except (requests.RequestException,ValueError) as e:
-              print("DIAG AFTS",type(e).__name__)
-          PY
