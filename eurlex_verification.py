@@ -50,6 +50,7 @@ class LegalVerificationReport:
     observed_amendments: list[str]
     observed_repealing_acts: list[str]
     observed_corrigenda: list[str]
+    observed_corrigendum_citations: list[str]
     observed_consolidation_markers: list[str]
     missing_amendments_in_text: list[str]
     text_retrieved: bool
@@ -188,6 +189,27 @@ def _consolidation_markers(text: str) -> list[str]:
     return found
 
 
+def _corrigendum_citations(text: str) -> list[str]:
+    """Extract human-readable corrigendum OJ citations from the official header.
+
+    An OJ citation isn't necessarily a CELEX and doesn't, on its own,
+    establish whether the corrigendum affects the requested language.
+    """
+    region = text[:7000]
+    section = re.search(
+        r"Corrected by:\s*(.+?)(?:▼B|CHAPTER\s+1|Article\s+1|$)",
+        region, flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not section:
+        return []
+    pairs = re.findall(
+        r"\bCorrigendum\s*,?\s*OJ\s+L\s+(\d+)\s*,\s*"
+        r"(\d{1,2}\.\d{1,2}\.\d{4})",
+        section.group(1), flags=re.IGNORECASE,
+    )
+    return list(dict.fromkeys("OJ L " + number + ", " + when for number, when in pairs))
+
+
 def verify_eurlex(
     celex: str, *, as_of: date | None = None,
     post: Callable | None = None, get: Callable | None = None,
@@ -209,6 +231,7 @@ def verify_eurlex(
     crosschecked = False
     missing: list[str] = []
     markers: list[str] = []
+    corrigendum_citations: list[str] = []
     error = False
 
     try:
@@ -218,6 +241,7 @@ def verify_eurlex(
             reasons.append("A complete, identified consolidated text could not be confirmed.")
         else:
             markers = _consolidation_markers(text)
+            corrigendum_citations = _corrigendum_citations(text)
             missing = [
                 item for item in evidence.observed_amendments
                 if not _textual_amendment_present(text, item)
@@ -254,7 +278,7 @@ def verify_eurlex(
         if repeals:
             reasons.append("Official repeal relationship(s) require date and effect review: "
                            + ", ".join(repeals))
-        if corrections or "Corrected by:" in markers:
+        if corrections or "Corrected by:" in markers or corrigendum_citations:
             reasons.append("Corrigenda require independent review, including language scope.")
     except (ValueError, requests.RequestException) as exc:
         reasons.append("Official Cellar verification metadata unavailable: "
@@ -294,6 +318,7 @@ def verify_eurlex(
         in_force_flag=status, entry_into_force=entry, end_of_validity=end,
         observed_amendments=evidence.observed_amendments if evidence else [],
         observed_repealing_acts=repeals, observed_corrigenda=corrections,
+        observed_corrigendum_citations=corrigendum_citations,
         observed_consolidation_markers=markers,
         missing_amendments_in_text=missing,
         text_retrieved=bool(evidence and evidence.content_retrieved),
