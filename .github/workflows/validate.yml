@@ -22,41 +22,28 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
-      - name: Temporary official OJ amendment and corrigendum discovery
+      - name: Temporary live Official Journal legal-review pilot
         if: github.ref == 'refs/heads/develop/alba-v2'
         run: |
           python - <<'PY'
-          from eurlex_cellar import _download_text
-          import re
-          for celex in ("32024L2749", "32024L2749R(01)"):
-              try:
-                  url, t=_download_text(celex,get=__import__('requests').get)
-                  print("OJ_PROBE",celex,"URI",url,"CHARS",len(t),"HEAD",repr(t[:650]))
-                  for pattern in (r"Article 3",r"Article 11",r"Article 12",r"On page 14",r"for:",r"read:"):
-                      m=re.search(pattern,t,re.I)
-                      if m:
-                          print("OJ_SECTION",celex,pattern,repr(t[max(0,m.start()-50):m.start()+650]))
-              except Exception as exc:
-                  print("OJ_FAILURE",celex,type(exc).__name__,str(exc)[:180])
-          PY
-      - name: Temporary official corrigendum relation and ELI access probe
-        if: github.ref == 'refs/heads/develop/alba-v2'
-        run: |
-          python - <<'PY'
-          from eurlex_verification import relationships_query,_rows
-          import requests
-          base="32024L2749"
-          try:
-              rows=_rows(relationships_query(base),post=requests.post,row_limit=100)
-              values=[(item.get("celex",{}).get("value"),item.get("predicate",{}).get("value","").split("#")[-1]) for item in rows]
-              print("CORR_RELATIONS",base,values)
-          except Exception as exc: print("CORR_RELATIONS_FAILED",type(exc).__name__,str(exc)[:180])
-          for u in (
-              "https://eur-lex.europa.eu/eli/dir/2024/2749/corrigendum/2025-04-22/oj/eng",
-              "https://publications.europa.eu/resource/eli/dir/2024/2749/corrigendum/2025-04-22/oj",
-          ):
-              try:
-                  r=requests.get(u,timeout=15,allow_redirects=False)
-                  print("CORR_ACCESS",u,r.status_code,r.headers.get("Content-Type"),r.headers.get("Location","")[:150],len(r.content))
-              except Exception as exc: print("CORR_ACCESS_FAILED",type(exc).__name__)
+          from datetime import date
+          from eurlex_oj_review import review_oj_amendment
+          result=review_oj_amendment(
+              "32010L0035", "32024L2749",
+              as_of=date(2026,11,12),
+              provision_article="33c", provision_paragraph="9",
+          )
+          print("OJ_REVIEW",result.outcome,
+                "identity",result.oj_heading_identified,
+                "operative_clause",result.base_mentioned_in_amending_text,
+                "entry",result.amending_act_entry_into_force,
+                "transposition",result.national_transposition_deadline,
+                "application",result.national_measures_application_date,
+                "corrigenda",result.observed_corrigenda_celex,
+                "consolidation",result.selected_consolidation,
+                "provision_found",bool(result.provision_text),
+                "article12",("Article 12" in (result.provision_text or "")),
+                "emergency_condition",result.conditional_application_identified,
+                "fully_verified",result.complete_legal_verification,
+                "unresolved",result.unresolved[:4])
           PY
