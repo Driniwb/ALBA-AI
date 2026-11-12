@@ -22,3 +22,20 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
+      - name: Temporary official OJ amendment and corrigendum discovery
+        if: github.ref == 'refs/heads/develop/alba-v2'
+        run: |
+          python - <<'PY'
+          from eurlex_cellar import _download_text
+          import re
+          for celex in ("32024L2749", "32024L2749R(01)"):
+              try:
+                  url, t=_download_text(celex,get=__import__('requests').get)
+                  print("OJ_PROBE",celex,"URI",url,"CHARS",len(t),"HEAD",repr(t[:650]))
+                  for pattern in (r"Article 3",r"Article 11",r"Article 12",r"On page 14",r"for:",r"read:"):
+                      m=re.search(pattern,t,re.I)
+                      if m:
+                          print("OJ_SECTION",celex,pattern,repr(t[max(0,m.start()-50):m.start()+650]))
+              except Exception as exc:
+                  print("OJ_FAILURE",celex,type(exc).__name__,str(exc)[:180])
+          PY
