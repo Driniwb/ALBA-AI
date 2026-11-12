@@ -22,3 +22,32 @@ jobs:
         env:
           ALBA_HEADLESS_TEST: '1'
         run: python -m unittest discover -s tests -v
+      - name: One-time Cellar corrigendum work resolver diagnostic
+        if: github.ref == 'refs/heads/develop/alba-v2'
+        run: |
+          python - <<'PY'
+          import requests
+          p="https://publications.europa.eu/webapi/rdf/sparql"
+          q=(
+              "PREFIX cdm: <http://publications.europa.eu/ontology/cdm#> "
+              "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
+              'SELECT DISTINCT ?work ?expression WHERE { ?work cdm:resource_legal_id_celex "32024L2749R(01)"^^xsd:string . '
+              "OPTIONAL { ?work cdm:work_has_expression ?expression . } } LIMIT 40"
+          )
+          try:
+              r=requests.post(p,data={"query":q},headers={"Accept":"application/sparql-results+json"},timeout=28,allow_redirects=False)
+              print("CORR_WORK",r.status_code,r.headers.get("Content-Type"),len(r.content))
+              if r.status_code == 200 and "json" in r.headers.get("Content-Type",""):
+                  rows=r.json()["results"]["bindings"]
+                  print("CORR_ROWS",[{k:v.get("value") for k,v in item.items()} for item in rows[:6]])
+                  works={item.get("work",{}).get("value","") for item in rows}
+                  for work in list(works)[:2]:
+                      if not work.startswith("http://publications.europa.eu/resource/cellar/"):continue
+                      u="https://"+work.removeprefix("http://")+"?language=en"
+                      for accept in ("application/xhtml+xml","application/pdf"):
+                          try:
+                              d=requests.get(u,headers={"Accept":accept,"Accept-Language":"eng"},timeout=20,allow_redirects=False)
+                              print("CORR_RESOLVE",accept,d.status_code,d.headers.get("Location","")[:180],d.headers.get("Content-Type"),len(d.content))
+                          except requests.RequestException as e: print("CORR_RESOLVE_FAILURE",type(e).__name__)
+          except (ValueError,requests.RequestException) as e: print("CORR_WORK_ERROR",type(e).__name__,str(e)[:130])
+          PY
