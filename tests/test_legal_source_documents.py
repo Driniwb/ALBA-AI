@@ -149,6 +149,33 @@ class QbzDocumentEvidenceTests(unittest.TestCase):
         self.assertEqual(evidence.outcome, "read_or_validation_failed")
         self.assertIsNone(evidence.selected_file_url)
 
+    def test_scanned_or_blank_pdf_does_not_count_as_readable_text(self):
+        get = RecordedGet()
+        blank = BytesIO()
+        page = Canvas(blank)
+        page.showPage()
+        page.save()
+        get.updated = blank.getvalue()
+        evidence, text = retrieve_qbz_document(
+            ELI, as_of=date(2026, 11, 12), get=get,
+        )
+        self.assertEqual(evidence.outcome, "read_or_validation_failed")
+        self.assertFalse(evidence.source_text_retrieved)
+        self.assertFalse(evidence.version_verified)
+
+    def test_empty_portal_shell_is_not_treated_as_a_webdav_index(self):
+        get = RecordedGet()
+        def nonindex(url, **kwargs):
+            if url == ROOT:
+                return directory([])
+            return get(url, **kwargs)
+        evidence, _ = retrieve_qbz_document(
+            ELI, as_of=date(2026, 11, 12), get=nonindex,
+        )
+        self.assertEqual(evidence.outcome, "read_or_validation_failed")
+        self.assertIsNone(evidence.selected_file_url)
+        self.assertFalse(evidence.status_verified)
+
     def test_external_links_and_directory_traversal_discarded(self):
         html = """<html><body>
         <a href="https://evil.example/file.pdf">external</a>
