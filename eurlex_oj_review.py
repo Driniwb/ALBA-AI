@@ -144,12 +144,12 @@ def _article_text(text: str, article: str, paragraph: str | None = None) -> str 
     if not re.fullmatch(r"\d{1,3}[a-z]?", article, re.I):
         raise ValueError("Invalid article identifier.")
     start = re.search(
-        rf"\bArticle\s+{re.escape(article)}\s+(?=[A-Z])", text, flags=re.IGNORECASE,
+        rf"\bArticle\s+{re.escape(article)}\s+(?=(?-i:[A-Z]))", text, flags=re.IGNORECASE,
     )
     if start is None:
         return None
     following = re.search(
-        r"\bArticle\s+\d{1,3}[a-z]?\s+(?=[A-Z])", text[start.end():],
+        r"\bArticle\s+\d{1,3}[a-z]?\s+(?=(?-i:[A-Z]))", text[start.end():],
         flags=re.IGNORECASE,
     )
     end = start.end() + following.start() if following else min(len(text), start.end()+15000)
