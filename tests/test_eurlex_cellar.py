@@ -4,6 +4,7 @@ import json
 import unittest
 
 from eurlex_cellar import (
+    _consolidated_document_identity,
     amendments_query, consolidation_query, probe_eurlex, select_consolidation,
 )
 
@@ -132,6 +133,20 @@ class EurlexCellarTests(unittest.TestCase):
         self.assertIn(CONSOL_2, text)
         self.assertFalse(evidence.version_verified)
         self.assertFalse(evidence.legal_status_verified)
+
+    def test_realistic_cellar_heading_confirms_version_and_date(self):
+        text = (
+            "Consolidated TEXT: 32010L0035 — EN — 30.05.2026 "
+            "02010L0035 — EN — 30.05.2026 — 001.001 "
+            "Directive 2010/35/EU on transportable pressure equipment."
+        )
+        self.assertTrue(_consolidated_document_identity(text, CONSOL_2))
+        self.assertFalse(_consolidated_document_identity(
+            text.replace("30.05.2026", "01.01.2020"), CONSOL_2,
+        ))
+        self.assertFalse(_consolidated_document_identity(
+            text.replace("02010L0035", "02008L0068"), CONSOL_2,
+        ))
 
     def test_dated_query_does_not_fetch_future_consolidation(self):
         post, get = FakePost(), FakeGet()
