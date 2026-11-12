@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 from eurlex_corrigenda import (
     _resolve_work, _get_official_xhtml, _heading_ok, _target,
-    _crosscheck, inspect_corrigendum, review_amendment_corrigenda,
-    work_query,
+    _crosscheck, _expression_languages, inspect_corrigendum,
+    review_amendment_corrigenda, work_query, language_query,
 )
 
 WORK_ID = "28137a49-1f13-11f0-b1a3-01aa75ed71a1"
@@ -113,9 +113,12 @@ class CorrigendaTests(unittest.TestCase):
                       as_of=date(2026, 11, 12)):
         def get(url, **kwargs):
             return Response(text="<html><body>" + text + "</body></html>")
-        with patch("eurlex_corrigenda._rows", return_value=[
-            row("http://" + WORK[8:]),
-        ]):
+        def source_rows(query, *, post, row_limit):
+            if "SELECT DISTINCT ?language" in query:
+                return [{"language": {"type": "uri",
+                          "value": "http://publications.europa.eu/resource/authority/language/ENG"}}]
+            return [row("http://" + WORK[8:])]
+        with patch("eurlex_corrigenda._rows", side_effect=source_rows):
             return inspect_corrigendum(
                 CELEX, base_celex="32010L0035",
                 provision_article="33c", provision_paragraph="9",
@@ -128,6 +131,8 @@ class CorrigendaTests(unittest.TestCase):
         self.assertEqual(result.outcome, "corrected_text_consistent_with_consolidation")
         self.assertTrue(result.heading_confirmed)
         self.assertTrue(result.language_confirmed)
+        self.assertEqual(result.available_languages, ["ENG"])
+        self.assertTrue(result.language_scope_checked)
         self.assertEqual(result.published_date, "2025-04-22")
         self.assertEqual(result.target_base_celex, "32010L0035")
         self.assertEqual(result.affects_requested_provision, True)
@@ -165,6 +170,60 @@ class CorrigendaTests(unittest.TestCase):
         ))
         self.assertEqual(unknown.outcome, "target_unconfirmed")
 
+    def test_language_query_uses_documented_inverse_wemi_relation(self):
+        q = language_query("32024L2749R(03)")
+        self.assertIn("cdm:expression_belongs_to_work", q)
+        self.assertIn("cdm:expression_uses_language", q)
+        self.assertIn("LIMIT 80", q)
+
+    def test_non_english_oj_corrected_language_is_not_missing_document(self):
+        for celex, language in (
+            ("32024L2749R(03)", "LAV"),
+            ("32024L2749R(04)", "SWE"),
+        ):
+            with self.subTest(celex=celex):
+                def rows(query, *, post, row_limit):
+                    if "SELECT DISTINCT ?language" in query:
+                        return [{"language": {
+                            "type": "uri",
+                            "value": "http://publications.europa.eu/resource/authority/language/"
+                                     + language
+                        }}]
+                    return [row(WORK)]
+                def should_not_download(*args, **kwargs):
+                    raise AssertionError("Non-English text must not be fetched as English")
+                with (
+                    patch("eurlex_corrigenda._rows", side_effect=rows),
+                    patch("eurlex_corrigenda._get_official_xhtml",
+                          side_effect=should_not_download),
+                ):
+                    result = inspect_corrigendum(
+                        celex, base_celex="32010L0035",
+                        provision_article="33c", provision_paragraph="9",
+                        consolidated_provision=CONSOLIDATED,
+                    )
+                self.assertEqual(result.outcome, "not_published_in_english")
+                self.assertEqual(result.available_languages, [language])
+                self.assertTrue(result.language_scope_checked)
+                self.assertFalse(result.english_version_available)
+                self.assertFalse(result.affects_requested_provision)
+                self.assertFalse(result.fully_legally_verified)
+
+    def test_unknown_language_metadata_never_implies_no_english(self):
+        def rows(query, *, post, row_limit):
+            return [] if "SELECT DISTINCT ?language" in query else [row(WORK)]
+        with patch("eurlex_corrigenda._rows", side_effect=rows):
+            with patch("eurlex_corrigenda._get_official_xhtml",
+                       return_value=(WORK + ".0006.03/DOC_1", TEXT)):
+                report = inspect_corrigendum(
+                    CELEX, base_celex="32010L0035",
+                    provision_article="33c", provision_paragraph="9",
+                    consolidated_provision=CONSOLIDATED,
+                )
+        self.assertFalse(report.language_scope_checked)
+        self.assertIsNone(report.english_version_available)
+        self.assertTrue(report.official_text_retrieved)
+
     def test_orchestrator_separates_relevant_unrelated_and_unknown(self):
         oj = SimpleNamespace(
             observed_corrigenda_celex=[
@@ -185,7 +244,8 @@ class CorrigendaTests(unittest.TestCase):
                 celex=celex, affects_requested_provision=relevant,
                 corrected_text_matches_consolidation=exact,
                 official_text_retrieved=retrieved, heading_confirmed=retrieved,
-                language_confirmed=retrieved,
+                language_confirmed=retrieved, language_scope_checked=retrieved,
+                english_version_available=True if retrieved else None,
             )
         with (
             patch("eurlex_corrigenda.review_oj_amendment", return_value=oj),
@@ -200,6 +260,7 @@ class CorrigendaTests(unittest.TestCase):
         self.assertEqual(report.unresolved_corrigenda, ["32024L2749R(03)"])
         self.assertTrue(report.exact_correction_match_confirmed)
         self.assertFalse(report.all_corrigendum_texts_retrieved)
+        self.assertFalse(report.english_scope_complete)
         self.assertFalse(report.full_legal_verification)
         self.assertEqual(report.outcome, "corrigendum_review_incomplete")
 
