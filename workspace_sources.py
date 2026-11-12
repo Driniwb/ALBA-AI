@@ -24,10 +24,11 @@ def official_link(url: str) -> dict[str, str] | None:
     candidate = url.strip().rstrip(_TRAILING)
     try:
         parsed = urlsplit(candidate)
+        allowed_port = parsed.port in (None, 443)
     except ValueError:
         return None
     if (parsed.scheme != "https" or parsed.hostname not in _OFFICIAL
-            or parsed.username or parsed.password or parsed.port not in (None, 443)
+            or parsed.username or parsed.password or not allowed_port
             or parsed.fragment or len(candidate) > 900):
         return None
     if parsed.hostname in {"qbz.gov.al", "www.qbz.gov.al"}:
