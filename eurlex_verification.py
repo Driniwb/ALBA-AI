@@ -52,7 +52,7 @@ class LegalVerificationReport:
     observed_corrigenda: list[str]
     observed_corrigendum_citations: list[str]
     observed_consolidation_markers: list[str]
-    missing_amendments_in_text: list[str]
+    unmatched_amendment_citations: list[str]
     text_retrieved: bool
     text_identity_confirmed: bool
     metadata_status_checked: bool
@@ -173,7 +173,16 @@ def _textual_amendment_present(text: str, celex: str) -> bool:
     """Check header citation only; don't mistake arbitrary body mentions."""
     # Example 32024L2749 -> DIRECTIVE (EU) 2024/2749 in the header.
     year, number = celex[1:5], str(int(celex[6:]))
-    search_region = text[:5000]
+    # Match only the edition's list of amending acts, not incidental
+    # references in the body. Longer instruments may have long front matter.
+    begin = text.find("Amended by:")
+    if begin < 0 or begin > 10000:
+        return False
+    boundary = text.find("▼B", begin)
+    if boundary < 0:
+        boundary = text.find("CHAPTER 1", begin)
+    end = min(boundary if boundary >= 0 else len(text), 50000)
+    search_region = text[begin:end]
     return bool(re.search(
         rf"\b{re.escape(year)}\s*/\s*0*{re.escape(number)}\b",
         search_region, flags=re.IGNORECASE,
@@ -248,8 +257,11 @@ def verify_eurlex(
             ]
             crosschecked = not missing and bool(markers or not evidence.observed_amendments)
             if missing:
-                reasons.append("Amending acts absent from consolidated document header: "
-                               + ", ".join(missing))
+                reasons.append(
+                    "Amending-act references not matched in extracted header "
+                    "(may reflect HTML formatting; NOT proof of absent legal changes): "
+                    + ", ".join(missing)
+                )
             if not crosschecked:
                 reasons.append("Consolidated amendment markers could not be reconciled.")
         fetch = post or requests.post
@@ -295,7 +307,7 @@ def verify_eurlex(
     elif not metadata_consistent:
         outcome = "metadata_unconfirmed"
     elif missing:
-        outcome = "amendment_mismatch"
+        outcome = "amendment_reconciliation_incomplete"
     else:
         outcome = "source_and_status_metadata_checked"
     reasons.append(
@@ -320,7 +332,7 @@ def verify_eurlex(
         observed_repealing_acts=repeals, observed_corrigenda=corrections,
         observed_corrigendum_citations=corrigendum_citations,
         observed_consolidation_markers=markers,
-        missing_amendments_in_text=missing,
+        unmatched_amendment_citations=missing,
         text_retrieved=bool(evidence and evidence.content_retrieved),
         text_identity_confirmed=bool(evidence and evidence.document_identity_observed),
         metadata_status_checked=metadata_checked,
