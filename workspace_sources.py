@@ -71,7 +71,7 @@ def user_source_links(messages: list[dict], *, limit: int = 8) -> list[dict[str,
 
 
 _DOCUMENT_EXCERPT = re.compile(
-    r"\\[PUBLIC DOCUMENT EXCERPT:\\s*([^\\]\\n]{1,160})\\]\\n"
+    r"\[PUBLIC DOCUMENT EXCERPT:\s*([^\]\n]{1,160})\]\n"
 )
 
 
