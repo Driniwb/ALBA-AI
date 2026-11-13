@@ -991,7 +991,12 @@ if show_sources:
                     key="alba_selected_response",
                     format_func=lambda value: f"RESPONSE {value}",
                 )
-                relevant_messages = messages[:answer_positions[selected_response - 1] + 1]
+                response_end = answer_positions[selected_response - 1] + 1
+                response_start = (
+                    answer_positions[selected_response - 2] + 1
+                    if selected_response > 1 else 0
+                )
+                relevant_messages = messages[response_start:response_end]
             else:
                 st.caption("No response to cite yet.")
                 relevant_messages = messages
