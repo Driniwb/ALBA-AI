@@ -12,6 +12,7 @@ from typing import Callable
 import requests
 
 from chat_store import MODES, MAX_MESSAGE_CHARS
+from chat_handoff import is_app_howto_question, suggest_handoff
 from official_research import link_answer, official_links
 from communication_studio import API_ROOT, MODEL, extract_ai_text
 from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields
@@ -339,6 +340,60 @@ def _document_format_answer(question: str) -> str | None:
     )
 
 
+def _unified_workspace_help(question: str) -> str | None:
+    """Explain an in-app workflow without sending users to hidden modules.
+
+    ALBA 2.0 has one visible chat. The old dedicated tools remain in the
+    codebase but are not routed from this interface.
+    """
+    if not is_app_howto_question(question):
+        return None
+    intent = suggest_handoff(question)
+    if intent is None:
+        return None
+    guidance = {
+        "toc": (
+            "Në ALBA 2.0, ToC do të thotë **Tabela e Përputhshmërisë "
+            "(Table of Concordance)**, jo Table of Contents. Ngarko tekstin "
+            "publik të direktivës me + ose vendos nenet në chat dhe kërko "
+            "një tabelë përputhshmërie me shtatë kolona. Chat-i mund ta "
+            "përgatisë si draft nga teksti i dhënë, por konvertimi automatik "
+            "i një direktive të plotë në formatin e veçantë Word nuk është "
+            "integruar ende në këtë ndërfaqe."
+        ),
+        "legal": (
+            "Në ALBA 2.0 mund të hartosh apo rishikosh një ligj, VKM, "
+            "udhëzim ose rregullore drejtpërdrejt në chat. Shkruaj llojin "
+            "e aktit, detyrën dhe dispozitat publike përkatëse; unë do të "
+            "përgatis një draft me formulime të sakta dhe kontrollet e "
+            "mbetura. Për përafrimin me acquis jep edhe dispozitën e BE-së."
+        ),
+        "ria": (
+            "Në chat kërko hartimin e një Vlerësimi të Ndikimit Rregullator. "
+            "Jep problemin, bazën ligjore, alternativat dhe evidencat. "
+            "Mund të përgatisim seksionet, por gjeneruesi i strukturuar i "
+            "RIA-së nuk është integruar ende në këtë faqe."
+        ),
+        "eu": (
+            "Për një Information Note ose Administrative Capacity Note, "
+            "shkruaj kërkesën në chat dhe shto acquis, kriterin përmbyllës "
+            "dhe të dhënat e verifikuara. ALBA mund të hartojë një draft "
+            "në terminologjinë institucionale të BE-së, duke ndarë aktet "
+            "në fuqi, kapacitetet, rezultatet dhe planet."
+        ),
+        "writing": (
+            "Përgatit emailin, shkresën apo procesverbalin direkt në chat: "
+            "jep qëllimin, publikun dhe materialin bazë. Kërko edhe "
+            "redaktimin ose përkthimin në shqip apo anglisht."
+        ),
+        "communication": (
+            "Përgatit një komunikatë, artikull ose postim në chat, duke "
+            "dhënë audiencën, formatin dhe faktet publike të konfirmuara."
+        ),
+    }
+    return guidance.get(intent.key)
+
+
 def generate_chat_reply(
     *, mode: str, history: list[dict], user_text: str,
     account_id: str, api_token: str, post: Callable | None = None,
@@ -381,8 +436,11 @@ def generate_chat_reply(
     if document_help is not None:
         return document_help
 
-    # Use the same chat for supported requests: hidden specialist pages
-    # are not offered as navigation destinations.
+    # Single-workspace instructions are deterministic; do not send the
+    # user to hidden legacy pages or call the external model for in-app help.
+    workspace_help = _unified_workspace_help(user_text)
+    if workspace_help is not None:
+        return workspace_help
     try:
         return _request_cloudflare_chat(
             model=PRIMARY_MODEL, messages=messages,
