@@ -291,17 +291,17 @@ def _document_format_answer(question: str) -> str | None:
     """Accurate, deterministic answer to document capability questions."""
     q = question.strip().casefold()
     subject = re.search(
-        r"\\b(?:docs?|documents?|dokument\\w*|file formats?|word files?|"
-        r"formats?|skedar\\w*)\\b", q,
+        r"\b(?:docs?|documents?|dokument\w*|file formats?|word files?|"
+        r"formats?|skedar\w*)\b", q,
     )
     capability = re.search(
-        r"\\b(?:can you|can alba|does alba|what formats?|in what formats?|"
+        r"\b(?:can you|can alba|does alba|what formats?|in what formats?|"
         r"a mund|çfarë format|cfare format|n[eë] çfarë format|"
-        r"ne cfare format)\\b", q,
+        r"ne cfare format)\b", q,
     )
     if not subject or not capability:
         return None
-    if re.search(r"[ëç]|\\b(?:mund|çfarë|cfare|dokumentet|shqip)\\b", q):
+    if re.search(r"[ëç]|\b(?:mund|çfarë|cfare|dokumentet|shqip)\b", q):
         return (
             "Po. ALBA mund të hartojë memorandume juridike, relacione, "
             "raporte për institucionet shqiptare, shkresa, projektakte dhe "
