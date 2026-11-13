@@ -18,17 +18,20 @@ class WorkspaceLayoutTests(unittest.TestCase):
         ).run()
         self.assertEqual(len(app.exception), 0)
         self.assertFalse(app.session_state.get("alba_sources_open", False))
-        # Default-open sources are derived from the UI default, not session state.
-        self.assertTrue(any("SOURCES & CITATIONS" in str(item.value)
-                            for item in app.markdown))
+        # The source drawer starts closed to keep the chat uncluttered.
+        self.assertFalse(any("SOURCES & CITATIONS" in str(item.value)
+                             for item in app.markdown))
         self.assertTrue(any(
             item.key == "alba_sources_toggle" for item in app.button
         ))
         app.button(key="alba_sources_toggle").click().run()
         self.assertEqual(len(app.exception), 0)
+        self.assertTrue(app.session_state["alba_sources_open"])
+        self.assertTrue(any("SOURCES & CITATIONS" in str(item.value)
+                            for item in app.markdown))
+        app.button(key="alba_sources_toggle").click().run()
         self.assertFalse(app.session_state["alba_sources_open"])
         app.button(key="alba_sources_toggle").click().run()
-        self.assertEqual(len(app.exception), 0)
         self.assertTrue(app.session_state["alba_sources_open"])
         self.assertTrue(any(
             "not yet been independently verified" in str(item.value)
@@ -65,6 +68,7 @@ class WorkspaceLayoutTests(unittest.TestCase):
         self.assertEqual(
             app.session_state["alba_active_conversation"], second
         )
+        app.button(key="alba_sources_toggle").click().run()
         self.assertTrue(any(
             "No official document links" in str(c.value) for c in app.caption
         ))
@@ -95,30 +99,24 @@ class WorkspaceLayoutTests(unittest.TestCase):
             item.key == "alba_open_" + one for item in app.button
         ))
 
-    def test_empty_home_has_working_specialist_tool_shortcuts(self):
+    def test_empty_home_has_one_clean_chat_surface_without_tool_shortcuts(self):
         app = AppTest.from_file(
             str(ROOT / "pages" / "5_Chat_Workspace.py"),
             default_timeout=25,
         ).run()
         self.assertEqual(len(app.exception), 0)
         keys = {item.key for item in app.button}
-        self.assertIn("alba_shortcut_legal_drafting", keys)
-        self.assertIn("alba_shortcut_toc", keys)
-        self.assertIn("alba_shortcut_reporting", keys)
-        self.assertTrue(any(
-            "legal work" in str(item.value)
-            for item in app.markdown
-        ))
+        self.assertIn("alba_new_chat", keys)
+        self.assertFalse(any(str(key).startswith("alba_shortcut_") for key in keys))
+        self.assertTrue(any("How can ALBA help?" in str(item.value)
+                            for item in app.markdown))
 
-    def test_shortcut_navigates_to_existing_toc_tool(self):
-        app = AppTest.from_file(
-            str(ROOT / "app.py"),
-            default_timeout=25,
-        ).run()
+    def test_single_registered_page_replaces_specialist_shortcuts(self):
+        source = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("st.Page("), 1)
+        self.assertNotIn('pages/1_ToC_Builder.py', source)
+        app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=25).run()
         self.assertEqual(len(app.exception), 0)
-        app.button(key="alba_shortcut_toc").click().run()
-        self.assertEqual(len(app.exception), 0)
-        self.assertTrue(any("ToC Builder" in str(t.value) for t in app.title))
 
     def test_uploaded_excerpt_name_appears_in_document_tab(self):
         app = AppTest.from_file(
@@ -137,6 +135,7 @@ class WorkspaceLayoutTests(unittest.TestCase):
         app.session_state["alba_active_conversation"] = chat_id
         app.run()
         self.assertEqual(len(app.exception), 0)
+        app.button(key="alba_sources_toggle").click().run()
         self.assertTrue(any(
             "Public sample.pdf" in str(item.value)
             for item in app.markdown
