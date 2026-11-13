@@ -1107,16 +1107,23 @@ def _chat_composer_controls() -> None:
     current_country = (
         _JURISDICTION_FLAGS.get(selected[0], "🌐") if selected else "🌐"
     )
-    style_col, country_col, project_col = st.columns(
+    plus_col, country_col, project_col = st.columns(
         [1.45, 1.4, 1.15], gap="small", vertical_alignment="center",
     )
-    with style_col:
-        with st.popover("Style · " + current_style, icon=":material/tune:"):
+    with plus_col:
+        with st.popover("＋ · " + current_style, help="Documents and answer style"):
+            st.file_uploader(
+                "Upload document",
+                type=["docx", "xlsx", "pdf", "pptx"],
+                key="alba_plus_file_" + str(st.session_state.get("alba_doc_nonce", 0)),
+                help="One public Word, Excel, PDF or PowerPoint file, maximum 12 MB.",
+            )
             st.selectbox(
                 "Answer style", options=list(ANSWER_STYLES),
                 key="alba_answer_style",
-                help="Changes the format and drafting approach of the next answer.",
+                help="Changes the drafting approach of the next reply.",
             )
+            st.caption("The uploaded public excerpt is sent only with your next question.")
     with country_col:
         with st.popover("Country · " + current_country, icon=":material/public:"):
             st.multiselect(
@@ -1153,9 +1160,6 @@ def _chat_composer_controls() -> None:
 chat_input_options = dict(
     key="alba_chat_prompt",
     max_chars=MAX_USER_CHARS,
-    max_upload_size=12,
-    accept_file=True,
-    file_type=["docx", "xlsx", "pdf", "pptx"],
     disabled=not (account and api_key) or bool(pending_attachment),
 )
 if conversation:
@@ -1177,14 +1181,18 @@ if submission:
         submission.strip() if isinstance(submission, str)
         else (submission.text or "").strip()
     )
-    uploads = (
-        [] if isinstance(submission, str)
-        else list(submission.files)
+    # The single + menu owns upload and style selection. Native st.chat_input
+    # handles only text, avoiding a second, misleading upload + control.
+    chosen_upload = st.session_state.get(
+        "alba_plus_file_" + str(st.session_state.get("alba_doc_nonce", 0))
     )
+    uploads = [chosen_upload] if chosen_upload is not None else []
     if uploads:
-        # The native + permits one file and only Office/PDF formats. The
-        # server-side privacy gate validates actual bytes and content.
+        # Validate both file size and contents before any AI request.
         document = uploads[0]
+        if len(document.getvalue()) > 12 * 1024 * 1024:
+            st.error("The uploaded file exceeds the 12 MB limit.")
+            st.stop()
         checked = screen_upload(
             document.name, document.getvalue(),
             public_legal=True, max_chars=150000,
