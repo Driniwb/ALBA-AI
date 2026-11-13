@@ -7,9 +7,13 @@ from official_research import detect_reference, official_links, link_answer
 class OfficialResearchTests(unittest.TestCase):
     def test_albanian_44_2023_link_is_real_identified_act(self):
         links = official_links("Më jep linkun e ligjit nr. 44/2023.")
-        self.assertEqual(len(links), 1)
+        self.assertEqual(len(links), 2)
         self.assertEqual(
-            links[0].url, "https://qbz.gov.al/eli/ligj/2023/06/15/44"
+            links[0].url,
+            "https://qbz.gov.al/alfresco/webdav/FZ/2023/101/FZ-2023-101.pdf",
+        )
+        self.assertEqual(
+            links[1].url, "https://qbz.gov.al/eli/ligj/2012/06/21/69"
         )
         answer = link_answer("Më jep linkun e ligjit nr. 44/2023.")
         self.assertIn("arsimin parauniversitar", answer)
