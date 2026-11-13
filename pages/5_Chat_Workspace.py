@@ -7,7 +7,11 @@ demo runs in per-browser-session SQLite memory and is lost on session restart.
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime
+from io import BytesIO
 from uuid import uuid4
+
+from docx import Document
 
 import streamlit as st
 
@@ -709,6 +713,67 @@ if active_id and conversation is None:
     st.session_state["alba_active_conversation"] = None
     active_id = None
 
+def _response_docx(answer: str) -> bytes:
+    """Editable, lightweight Word export for one legal research answer."""
+    document = Document()
+    for raw in answer.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("### "):
+            document.add_heading(line[4:], level=3)
+        elif line.startswith("## "):
+            document.add_heading(line[3:], level=2)
+        elif line.startswith("# "):
+            document.add_heading(line[2:], level=1)
+        elif line.startswith(("- ", "* ")):
+            document.add_paragraph(line[2:], style="List Bullet")
+        else:
+            document.add_paragraph(line)
+    buffer = BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def _response_actions(message: dict, response_no: int, chat_id: str) -> None:
+    """Copy/Word/Save actions next to a saved answer, without modifying chat."""
+    identity = f"{chat_id}_{response_no}"
+    stamp = message.get("created_at", "")
+    try:
+        date_label = datetime.fromisoformat(stamp.replace("Z", "+00:00")).strftime(
+            "%d.%m.%Y · %H:%M"
+        )
+    except (ValueError, TypeError, AttributeError):
+        date_label = ""
+    when, copy, word, save = st.columns(
+        [2.2, 1, 1, 1], gap="small", vertical_alignment="center"
+    )
+    with when:
+        st.caption(date_label)
+    with copy:
+        with st.popover("Copy", icon=":material/content_copy:"):
+            st.caption("Copy the full text using the icon in this box.")
+            st.code(message["content"], language=None)
+    with word:
+        st.download_button(
+            "Word",
+            data=_response_docx(message["content"]),
+            file_name=f"ALBA_response_{response_no}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            key="alba_word_" + identity,
+            on_click="ignore",
+        )
+    with save:
+        st.download_button(
+            "Save",
+            data=message["content"],
+            file_name=f"ALBA_response_{response_no}.md",
+            mime="text/markdown",
+            key="alba_save_" + identity,
+            on_click="ignore",
+        )
+
+
 def _render_chat_content(value: str) -> None:
     marker = "\n\n[PUBLIC DOCUMENT EXCERPT: "
     if marker not in value:
@@ -851,9 +916,13 @@ with chat_area:
                         st.rerun()
         
 
+        response_no = 0
         for message in messages:
             with st.chat_message(message["role"]):
                 _render_chat_content(message["content"])
+                if message["role"] == "assistant":
+                    response_no += 1
+                    _response_actions(message, response_no, active_id)
 
         # If the last user turn requests a specialised ALBA workflow, offer
         # exactly one direct handoff. General questions stay in the conversation.
