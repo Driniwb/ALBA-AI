@@ -32,6 +32,7 @@ from chat_handoff import suggest_handoff, prepare_handoff
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from ui_theme import apply_theme
 from workspace_sources import user_source_links, user_document_excerpts
+from alba_followups import follow_up_questions
 
 st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
 apply_theme("WORKSPACE")
@@ -271,6 +272,17 @@ st.markdown(
             min-height: 0; border-left: 0 !important;
             padding-left: 0;
         }
+    }
+    .st-key-alba_followups {border-bottom: 1px solid #dedede; margin-top: .35rem; padding-bottom: .6rem;}
+    .st-key-alba_followups .stButton > button {
+        border: 1px solid #c7c7c7 !important; border-radius: 999px !important;
+        min-height: 2rem !important; padding: .28rem .85rem !important;
+        background: #fff !important; color: #333 !important;
+        text-align: left; justify-content: flex-start;
+        font-size: .84rem; font-weight: 440;
+    }
+    .st-key-alba_followups .stButton > button:hover {
+        background: #f5f5f5 !important; border-color: #959595 !important;
     }
     </style>
     """,
@@ -939,6 +951,26 @@ with chat_area:
         ):
             prepare_handoff(recommended, latest_question, st.session_state)
             st.switch_page(recommended.page)
+
+        # Three relevant Albanian/EU-law questions beneath the latest answer.
+        # They are generated locally from the last user question: no extra
+        # model requests, invented legal claims or citation placeholders.
+        if messages and messages[-1]["role"] == "assistant":
+            followups = follow_up_questions(latest_question, messages[-1]["content"])
+            if followups:
+                with st.container(key="alba_followups"):
+                    for idx, suggestion in enumerate(followups):
+                        if st.button(
+                            suggestion,
+                            key=f"alba_followup_{active_id}_{len(messages)}_{idx}",
+                        ):
+                            st.session_state["alba_pending_chat_text"] = suggestion
+                            st.session_state["alba_pending_display_question"] = suggestion
+                            st.session_state["alba_pending_chat_error"] = None
+                            st.session_state["alba_chat_submit_staged"] = True
+                            if not persistent:
+                                st.session_state["alba_browser_confirm_pending"] = True
+                            st.rerun()
     else:
         mode = "general"
         messages = []
