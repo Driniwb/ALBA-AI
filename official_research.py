@@ -43,11 +43,6 @@ _COUNTRIES = re.compile(
 # Exact identifiers independently checked against the official public
 # act register. This is intentionally NOT an open-ended list of guessed dates.
 _KNOWN_QBZ = {
-    ("ligj", "44", "2023"): (
-        "https://qbz.gov.al/eli/ligj/2023/06/15/44",
-        "Ligji nr. 44/2023, datë 15.6.2023, për ndryshime në ligjin "
-        "nr. 69/2012 për sistemin arsimor parauniversitar",
-    ),
     ("vendim", "584", "2003"): (
         "https://qbz.gov.al/eli/vendim/2003/08/28/584",
         "VKM nr. 584/2003, datë 28.8.2003, Rregullorja e Këshillit të Ministrave",
@@ -110,6 +105,25 @@ def official_links(
             note="Regjistri zyrtar i masave të njoftuara, jo vlerësim automatik i cilësisë së transpozimit.",
         ))
         return out
+    if (kind, num, year) == ("ligj", "44", "2023"):
+        # The Gazette PDF and consolidated base-law ELI are indexed and
+        # independently visible. A standalone ELI for this amending act has
+        # NOT been confirmed; do not fabricate one.
+        return [
+            OfficialLink(
+                label="QBZ – Fletorja Zyrtare nr. 101/2023 (Ligji 44/2023)",
+                url="https://qbz.gov.al/alfresco/webdav/FZ/2023/101/FZ-2023-101.pdf",
+                scope="official_gazette",
+                note="Botim zyrtar me tekstin e ligjit nr. 44/2023.",
+            ),
+            OfficialLink(
+                label="QBZ – Ligji bazë nr. 69/2012, versionet e konsoliduara",
+                url="https://qbz.gov.al/eli/ligj/2012/06/21/69",
+                scope="known_act",
+                note="Ligji bazë i ndryshuar nga ligji 44/2023; "
+                     "zgjidhni dhe verifikoni versionin e zbatueshëm.",
+            ),
+        ]
     known = _KNOWN_QBZ.get((kind, num, year))
     if known:
         return [OfficialLink(
