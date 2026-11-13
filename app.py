@@ -1,21 +1,27 @@
-"""ALBA Streamlit entrypoint: named navigation plus Chat Workspace.
+"""ALBA 2.0 entrypoint: a single visible workspace with hidden legacy tools.
 
-This file is intentionally a lightweight router. The first sidebar page is
-called 'Writing Assistant', not 'app' or 'ALBA AI'. All existing functionality
-is implemented by the selected page scripts.
+Specialist tool pages remain registered for compatibility, but the public
+navigation is Project and Chat oriented inside the default workspace.
 """
 import streamlit as st
 from alba_features import COMMUNICATION_STUDIO_VISIBLE
 
 st.set_page_config(
     page_title="ALBA",
-    page_icon="📗",
+    page_icon="⚖️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 with st.sidebar:
-    st.markdown("## ALBA")
+    st.markdown(
+        '<div class="alba-brand">'
+        '<span class="alba-brand-mark">A</span>'
+        '<span><span class="alba-brand-name">ALBA</span>'
+        '<span class="alba-brand-caption">Legal workspace</span></span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 pages = [
     st.Page(
