@@ -40,7 +40,7 @@ html, body, [data-testid="stApp"], [data-testid="stAppViewContainer"] {
   font-size: .85rem !important;
   font-weight: 730 !important;
   letter-spacing: .01em !important;
-  margin: .7rem 0 .35rem !important;
+  margin: .4rem 0 .2rem !important;
 }
 .alba-brand {
   display: flex;
@@ -69,6 +69,7 @@ html, body, [data-testid="stApp"], [data-testid="stAppViewContainer"] {
   letter-spacing: -.025em;
 }
 .alba-brand-caption {
+  display: block;
   color: var(--alba-subtle);
   font-size: .72rem;
   margin-top: 2px;
@@ -123,7 +124,7 @@ html, body, [data-testid="stApp"], [data-testid="stAppViewContainer"] {
   gap: .35rem;
 }
 [data-testid="stMainBlockContainer"] {
-  max-width: 1220px !important;
+  max-width: 1160px !important;
   padding-top: .9rem !important;
   padding-bottom: 10rem !important;
   color: var(--alba-ink) !important;
