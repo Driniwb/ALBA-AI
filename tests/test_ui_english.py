@@ -31,10 +31,11 @@ class EnglishInterfaceTests(unittest.TestCase):
 
     def test_navigation_uses_alba_brand_and_writing_assistant(self):
         router = (ROOT / "app.py").read_text(encoding="utf-8")
-        self.assertIn('page_title="ALBA"', router)
-        self.assertIn('title="Writing Assistant"', router)
-        self.assertIn('title="ToC Builder"', router)
-        self.assertIn("COMMUNICATION_STUDIO_VISIBLE", router)
+        self.assertIn('page_title="ALBA 2.0"', router)
+        self.assertIn('title="ALBA"', router)
+        self.assertEqual(router.count("st.Page("), 1)
+        self.assertNotIn('title="Writing Assistant"', router)
+        self.assertNotIn('title="ToC Builder"', router)
         from alba_features import COMMUNICATION_STUDIO_VISIBLE
         self.assertFalse(COMMUNICATION_STUDIO_VISIBLE)
         self.assertNotIn('Explore **ToC Builder**', router)
