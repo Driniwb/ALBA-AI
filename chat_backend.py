@@ -36,6 +36,14 @@ to click Continue in [page] in the chat. Offer external manual workflows
 only as a secondary option if ALBA cannot perform the requested operation.
 Do not confuse Table of Concordance with Table of Contents.
 Do not invent product features, APIs, or deployed app links.
+In the Chat Workspace, each assistant answer can be downloaded as Word
+(.docx) or saved locally as Markdown (.md). Conversation history is stored
+in browser storage for guests or in the account database only if configured.
+The current pilot does NOT provide a separate persistent document library,
+an editable document side panel, branded Word letterhead templates,
+or an automatic, live national-legislation search. Do not promise these.
+Uploads of public DOCX/PDF/XLSX/PPTX are screened and excerpts can be
+analysed; do not claim to parse entire lengthy uploads automatically.
 
 ANSWER the user's current question first, in the language they use. Give a
 concrete, useful explanation, analysis, draft or next step, rather than
@@ -279,6 +287,44 @@ class ModelUnavailable(Exception):
     """Only model-outage errors trigger a free in-account fallback."""
 
 
+def _document_format_answer(question: str) -> str | None:
+    """Accurate, deterministic answer to document capability questions."""
+    q = question.strip().casefold()
+    subject = re.search(
+        r"\\b(?:docs?|documents?|dokument\\w*|file formats?|word files?|"
+        r"formats?|skedar\\w*)\\b", q,
+    )
+    capability = re.search(
+        r"\\b(?:can you|can alba|does alba|what formats?|in what formats?|"
+        r"a mund|çfarë format|cfare format|n[eë] çfarë format|"
+        r"ne cfare format)\\b", q,
+    )
+    if not subject or not capability:
+        return None
+    if re.search(r"[ëç]|\\b(?:mund|çfarë|cfare|dokumentet|shqip)\\b", q):
+        return (
+            "Po. ALBA mund të hartojë memorandume juridike, relacione, "
+            "raporte për institucionet shqiptare, shkresa, projektakte dhe "
+            "analiza për përafrimin me acquis. Përgjigjet në Chat mund t'i "
+            "shkarkosh në **Word (.docx)** ose t'i ruash në **Markdown (.md)**. "
+            "ToC Builder krijon tabela përputhshmërie në Word. Mund të ngarkosh "
+            "dokumente publike PDF/DOCX/XLSX/PPTX për shqyrtim të ekstrakteve. "
+            "Bisedat ruhen në historikun e chat-it sipas konfigurimit të ruajtjes. "
+            "Nuk ka ende bibliotekë dokumentesh të redaktueshme në panel anësor "
+            "ose template të personalizuara me logon dhe formatin e institucionit."
+        )
+    return (
+        "Yes. ALBA can draft legal memoranda, analytical notes, institutional "
+        "letters, reports, draft Albanian acts and EU-acquis approximation "
+        "documents. Each Chat answer is downloadable as **Word (.docx)** "
+        "or **Markdown (.md)**; the ToC Builder also exports Word tables of "
+        "concordance. Public PDF, DOCX, XLSX and PPTX uploads can be reviewed "
+        "through selected excerpts. Chats can be revisited through history "
+        "subject to the storage setup. A separate editable document library, "
+        "side-panel document editor and branded Word templates are not yet available."
+    )
+
+
 def generate_chat_reply(
     *, mode: str, history: list[dict], user_text: str,
     account_id: str, api_token: str, post: Callable | None = None,
@@ -309,6 +355,11 @@ def generate_chat_reply(
         return "Përshëndetje! Si mund të të ndihmoj?"
     if re.fullmatch(r"(?:hi|hello|hey)[.!? ]*", greeting):
         return "Hello! How can I help?"
+
+    # Answer supported document-format questions without inventing features.
+    document_help = _document_format_answer(user_text)
+    if document_help is not None:
+        return document_help
 
     # In-app help is deterministic: no extra AI cost, no hallucinated
     # Microsoft Word table of contents, and the existing UI offers the
