@@ -30,16 +30,16 @@ class ChatWorkspaceUITests(unittest.TestCase):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn("accept_file=True", source)
-        self.assertIn('file_type=["docx", "xlsx", "pdf", "pptx"]', source)
-        self.assertNotIn('with st.popover("＋", help="Attach', source)
+        self.assertIn('with st.popover("＋ · " + current_style', source)
+        self.assertIn('type=["docx", "xlsx", "pdf", "pptx"]', source)
+        self.assertIn('key="alba_answer_style"', source)
         self.assertNotIn('with st.expander("Attach a public document (optional)")', source)
 
     def test_attachment_menu_has_only_office_pdf_formats(self):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn("accept_file=True", source)
+        self.assertIn('with st.popover("＋ · " + current_style', source)
         self.assertNotIn('"https://chatgpt.com/"', source)
         self.assertNotIn('"https://claude.ai/"', source)
         self.assertNotIn('"https://gemini.google.com/"', source)
@@ -353,7 +353,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(encoding="utf-8")
         self.assertNotIn("Sending a message shares it with Cloudflare", source)
         self.assertNotIn("Connection settings", source)
-        self.assertIn("accept_file=True", source)
+        self.assertIn('with st.popover("＋ · " + current_style', source)
         self.assertIn("Move to project", source)
         # New Chat is centered; existing conversations use Streamlit's
         # native root-level, bottom-docked input.
