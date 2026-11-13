@@ -18,9 +18,15 @@ class WorkspaceLayoutTests(unittest.TestCase):
         ).run()
         self.assertEqual(len(app.exception), 0)
         self.assertFalse(app.session_state.get("alba_sources_open", False))
+        # Default-open sources are derived from the UI default, not session state.
+        self.assertTrue(any("SOURCES & CITATIONS" in str(item.value)
+                            for item in app.markdown))
         self.assertTrue(any(
             item.key == "alba_sources_toggle" for item in app.button
         ))
+        app.button(key="alba_sources_toggle").click().run()
+        self.assertEqual(len(app.exception), 0)
+        self.assertFalse(app.session_state["alba_sources_open"])
         app.button(key="alba_sources_toggle").click().run()
         self.assertEqual(len(app.exception), 0)
         self.assertTrue(app.session_state["alba_sources_open"])
@@ -28,9 +34,6 @@ class WorkspaceLayoutTests(unittest.TestCase):
             "not yet been independently verified" in str(item.value)
             for item in app.caption
         ))
-        app.button(key="alba_sources_toggle").click().run()
-        self.assertEqual(len(app.exception), 0)
-        self.assertFalse(app.session_state["alba_sources_open"])
 
     def test_source_panel_does_not_mix_chat_histories(self):
         app = AppTest.from_file(
@@ -53,7 +56,6 @@ class WorkspaceLayoutTests(unittest.TestCase):
         )
         app.session_state["alba_active_conversation"] = first
         app.run()
-        app.button(key="alba_sources_toggle").click().run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(
             app.session_state["alba_active_conversation"], first
@@ -134,7 +136,6 @@ class WorkspaceLayoutTests(unittest.TestCase):
         )
         app.session_state["alba_active_conversation"] = chat_id
         app.run()
-        app.button(key="alba_sources_toggle").click().run()
         self.assertEqual(len(app.exception), 0)
         self.assertTrue(any(
             "Public sample.pdf" in str(item.value)
