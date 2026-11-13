@@ -58,5 +58,7 @@ pages = [
     ),
 ]
 
-selected = st.navigation(pages)
+# Keep specialist pages registered for internal routing only.
+# The sidebar belongs to Projects and Chats.
+selected = st.navigation(pages, position="hidden")
 selected.run()
