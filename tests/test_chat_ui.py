@@ -358,7 +358,9 @@ class ChatWorkspaceUITests(unittest.TestCase):
         # New Chat is centered; existing conversations use Streamlit's
         # native root-level, bottom-docked input.
         self.assertIn('with st.container(key="alba_chat_empty"):', source)
-        self.assertIn('if conversation:\n    submission = st.chat_input(', source)
+        self.assertIn('if conversation:\n    _chat_composer_controls()\n    submission = st.chat_input(', source)
+        self.assertIn('key="alba_answer_style"', source)
+        self.assertIn('key="alba_jurisdictions"', source)
         self.assertIn('max-width: 760px;', source)
         self.assertIn('with st.popover("⋯", help="Chat options:', source)
         self.assertNotIn('st.subheader(conversation["title"])', source)
