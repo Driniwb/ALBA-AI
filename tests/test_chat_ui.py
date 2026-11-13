@@ -30,8 +30,8 @@ class ChatWorkspaceUITests(unittest.TestCase):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('with st.popover("＋ · " + current_style', source)
-        self.assertIn('type=["docx", "xlsx", "pdf", "pptx"]', source)
+        self.assertIn('with st.popover(\n        "Preferences · " + current_country', source)
+        self.assertIn('file_type=["docx", "xlsx", "pdf", "pptx"]', source)
         self.assertIn('key="alba_answer_style"', source)
         self.assertNotIn('with st.expander("Attach a public document (optional)")', source)
 
@@ -39,11 +39,11 @@ class ChatWorkspaceUITests(unittest.TestCase):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('with st.popover("＋ · " + current_style', source)
+        self.assertIn('with st.popover(\n        "Preferences · " + current_country', source)
         self.assertNotIn('"https://chatgpt.com/"', source)
         self.assertNotIn('"https://claude.ai/"', source)
         self.assertNotIn('"https://gemini.google.com/"', source)
-        self.assertIn('type=["docx", "xlsx", "pdf", "pptx"]', source)
+        self.assertIn('file_type=["docx", "xlsx", "pdf", "pptx"]', source)
         self.assertNotIn('st.title("ALBA")', source)
         self.assertNotIn('st.subheader("How can I help?")', source)
         self.assertNotIn('st.caption(chat_history_status(', source)
@@ -353,7 +353,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
         source = (ROOT / "pages" / "5_Chat_Workspace.py").read_text(encoding="utf-8")
         self.assertNotIn("Sending a message shares it with Cloudflare", source)
         self.assertNotIn("Connection settings", source)
-        self.assertIn('with st.popover("＋ · " + current_style', source)
+        self.assertIn('with st.popover(\n        "Preferences · " + current_country', source)
         self.assertIn("Move to project", source)
         # New Chat is centered; existing conversations use Streamlit's
         # native root-level, bottom-docked input.
@@ -361,16 +361,17 @@ class ChatWorkspaceUITests(unittest.TestCase):
         self.assertIn('if conversation:\n    _chat_composer_controls()\n    submission = st.chat_input(', source)
         self.assertIn('key="alba_answer_style"', source)
         self.assertIn('key="alba_jurisdictions"', source)
-        self.assertIn('max-width: 760px;', source)
+        self.assertIn('with st.container(key="alba_chat_empty"):', source)
         self.assertIn('with st.popover("⋯", help="Chat options:', source)
         self.assertNotIn('st.subheader(conversation["title"])', source)
         self.assertNotIn('st.popover("Move to project"', source)
 
 
-    def test_app_navigation_includes_workspace_as_default_and_legacy_pages(self):
-        text = (ROOT / "app.py").read_text(encoding="utf-8")
-        self.assertIn('"pages/5_Chat_Workspace.py"', text)
-        self.assertIn('title="Legal Assistant"', text)
+    def test_app_navigation_is_unified_without_legacy_pages(self):
+        source = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("st.Page("), 1)
+        self.assertIn('"pages/5_Chat_Workspace.py"', source)
+        self.assertIn('position="hidden"', source)
         for other in (
             "writing_assistant.py",
             "pages/1_ToC_Builder.py",
@@ -378,7 +379,7 @@ class ChatWorkspaceUITests(unittest.TestCase):
             "pages/3_Legal_Drafting.py",
             "pages/4_EU_Reporting.py",
         ):
-            self.assertIn(other, text)
+            self.assertNotIn(other, source)
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=25).run()
         self.assertEqual(len(app.exception), 0)
 
