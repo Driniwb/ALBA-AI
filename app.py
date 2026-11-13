@@ -47,6 +47,11 @@ pages = [
         icon=":material/gavel:",
     ),
     st.Page(
+        "pages/6_RIA_Builder.py",
+        title="RIA Builder",
+        icon=":material/assignment:",
+    ),
+    st.Page(
         "pages/4_EU_Reporting.py",
         title="EU Communication & Reporting",
         icon=":material/account_balance:",
