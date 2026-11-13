@@ -31,6 +31,14 @@ with st.expander("Metodologjia dhe burimet referuese"):
         "Verifikoni QBZ për përditësimet e mëvonshme."
     )
     st.link_button("VKM 584/2003 – QBZ (akt)", "https://qbz.gov.al/eli/vendim/2003/08/28/584")
+    st.link_button(
+        "Metodologjia e VN-së (2018) – Kryeministria",
+        "https://www.kryeministria.al/wp-content/uploads/2022/06/RIA-Metodologjia.pdf",
+    )
+    st.link_button(
+        "Manuali për Hartimin e Legjislacionit – Botimi 3",
+        "https://justal.eu/wp-content/uploads/2024/05/Manual-per-hartimin-e-legjislacionit_Online.pdf",
+    )
 
 st.markdown("**1. Identifikimi i nismës**")
 one, two, three = st.columns(3, gap="medium")
