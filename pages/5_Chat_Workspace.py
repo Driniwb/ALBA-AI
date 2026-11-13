@@ -33,6 +33,8 @@ from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_
 from ui_theme import apply_theme
 from workspace_sources import user_source_links, user_document_excerpts
 from alba_followups import follow_up_questions
+from official_research import official_links
+from legal_sources_probe import probe_case
 
 st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
 # The chat is independently styled below; other tools retain their own theme.
@@ -715,7 +717,7 @@ with header_right:
         )
         st.rerun()
 
-show_sources = bool(st.session_state.get("alba_sources_open", False))
+show_sources = bool(st.session_state.get("alba_sources_open", True))
 if show_sources:
     chat_area, sources_area = st.columns([3.1, 1], gap="large")
 else:
@@ -952,6 +954,58 @@ if show_sources:
                             )
                 else:
                     st.caption("No official document links in this conversation.")
+                # Current response source navigation: direct CELEX links,
+                # EUR-Lex NIM comparisons, and exact known QBZ references.
+                current_question = next((
+                    item["content"] for item in reversed(relevant_messages)
+                    if item.get("role") == "user"
+                ), "")
+                current_sources = official_links(current_question, relevant_messages)
+                if current_sources:
+                    st.divider()
+                    st.markdown("**Links to official legal sources**")
+                    st.caption(
+                        "These are navigational links; they are not verified "
+                        "citations to a read legal provision."
+                    )
+                    for i, candidate in enumerate(current_sources):
+                        st.link_button(
+                            candidate.label, candidate.url,
+                            use_container_width=True,
+                        )
+                        st.caption(candidate.note)
+                        if candidate.scope in {"known_act", "official_eu_act"}:
+                            if st.button(
+                                "Check online source metadata",
+                                key=f"alba_probe_{selected_response if answer_positions else 0}_{i}",
+                            ):
+                                try:
+                                    from urllib.parse import quote
+                                    exact_url = candidate.url.replace(
+                                        "uri=CELEX:", "uri=CELEX%3A"
+                                    )
+                                    outcome = probe_case({
+                                        "id": "chat-source",
+                                        "jurisdiction": (
+                                            "AL" if candidate.scope == "known_act"
+                                            else "EU"
+                                        ),
+                                        "url": exact_url,
+                                    })
+                                    st.info(
+                                        "Official source check: "
+                                        + outcome.outcome
+                                        + " · identity observed: "
+                                        + ("yes" if outcome.identity_observed else "no")
+                                        + ". " + outcome.details
+                                        + " This does not certify the consolidated "
+                                        "text or status in force."
+                                    )
+                                except (ValueError, OSError) as exc:
+                                    st.warning(
+                                        "Could not check the official source: "
+                                        + str(exc)[:150]
+                                    )
                 st.divider()
                 st.caption("Open official registers")
                 st.link_button(
