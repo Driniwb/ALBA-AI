@@ -567,7 +567,7 @@ with header_right:
         help="Open the official references and document excerpts for this chat",
     ):
         st.session_state["alba_sources_open"] = not st.session_state.get(
-            "alba_sources_open", True
+            "alba_sources_open", False
         )
         st.rerun()
 
