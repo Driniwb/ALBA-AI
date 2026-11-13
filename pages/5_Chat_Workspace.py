@@ -30,18 +30,14 @@ from chat_store import ChatStore, MODES, MAX_CHAT_TITLE
 from chat_auth import verified_chat_owner
 from alba_workspace_ui import apply_workspace_ui
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
-from ui_theme import apply_theme
 from workspace_sources import user_source_links, user_document_excerpts
 from alba_followups import follow_up_questions
 from official_research import official_links
 from legal_sources_probe import probe_case
 
 st.set_page_config(page_title="ALBA | European Legal Workspace", page_icon="⚖️", layout="wide")
-# The chat is independently styled below; other tools retain their own theme.
-# The shared workspace hero remains; omit duplicate page-level title.
-
-# ChatGPT-like layout: a centered empty-state composer and a docked composer
-# for ongoing conversations. The native Streamlit attachment + lives inside it.
+# All ALBA 2.0 UI elements use a single minimal workspace theme.
+# The native Streamlit chat composer owns public document attachments.
 apply_workspace_ui()
 
 
@@ -513,33 +509,35 @@ def _response_actions(message: dict, response_no: int, chat_id: str) -> None:
         )
     except (ValueError, TypeError, AttributeError):
         date_label = ""
-    when, copy, word, save = st.columns(
-        [2.2, 1, 1, 1], gap="small", vertical_alignment="center"
+    when, actions = st.columns(
+        [8, 1], gap="small", vertical_alignment="center"
     )
     with when:
-        st.caption(date_label)
-    with copy:
-        with st.popover("Copy", icon=":material/content_copy:"):
-            st.caption("Copy the full text using the icon in this box.")
+        if date_label:
+            st.caption(date_label)
+    with actions:
+        with st.popover("⋯", help="Copy or export this answer"):
+            st.caption("Download this answer")
+            st.download_button(
+                "Word (.docx)",
+                data=_response_docx(message["content"]),
+                file_name=f"ALBA_response_{response_no}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                key="alba_word_" + identity,
+                on_click="ignore",
+                use_container_width=True,
+            )
+            st.download_button(
+                "Markdown (.md)",
+                data=message["content"],
+                file_name=f"ALBA_response_{response_no}.md",
+                mime="text/markdown",
+                key="alba_save_" + identity,
+                on_click="ignore",
+                use_container_width=True,
+            )
+            st.caption("Copy text from the code block")
             st.code(message["content"], language=None)
-    with word:
-        st.download_button(
-            "Word",
-            data=_response_docx(message["content"]),
-            file_name=f"ALBA_response_{response_no}.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            key="alba_word_" + identity,
-            on_click="ignore",
-        )
-    with save:
-        st.download_button(
-            "Save",
-            data=message["content"],
-            file_name=f"ALBA_response_{response_no}.md",
-            mime="text/markdown",
-            key="alba_save_" + identity,
-            on_click="ignore",
-        )
 
 
 def _render_chat_content(value: str) -> None:
@@ -556,12 +554,10 @@ def _render_chat_content(value: str) -> None:
 # Chat-first layout. The optional sources panel never claims that the
 # chat model retrieved or verified an official text: only user-shared
 # references are listed until a verified research connector is wired in.
-header_left, header_right = st.columns([5, 1], vertical_alignment="center")
+header_left, header_right = st.columns([8, 1.4], vertical_alignment="center")
 with header_left:
     st.markdown(
-        '<div class="alba-top-title">ALBA'
-        '<span class="alba-top-subtitle">European & Albanian legal workspace</span>'
-        '</div>',
+        '<div class="alba-top-title">ALBA</div>',
         unsafe_allow_html=True,
     )
 with header_right:
@@ -725,12 +721,9 @@ with chat_area:
         messages = []
     if not conversation:
         st.markdown(
-            '<div class="alba-welcome-eyebrow">ALBA LEGAL WORKSPACE</div>'
-            '<div class="alba-welcome-title">What would you like to work on?</div>'
+            '<div class="alba-welcome-title">How can ALBA help?</div>'
             '<div class="alba-welcome-subtitle">'
-            'Research EU and Albanian law, compare legal texts, '
-            'review a public document or draft institutional material. '
-            'Start with a question below.'
+            'Ask a question or add a public document.'
             '</div>',
             unsafe_allow_html=True,
         )
@@ -934,51 +927,27 @@ _JURISDICTION_FLAGS = {
 
 
 def _chat_composer_controls() -> None:
-    current_style = st.session_state.get("alba_answer_style", "Lawyer")
+    # A single compact preference menu replaces three separate toolbar cards.
     selected = st.session_state.get("alba_jurisdictions", ["European Union"])
-    current_country = (
-        _JURISDICTION_FLAGS.get(selected[0], "🌐") if selected else "🌐"
-    )
-    plus_col, country_col, project_col = st.columns(
-        [1.45, 1.4, 1.15], gap="small", vertical_alignment="center",
-    )
-    with plus_col:
-        with st.popover("Style · " + current_style, help="Choose the answer format"):
-            st.selectbox(
-                "Answer style", options=list(ANSWER_STYLES),
-                key="alba_answer_style",
-                help="Changes the drafting approach of the next reply.",
-            )
-            st.caption("Attach a public document using + inside the chat box.")
-    with country_col:
-        with st.popover("Country · " + current_country, icon=":material/public:"):
-            st.multiselect(
-                "Jurisdictions", options=list(SUPPORTED_JURISDICTIONS),
-                default=["European Union"],
-                key="alba_jurisdictions",
-                max_selections=6,
-                format_func=lambda name: _JURISDICTION_FLAGS.get(name, "🌐") + " " + name,
-                help="Sets research scope only; it does not establish access to official texts.",
-            )
-            st.caption("Selected countries guide the answer. No live document count is claimed.")
-    with project_col:
-        with st.popover("Project", icon=":material/create_new_folder:"):
-            st.caption("Create a project and start a chat within it.")
-            new_project = st.text_input(
-                "Project name", max_chars=75, key="alba_composer_project_name",
-            )
-            if st.button(
-                "+ New project", key="alba_composer_create_project",
-                disabled=not new_project.strip(),
-            ):
-                try:
-                    new_id = store.create_project(owner, new_project)
-                except ValueError:
-                    st.error("Enter a valid project name.")
-                else:
-                    _start_chat(new_id)
-                    _mark_history_changed()
-                    st.rerun()
+    current_country = _JURISDICTION_FLAGS.get(selected[0], "🌐") if selected else "🌐"
+    with st.popover(
+        "Preferences · " + current_country,
+        icon=":material/tune:",
+        help="Choose jurisdictions and the answer style for future responses",
+    ):
+        st.multiselect(
+            "Jurisdictions", options=list(SUPPORTED_JURISDICTIONS),
+            default=["European Union"],
+            key="alba_jurisdictions",
+            max_selections=6,
+            format_func=lambda name: _JURISDICTION_FLAGS.get(name, "🌐") + " " + name,
+            help="Guides scope only; does not claim live access to official legal texts.",
+        )
+        st.selectbox(
+            "Answer style", options=list(ANSWER_STYLES),
+            key="alba_answer_style",
+            help="Changes the style of the next reply.",
+        )
 
 
 # A blank chat gets a centered input. Once it has messages, the very same
