@@ -132,7 +132,8 @@ class OptionDeduplicationTests(unittest.TestCase):
             "EU Communication & Reporting", studio.selectbox[0].options
         )
         app = (ROOT / "app.py").read_text(encoding="utf-8")
-        self.assertEqual(app.count('"pages/4_EU_Reporting.py"'), 1)
+        self.assertEqual(app.count('"pages/4_EU_Reporting.py"'), 0)
+        self.assertEqual(app.count("st.Page("), 1)
 
 
 if __name__ == "__main__":
