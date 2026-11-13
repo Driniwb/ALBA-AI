@@ -33,8 +33,8 @@ class QuietUiTests(unittest.TestCase):
         self.assertNotIn("Sending a message shares it with Cloudflare", source)
         self.assertNotIn("Connection settings", source)
         self.assertIn("scan_text_fields(pending, public_legal=True)", source)
-        self.assertIn("accept_file=True", source)
-        self.assertIn('file_type=["docx", "xlsx", "pdf", "pptx"]', source)
+        self.assertIn("st.file_uploader(", source)
+        self.assertIn('type=["docx", "xlsx", "pdf", "pptx"]', source)
         self.assertIn("Move to project", source)
         self.assertIn("save_browser_history(", source)
 
