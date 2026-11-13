@@ -47,16 +47,17 @@ class ProductGuidanceTests(unittest.TestCase):
             account_id="SYNTHETIC", api_token="SYNTHETIC",
             post=forbidden_post,
         )
-        self.assertIn("ToC Builder", result)
+        self.assertIn("Tabela e Përputhshmërisë", result)
+        self.assertNotIn("Hap **ToC Builder**", result)
 
     def test_system_prompt_describes_modules_and_prevents_toc_confusion(self):
         msg = prepare_chat_messages(
             mode="general", history=[],
             user_text="What can ALBA do with a directive?",
         )[0]["content"]
-        self.assertIn("TABLE OF CONCORDANCE", msg)
-        self.assertIn("NOT Table of Contents", msg)
-        self.assertIn("Legal Drafting", msg)
+        self.assertIn("Table of Concordance", msg)
+        self.assertIn("NOT a Table of Contents", msg)
+        self.assertIn("legal drafting", msg)
         self.assertNotIn("Communication Studio", msg)
 
 
