@@ -35,7 +35,7 @@ from workspace_sources import user_source_links, user_document_excerpts
 from alba_followups import follow_up_questions
 
 st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
-apply_theme("WORKSPACE")
+# The chat is independently styled below; other tools retain their own theme.
 # The shared workspace hero remains; omit duplicate page-level title.
 
 # ChatGPT-like layout: a centered empty-state composer and a docked composer
@@ -93,122 +93,6 @@ st.markdown(
         }
     }
 
-    /* ALBA v2: a focused legal-workspace skin, not an analogue dashboard. */
-    [data-testid="stAppViewContainer"] {
-        background: #111a18 !important;
-        background-image: none !important;
-    }
-    [data-testid="stHeader"] {background: rgba(17,26,24,.95) !important;}
-    [data-testid="stSidebar"] {
-        background: #18221e !important;
-        border-right: 1px solid rgba(224,237,226,.13) !important;
-    }
-    [data-testid="stSidebar"]::after {display: none !important;}
-    [data-testid="stSidebar"] h2 {
-        font-family: inherit !important;
-        font-size: 1.45rem !important;
-        letter-spacing: -.025em !important;
-    }
-    [data-testid="stSidebarNav"] a[aria-current="page"] {
-        background: rgba(169,201,180,.10) !important;
-        border: 1px solid rgba(169,201,180,.14) !important;
-        box-shadow: none !important;
-    }
-    [data-testid="stMainBlockContainer"] {
-        max-width: 1280px;
-        padding-top: 1.05rem;
-        padding-bottom: 8.5rem;
-    }
-    .alba-workspace-kicker {
-        color: #a9c9b4;
-        text-transform: uppercase;
-        font-size: .73rem;
-        letter-spacing: .12em;
-        font-weight: 650;
-        margin-bottom: .18rem;
-    }
-    .alba-welcome-eyebrow {
-        margin: 4.7rem 0 .8rem;
-        text-align: center;
-        font-size: .72rem;
-        font-weight: 720;
-        color: #a9c9b4;
-        letter-spacing: .17em;
-    }
-    .alba-welcome-title {
-        font-size: clamp(1.8rem, 3.3vw, 3rem);
-        font-weight: 680;
-        letter-spacing: -.046em;
-        line-height: 1.18;
-        color: #f5f7f2;
-        text-align: center;
-        max-width: 760px;
-        margin: 0 auto .75rem;
-    }
-    .alba-welcome-subtitle {
-        text-align: center;
-        max-width: 610px;
-        font-size: 1rem;
-        line-height: 1.6;
-        color: #b5c6bc;
-        margin: 0 auto 1.2rem;
-    }
-    .st-key-alba_shortcut_legal_drafting button,
-    .st-key-alba_shortcut_toc button,
-    .st-key-alba_shortcut_reporting button {
-        min-height: 3.4rem;
-        border: 1px solid rgba(177,205,187,.22) !important;
-        background: #1d2b25 !important;
-        color: #dce9df !important;
-        box-shadow: none !important;
-        border-radius: 12px !important;
-        font-weight: 520 !important;
-    }
-    .st-key-alba_shortcut_legal_drafting button:hover,
-    .st-key-alba_shortcut_toc button:hover,
-    .st-key-alba_shortcut_reporting button:hover {
-        background: #293a31 !important;
-        border-color: #aacbb7 !important;
-    }
-    .st-key-alba_sidebar_chat_search input {
-        background: #1c2b24 !important;
-        border-radius: 11px !important;
-    }
-    .st-key-alba_sources_panel [data-testid="stTabs"] {
-        margin-top: .45rem;
-    }
-    .st-key-alba_sources_panel [data-testid="stLinkButton"] button {
-        border: 1px solid rgba(169,201,180,.22);
-        background: transparent;
-        text-align: left;
-        justify-content: flex-start;
-    }
-    [data-testid="stChatMessage"] {
-        max-width: 900px;
-        border-radius: 13px;
-    }
-    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
-        background: #24352e !important;
-        border: 1px solid rgba(169,201,180,.11) !important;
-    }
-    .st-key-alba_sources_panel {
-        border-left: 1px solid rgba(169,201,180,.20);
-        padding-left: 1.1rem;
-        min-height: 240px;
-    }
-    .st-key-alba_chat_empty {margin-top: clamp(20px, 7vh, 75px);}
-    .stButton > button[kind="primary"] {
-        background: #aacbb7 !important;
-        color: #1a2b22 !important;
-        border-color: #aacbb7 !important;
-        box-shadow: none !important;
-    }
-    @media (max-width: 760px) {
-        [data-testid="stMainBlockContainer"] {padding-top: .55rem;}
-        .st-key-alba_sources_panel {border-left: 0; padding-left: 0; min-height: 0;}
-        .st-key-alba_chat_empty {margin-top: 1.2rem;}
-    }
-
     /* Legal research interface: light reading surface. Chat page only. */
     [data-testid="stAppViewContainer"] {background: #fff !important;}
     [data-testid="stHeader"] {background: rgba(255,255,255,.97) !important;}
@@ -217,7 +101,9 @@ st.markdown(
         border-right: 1px solid #e2e2e2 !important;
     }
     [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h3 {color: #333 !important;}
+    [data-testid="stSidebar"] h3 {
+        color: #333 !important; font-family: sans-serif !important;
+    }
     [data-testid="stSidebar"] button,
     [data-testid="stSidebarNav"] a {color: #333 !important;}
     [data-testid="stSidebarNav"] a[aria-current="page"] {
@@ -232,9 +118,19 @@ st.markdown(
     [data-testid="stMainBlockContainer"] h1,
     [data-testid="stMainBlockContainer"] h2,
     [data-testid="stMainBlockContainer"] h3 {color: #2b2b2b !important;}
-    .alba-workspace-kicker, .alba-welcome-eyebrow {color: #777 !important;}
-    .alba-welcome-title {color: #222 !important;}
-    .alba-welcome-subtitle {color: #656565 !important;}
+    .alba-workspace-kicker, .alba-welcome-eyebrow {
+        color: #777 !important; font-size: .78rem;
+        letter-spacing: .08em; text-align: center;
+    }
+    .alba-welcome-title {
+        color: #222 !important; font-size: clamp(1.9rem,3.2vw,2.8rem);
+        font-weight: 630; letter-spacing: -.03em;
+        text-align: center; margin: .8rem auto;
+    }
+    .alba-welcome-subtitle {
+        color: #656565 !important; font-size: 1rem;
+        text-align: center; margin: .45rem auto 1rem;
+    }
     [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
         background: #f0f0f0 !important;
         border: 1px solid #e5e5e5 !important;
