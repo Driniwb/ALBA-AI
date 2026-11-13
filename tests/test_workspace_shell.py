@@ -21,6 +21,14 @@ class WorkspaceShellTests(unittest.TestCase):
         self.assertIn('st.subheader("Projects")', chat)
         self.assertIn('st.subheader("Chats")', chat)
         self.assertIn('position="hidden"', app)
+        self.assertEqual(app.count("st.Page("), 1)
+        self.assertIn('"pages/5_Chat_Workspace.py"', app)
+        for deprecated in (
+            "ToC_Builder.py", "Legal_Drafting.py", "RIA_Builder.py",
+            "EU_Reporting.py", "writing_assistant.py",
+            "Communication_Studio.py",
+        ):
+            self.assertNotIn(deprecated, app)
         self.assertNotIn('key="alba_shortcut_toc"', chat)
         self.assertNotIn('key="alba_shortcut_legal_drafting"', chat)
         self.assertNotIn('key="alba_shortcut_reporting"', chat)
