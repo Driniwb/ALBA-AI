@@ -101,11 +101,64 @@ MODE_GUIDANCE = {
 }
 
 
+# User-selectable presentation modes. These adjust the answer, not legal sources.
+ANSWER_STYLES = {
+    "Lawyer": (
+        "Write as a practising legal professional: identify the applicable "
+        "rule, legal implications, qualifications and practical conclusions."
+    ),
+    "Legal Analysis": (
+        "Use issue–rule–analysis–conclusion structure where useful. Separate "
+        "verified facts, interpretation, legal risks and unresolved questions."
+    ),
+    "Legislative Drafting": (
+        "Prioritise exact normative wording and literal transposition of EU "
+        "obligations where applicable. Distinguish draft language from law in force."
+    ),
+    "EU Reporting": (
+        "Use precise EU institutional terminology suitable for information notes, "
+        "administrative-capacity reports and Commission correspondence. "
+        "Distinguish adopted measures, operational evidence and planned actions."
+    ),
+    "Plain Language": (
+        "Explain technical legal content in clear everyday language. Preserve "
+        "legal accuracy, mention key exceptions and avoid unexplained jargon."
+    ),
+    "Concise": (
+        "Answer briefly, directly and without repetitive background. "
+        "Keep essential legal caveats and source limitations."
+    ),
+    "Academic": (
+        "Explain concepts and competing interpretations in a scholarly style. "
+        "Never invent citations, publications, case-law or quotations."
+    ),
+}
+SUPPORTED_JURISDICTIONS = (
+    "European Union", "Albania", "Germany", "France", "Italy", "Spain",
+    "Greece", "Kosovo", "North Macedonia", "Montenegro", "Serbia",
+    "Bosnia and Herzegovina", "Croatia", "Netherlands", "Poland",
+    "Denmark", "Finland", "Sweden", "Norway",
+)
+
+
 def prepare_chat_messages(
-    *, mode: str, history: list[dict], user_text: str
+    *, mode: str, history: list[dict], user_text: str,
+    answer_style: str = "Lawyer",
+    jurisdictions: list[str] | tuple[str, ...] | None = None,
 ) -> list[dict[str, str]]:
     if mode not in MODES:
         raise ValueError("Unknown chat mode.")
+    if answer_style not in ANSWER_STYLES:
+        raise ValueError("Unknown answer style.")
+    if jurisdictions is None:
+        jurisdictions = []
+    if not isinstance(jurisdictions, (list, tuple)) or len(jurisdictions) > 6:
+        raise ValueError("Select up to six jurisdictions.")
+    if any(
+        not isinstance(country, str) or country not in SUPPORTED_JURISDICTIONS
+        for country in jurisdictions
+    ):
+        raise ValueError("Unsupported jurisdiction selection.")
     if (not isinstance(user_text, str) or not user_text.strip()
             or len(user_text) > MAX_USER_CHARS):
         raise ValueError("Your message must contain 1–6,500 characters.")
@@ -138,6 +191,14 @@ def prepare_chat_messages(
     if tail and tail[0]["role"] == "assistant":
         tail.pop(0)
     system = COMMON + "\n" + MODE_GUIDANCE[mode]
+    system += "\nSelected answer style: " + answer_style + ". " + ANSWER_STYLES[answer_style]
+    if jurisdictions:
+        system += (
+            "\nUser-selected jurisdiction scope: " + ", ".join(jurisdictions)
+            + ". Use this as a research preference, not proof of access to "
+            "jurisdiction-specific databases or verification of national law. "
+            "Where the explicit user question differs, follow the question."
+        )
     return [
         {"role": "system", "content": system},
         *tail,
@@ -221,6 +282,8 @@ class ModelUnavailable(Exception):
 def generate_chat_reply(
     *, mode: str, history: list[dict], user_text: str,
     account_id: str, api_token: str, post: Callable | None = None,
+    answer_style: str = "Lawyer",
+    jurisdictions: list[str] | tuple[str, ...] | None = None,
 ) -> str:
     """One user action, with one optional fallback for model outages only.
 
@@ -233,7 +296,8 @@ def generate_chat_reply(
     if not isinstance(api_token, str) or not api_token.strip():
         raise ValueError("Cloudflare API Token is not configured.")
     messages = prepare_chat_messages(
-        mode=mode, history=history, user_text=user_text
+        mode=mode, history=history, user_text=user_text,
+        answer_style=answer_style, jurisdictions=jurisdictions,
     )
     # Simple greetings are conversational, not an unsolicited product guide.
     # No outside request is needed for these short, deterministic replies.
