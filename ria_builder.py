@@ -223,22 +223,42 @@ def report_docx(metadata: dict[str,str], sections: dict[str,str]) -> bytes:
     annex.style = "Table Grid"
     for i, cell in enumerate(annex.rows[0].cells):
         cell.text = "Zëri" if i == 0 else f"Viti {i}"
+    # Annex 2/a row headings follow the supplied consolidated regulation.
+    # The printed source repeats a cost label among the benefits (row 15);
+    # retain the official-template wording pending human verification.
     for label in (
-        "Faktori zbritës", "Kosto për buxhetin", "Kosto për bizneset",
-        "Kosto për grupet e tjera", "Përfitime totale",
-        "Vlera aktuale e kostove", "Vlera aktuale e përfitimeve",
-        "VAN (për çdo opsion)",
+        "Faktori zbritës",
+        "Kostoja për buxhetin – një herë",
+        "Kostoja për buxhetin – në vazhdim",
+        "Kostoja për biznesin – një herë",
+        "Kostoja për biznesin – në vazhdim",
+        "Kostoja për grupet e tjera – një herë",
+        "Kostoja për grupet e tjera – në vazhdim",
+        "Kostoja në total",
+        "Kostoja e zbritur në total = Kostoja në total x faktorin zbritës",
+        "Përfitimi për buxhetin – në vazhdim",
+        "Përfitimi për biznesin – një herë",
+        "Përfitimi për biznesin – në vazhdim",
+        "Përfitimi për grupet e tjera – njëherë",
+        "Përfitimi për grupet e tjera – në vazhdim",
+        "Kostoja për buxhetin – në vazhdim",
+        "Përfitimi në total",
+        "Përfitimi i zbritur në total = Përfitimi në total x faktorin zbritës",
+        "Vlera aktuale e kostos në total",
+        "Vlera aktuale e përfitimit në total",
+        "Vlera aktuale neto (VAN) = Përfitimet e zbritura – kostot e zbritura",
     ):
         annex.add_row().cells[0].text = label
     document.add_heading("Shtojca 2/b – Krahasimi i opsioneve", level=1)
     options_table = document.add_table(rows=1, cols=4)
     options_table.style = "Table Grid"
-    for i, label in enumerate(("Opsioni", "Kostoja (VAK)", "Përfitimi (VAP)", "VAN")):
+    for i, label in enumerate((
+        "Opsioni", "Vlera aktuale e kostos (mln lekë)",
+        "Vlera aktuale e përfitimit (mln lekë)",
+        "Vlera aktuale neto (mln lekë)",
+    )):
         options_table.rows[0].cells[i].text = label
-    for label in (
-        "Skenari i referencës (status quo)",
-        "Opsioni 1", "Opsioni 2", "Opsioni 3",
-    ):
+    for label in ("Opsioni 1", "Opsioni 2"):
         options_table.add_row().cells[0].text = label
     document.add_paragraph(
         "Referencat metodologjike: VKM 584/2003, Shtojca 2, "
