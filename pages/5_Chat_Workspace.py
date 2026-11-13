@@ -16,6 +16,7 @@ from docx import Document
 import streamlit as st
 
 from chat_backend import (
+    ANSWER_STYLES, SUPPORTED_JURISDICTIONS,
     MAX_USER_CHARS, generate_chat_reply, prepare_chat_messages,
 )
 from guest_browser_storage import (
@@ -1105,6 +1106,66 @@ if pending_attachment:
             st.session_state.pop("alba_pending_attachment", None)
             st.rerun()
 
+# Controls modelled on the reference UI. The selected style and country
+# actually modify the system guidance used for the next answer.
+_JURISDICTION_FLAGS = {
+    "European Union": "🇪🇺", "Albania": "🇦🇱", "Germany": "🇩🇪",
+    "France": "🇫🇷", "Italy": "🇮🇹", "Spain": "🇪🇸",
+    "Greece": "🇬🇷", "Kosovo": "🇽🇰", "North Macedonia": "🇲🇰",
+    "Montenegro": "🇲🇪", "Serbia": "🇷🇸",
+    "Bosnia and Herzegovina": "🇧🇦", "Croatia": "🇭🇷",
+    "Netherlands": "🇳🇱", "Poland": "🇵🇱", "Denmark": "🇩🇰",
+    "Finland": "🇫🇮", "Sweden": "🇸🇪", "Norway": "🇳🇴",
+}
+
+
+def _chat_composer_controls() -> None:
+    current_style = st.session_state.get("alba_answer_style", "Lawyer")
+    selected = st.session_state.get("alba_jurisdictions", ["European Union"])
+    current_country = (
+        _JURISDICTION_FLAGS.get(selected[0], "🌐") if selected else "🌐"
+    )
+    style_col, country_col, project_col = st.columns(
+        [1.45, 1.4, 1.15], gap="small", vertical_alignment="center",
+    )
+    with style_col:
+        with st.popover("Style · " + current_style, icon=":material/tune:"):
+            st.selectbox(
+                "Answer style", options=list(ANSWER_STYLES),
+                key="alba_answer_style",
+                help="Changes the format and drafting approach of the next answer.",
+            )
+    with country_col:
+        with st.popover("Country · " + current_country, icon=":material/public:"):
+            st.multiselect(
+                "Jurisdictions", options=list(SUPPORTED_JURISDICTIONS),
+                default=["European Union"],
+                key="alba_jurisdictions",
+                max_selections=6,
+                format_func=lambda name: _JURISDICTION_FLAGS.get(name, "🌐") + " " + name,
+                help="Sets research scope only; it does not establish access to official texts.",
+            )
+            st.caption("Selected countries guide the answer. No live document count is claimed.")
+    with project_col:
+        with st.popover("Project", icon=":material/create_new_folder:"):
+            st.caption("Create a project and start a chat within it.")
+            new_project = st.text_input(
+                "Project name", max_chars=75, key="alba_composer_project_name",
+            )
+            if st.button(
+                "+ New project", key="alba_composer_create_project",
+                disabled=not new_project.strip(),
+            ):
+                try:
+                    new_id = store.create_project(owner, new_project)
+                except ValueError:
+                    st.error("Enter a valid project name.")
+                else:
+                    _start_chat(new_id)
+                    _mark_history_changed()
+                    st.rerun()
+
+
 # A blank chat gets a centered input. Once it has messages, the very same
 # native chat widget is placed at root level and Streamlit docks it below.
 chat_input_options = dict(
@@ -1116,11 +1177,13 @@ chat_input_options = dict(
     disabled=not (account and api_key) or bool(pending_attachment),
 )
 if conversation:
+    _chat_composer_controls()
     submission = st.chat_input(
         "Message…", **chat_input_options,
     )
 else:
     with st.container(key="alba_chat_empty"):
+        _chat_composer_controls()
         submission = st.chat_input(
             "Message…", **chat_input_options,
         )
@@ -1216,13 +1279,17 @@ if (prompt or retry or staged_submission) and pending:
                 _render_chat_content(pending)
         try:
             prepare_chat_messages(
-                mode=mode, history=messages, user_text=pending
+                mode=mode, history=messages, user_text=pending,
+                answer_style=st.session_state.get("alba_answer_style", "Lawyer"),
+                jurisdictions=st.session_state.get("alba_jurisdictions", ["European Union"]),
             )
             with st.chat_message("assistant"):
                 with st.spinner("ALBA is responding..."):
                     reply = generate_chat_reply(
                         mode=mode, history=messages, user_text=pending,
                         account_id=account, api_token=api_key,
+                        answer_style=st.session_state.get("alba_answer_style", "Lawyer"),
+                        jurisdictions=st.session_state.get("alba_jurisdictions", ["European Union"]),
                     )
         except ValueError as exc:
             # Preserve the exact question and rerender the Retry controls.
