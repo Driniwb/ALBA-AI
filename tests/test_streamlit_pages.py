@@ -123,9 +123,9 @@ class StreamlitNavigationSmoke(unittest.TestCase):
 
     def test_eu_reporting_has_dedicated_page_in_alba_navigation(self):
         source = (ROOT / "app.py").read_text(encoding="utf-8")
-        self.assertIn('"pages/3_Legal_Drafting.py"', source)
-        self.assertIn('"pages/4_EU_Reporting.py"', source)
-        self.assertIn('title="EU Communication & Reporting"', source)
+        self.assertNotIn('"pages/3_Legal_Drafting.py"', source)
+        self.assertNotIn('"pages/4_EU_Reporting.py"', source)
+        self.assertEqual(source.count("st.Page("), 1)
 
         app = AppTest.from_file(
             str(ROOT / "pages" / "4_EU_Reporting.py"),
