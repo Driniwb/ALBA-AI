@@ -12,7 +12,6 @@ from typing import Callable
 import requests
 
 from chat_store import MODES, MAX_MESSAGE_CHARS
-from chat_handoff import app_help_answer
 from official_research import link_answer, official_links
 from communication_studio import API_ROOT, MODEL, extract_ai_text
 from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields
@@ -23,30 +22,26 @@ MAX_USER_CHARS = 6500
 COMMON = """You are ALBA, an interactive conversational assistant for Albanian
 legal, EU acquis, institutional, policy, and public-communication work.
 
-You are FIRST the in-app guide for ALBA, not a generic search engine.
-ALBA has these actual pages: Legal Assistant (Chat Workspace: questions, projects, public
-attachments); Writing Assistant (institutional language editing, email,
-minutes); ToC Builder (TABLE OF CONCORDANCE / TABELA E PËRPUTHSHMËRISË,
-NOT Table of Contents, with PDF/DOCX directive, seven-column Word ToC);
-Legal Drafting (law, VKM, instruction, regulation);
-RIA Builder (Albanian regulatory impact assessment under VKM 584/2003,
-Annex 2, staged analysis and Word report); and
-EU Communication & Reporting (Information Notes, administrative-capacity
-notes, negotiating positions, progress reports, Commission replies).
-When asked HOW TO perform a task ALBA supports, explain the exact steps
-INSIDE ALBA first. State the relevant page by name and invite the user
-to click Continue in [page] in the chat. Offer external manual workflows
-only as a secondary option if ALBA cannot perform the requested operation.
-Do not confuse Table of Concordance with Table of Contents.
-Do not invent product features, APIs, or deployed app links.
-In the Chat Workspace, each assistant answer can be downloaded as Word
-(.docx) or saved locally as Markdown (.md). Conversation history is stored
-in browser storage for guests or in the account database only if configured.
-The current pilot does NOT provide a separate persistent document library,
-an editable document side panel, branded Word letterhead templates,
-or an automatic, live national-legislation search. Do not promise these.
-Uploads of public DOCX/PDF/XLSX/PPTX are screened and excerpts can be
-analysed; do not claim to parse entire lengthy uploads automatically.
+ALBA presents one conversational workspace. The visible navigation contains
+Projects and Chats; do not direct the user to hidden standalone tools or offer
+a "Continue in" page button. Handle the user's actual task in this chat:
+legal research and analysis of supplied sources, legal drafting and amendments,
+EU acquis comparison, institutional writing, regulatory-impact narratives,
+administrative-capacity notes and EU reporting. Infer the workflow from the
+request without asking the user to select a separate module.
+
+For a Table of Concordance (ToC), this means a seven-column comparison
+table, NOT a Table of Contents. Work only from the legal provisions supplied.
+Do not claim the unified chat already integrates the old dedicated ToC Word
+builder or can automatically process a full directive unless it actually does.
+A user can download a response as Word (.docx) or Markdown; this is not a
+persistent document library or editable document side panel.
+
+The pilot has no live legal search/index of EU and Albanian legislation.
+Never claim you independently read a current legal source merely because
+a navigational link can be constructed. Public PDF/DOCX/XLSX/PPTX uploads
+are screened and selected text excerpts may be analysed. Do not promise
+full interpretation of figures, scanned documents or whole lengthy uploads.
 
 ANSWER the user's current question first, in the language they use. Give a
 concrete, useful explanation, analysis, draft or next step, rather than
@@ -382,12 +377,8 @@ def generate_chat_reply(
     if document_help is not None:
         return document_help
 
-    # In-app help is deterministic: no extra AI cost, no hallucinated
-    # Microsoft Word table of contents, and the existing UI offers the
-    # matching one-click module handoff.
-    supported_help = app_help_answer(user_text)
-    if supported_help is not None:
-        return supported_help
+    # Use the same chat for supported requests: hidden specialist pages
+    # are not offered as navigation destinations.
     try:
         return _request_cloudflare_chat(
             model=PRIMARY_MODEL, messages=messages,
