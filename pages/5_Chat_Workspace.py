@@ -557,7 +557,7 @@ def _render_chat_content(value: str) -> None:
 header_left, header_right = st.columns([8, 1.4], vertical_alignment="center")
 with header_left:
     st.markdown(
-        '<div class="alba-top-title">ALBA</div>',
+        '<div class="alba-top-title">ALBA 2.0</div>',
         unsafe_allow_html=True,
     )
 with header_right:
