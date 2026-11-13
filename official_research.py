@@ -30,7 +30,7 @@ _EU_DIR = re.compile(
 )
 _CELEX = re.compile(r"(?i)\b(3\d{4}L\d{4})\b")
 _LINK_REQUEST = re.compile(
-    r"(?i)\b(?:link|lidhj\w*|url|adres\w*|version\w*|"
+    r"(?i)\b(?:link\w*|lidhj\w*|url|adres\w*|version\w*|"
     r"gjej\w*|find|where|open|hap|burim\w*|source\w*)\b"
 )
 _COUNTRIES = re.compile(
