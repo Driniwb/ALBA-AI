@@ -202,6 +202,71 @@ st.markdown(
         .st-key-alba_sources_panel {border-left: 0; padding-left: 0; min-height: 0;}
         .st-key-alba_chat_empty {margin-top: 1.2rem;}
     }
+
+    /* Legal research interface: light reading surface. Chat page only. */
+    [data-testid="stAppViewContainer"] {background: #fff !important;}
+    [data-testid="stHeader"] {background: rgba(255,255,255,.97) !important;}
+    [data-testid="stSidebar"] {
+        background: #fafafa !important;
+        border-right: 1px solid #e2e2e2 !important;
+    }
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {color: #333 !important;}
+    [data-testid="stSidebar"] button,
+    [data-testid="stSidebarNav"] a {color: #333 !important;}
+    [data-testid="stSidebarNav"] a[aria-current="page"] {
+        background: #e9eff8 !important;
+        border-color: #dfe7f2 !important;
+    }
+    [data-testid="stMainBlockContainer"] {
+        max-width: 1510px; color: #292929 !important;
+    }
+    [data-testid="stMainBlockContainer"] p,
+    [data-testid="stMainBlockContainer"] li,
+    [data-testid="stMainBlockContainer"] h1,
+    [data-testid="stMainBlockContainer"] h2,
+    [data-testid="stMainBlockContainer"] h3 {color: #2b2b2b !important;}
+    .alba-workspace-kicker, .alba-welcome-eyebrow {color: #777 !important;}
+    .alba-welcome-title {color: #222 !important;}
+    .alba-welcome-subtitle {color: #656565 !important;}
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
+        background: #f0f0f0 !important;
+        border: 1px solid #e5e5e5 !important;
+    }
+    .st-key-alba_sources_panel {
+        border-left: 1px solid #dedede !important;
+        padding-left: 1rem;
+        min-height: 65vh;
+    }
+    .st-key-alba_sources_panel [data-testid="stLinkButton"] button {
+        border: 0 !important; background: transparent !important;
+        box-shadow: none !important; text-align: left;
+        justify-content: flex-start; color: #444 !important;
+    }
+    .alba-source-title {
+        font-size: .7rem; font-weight: 720;
+        letter-spacing: .09em; color: #626262;
+        margin: .4rem 0 .6rem;
+    }
+    [data-testid="stBottom"] [data-testid="stChatInput"] {
+        background: white !important; border: 1px solid #d4d4d4 !important;
+        border-radius: 17px !important;
+    }
+    .st-key-alba_sidebar_chat_search input {
+        background: white !important; border: 1px solid #ddd !important;
+    }
+    .st-key-alba_shortcut_legal_drafting button,
+    .st-key-alba_shortcut_toc button,
+    .st-key-alba_shortcut_reporting button {
+        background: #fafafa !important; color: #292929 !important;
+        border: 1px solid #dedede !important;
+    }
+    @media (max-width: 760px) {
+        .st-key-alba_sources_panel {
+            min-height: 0; border-left: 0 !important;
+            padding-left: 0;
+        }
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -841,21 +906,47 @@ with chat_area:
 if show_sources:
     with sources_area:
         with st.container(key="alba_sources_panel"):
-            st.markdown("**Sources & documents**")
+            st.markdown(
+                '<div class="alba-source-title">SOURCES & CITATIONS</div>',
+                unsafe_allow_html=True,
+            )
+            answer_positions = [
+                idx for idx, item in enumerate(messages)
+                if item.get("role") == "assistant"
+            ]
+            if answer_positions:
+                selected_response = st.selectbox(
+                    "Response",
+                    list(range(1, len(answer_positions) + 1)),
+                    index=len(answer_positions) - 1,
+                    key="alba_selected_response",
+                    format_func=lambda value: f"RESPONSE {value}",
+                )
+                relevant_messages = messages[:answer_positions[selected_response - 1] + 1]
+            else:
+                st.caption("No response to cite yet.")
+                relevant_messages = messages
             source_tab, document_tab = st.tabs(["Official sources", "Documents"])
             with source_tab:
                 st.caption(
                     "Official links you shared. Their content, status and "
                     "consolidated versions have not yet been independently verified "
-                    "by this chat."
+                    "by this chat. These are references, not confirmed citations."
                 )
-                cited_links = user_source_links(messages)
+                cited_links = user_source_links(relevant_messages)
+                st.caption(f"{len(cited_links)} user-provided reference(s)")
                 if cited_links:
-                    for source in cited_links:
-                        st.link_button(
-                            source["label"], source["url"],
-                            use_container_width=True,
+                    for index, source in enumerate(cited_links, start=1):
+                        source_number, source_link = st.columns(
+                            [1, 8], gap="small", vertical_alignment="center"
                         )
+                        with source_number:
+                            st.markdown(f"**{index}**")
+                        with source_link:
+                            st.link_button(
+                                source["label"], source["url"],
+                                use_container_width=True,
+                            )
                 else:
                     st.caption("No official document links in this conversation.")
                 st.divider()
