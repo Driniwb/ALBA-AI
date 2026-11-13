@@ -131,7 +131,7 @@ class ChatHandoffTests(unittest.TestCase):
         src = (ROOT / "writing_assistant.py").read_text(encoding="utf-8")
         self.assertIn('key="alba_writing_source"', src)
 
-    def test_chat_offers_single_route_only_after_a_specialist_question(self):
+    def test_specialist_request_stays_in_unified_chat(self):
         class Response:
             status_code = 200
 
@@ -147,15 +147,22 @@ class ChatHandoffTests(unittest.TestCase):
         app.secrets["CLOUDFLARE_API_TOKEN"] = "TEST_TOKEN"
         app.run()
         self.assertEqual(len(app.exception), 0)
+        hidden_modules = {
+            "Continue in Legal Drafting", "Legal drafting",
+            "Table of Concordance", "EU reporting",
+        }
         self.assertFalse(any(
-            button.label.startswith("Continue in") for button in app.button
+            button.label in hidden_modules for button in app.button
         ))
         with patch("chat_backend.requests.post", return_value=Response()):
-            app.chat_input[0].set_value("Draft a VKM for this public transport measure.").run()
+            app.chat_input[0].set_value(
+                "Draft a VKM for this public transport measure."
+            ).run()
         self.assertEqual(len(app.exception), 0)
-        routes = [button.label for button in app.button
-                  if button.label.startswith("Continue in")]
-        self.assertEqual(routes, ["Continue in Legal Drafting"])
+        self.assertFalse(any(
+            button.label in hidden_modules or button.label.startswith("Continue in")
+            for button in app.button
+        ))
 
 
 if __name__ == "__main__":
