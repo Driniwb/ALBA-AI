@@ -19,7 +19,7 @@ with st.sidebar:
         '<div class="alba-brand">'
         '<span class="alba-brand-mark">A</span>'
         '<span><span class="alba-brand-name">ALBA</span>'
-        '<span class="alba-brand-caption">Legal workspace</span></span>'
+        '<span class="alba-brand-caption">Legal workspace · v2.0</span></span>'
         '</div>',
         unsafe_allow_html=True,
     )
