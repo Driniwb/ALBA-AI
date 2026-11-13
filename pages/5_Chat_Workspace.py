@@ -28,7 +28,7 @@ from chat_history_status import chat_history_status
 from chat_backup import backup_bytes, parse_backup_file
 from chat_store import ChatStore, MODES, MAX_CHAT_TITLE
 from chat_auth import verified_chat_owner
-from chat_handoff import suggest_handoff, prepare_handoff
+from alba_workspace_ui import apply_workspace_ui
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from ui_theme import apply_theme
 from workspace_sources import user_source_links, user_document_excerpts
@@ -36,156 +36,13 @@ from alba_followups import follow_up_questions
 from official_research import official_links
 from legal_sources_probe import probe_case
 
-st.set_page_config(page_title="ALBA | Chat Workspace", page_icon="💬", layout="wide")
+st.set_page_config(page_title="ALBA | European Legal Workspace", page_icon="⚖️", layout="wide")
 # The chat is independently styled below; other tools retain their own theme.
 # The shared workspace hero remains; omit duplicate page-level title.
 
 # ChatGPT-like layout: a centered empty-state composer and a docked composer
 # for ongoing conversations. The native Streamlit attachment + lives inside it.
-st.markdown(
-    """
-    <style>
-    /* The application-wide decorative hero is not a chat message. */
-    .alba-hero {display: none !important;}
-    [data-testid="stMainBlockContainer"] {
-        max-width: 1040px;
-        padding-top: 1.25rem;
-        padding-bottom: 9rem;
-    }
-    .st-key-alba_chat_empty {
-        max-width: 760px;
-        width: 100%;
-        margin: clamp(80px, 20vh, 210px) auto 0;
-    }
-    .st-key-alba_chat_empty [data-testid="stChatInput"],
-    [data-testid="stBottom"] [data-testid="stChatInput"] {
-        max-width: 760px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    [data-testid="stBottom"] {
-        background: transparent !important;
-    }
-    [data-testid="stBottom"] > div {
-        max-width: 800px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    /* The transcript is the primary content, not a list of form controls. */
-    [data-testid="stChatMessage"] {
-        max-width: 860px;
-        margin: 0 auto 1rem;
-        border-radius: 16px;
-    }
-    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
-        max-width: min(76%, 730px);
-        margin-right: max(0px, calc((100% - 860px) / 2));
-        margin-left: auto;
-        background: rgba(111, 137, 123, .19);
-        border: 1px solid rgba(169,201,180,.12);
-    }
-    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
-        background: transparent;
-    }
-    @media (max-width: 760px) {
-        .st-key-alba_chat_empty {margin-top: 16vh;}
-        [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
-            max-width: 90%;
-            margin-right: 0;
-        }
-    }
-
-    /* Legal research interface: light reading surface. Chat page only. */
-    [data-testid="stAppViewContainer"] {background: #fff !important;}
-    [data-testid="stHeader"] {background: rgba(255,255,255,.97) !important;}
-    [data-testid="stSidebar"] {
-        background: #fafafa !important;
-        border-right: 1px solid #e2e2e2 !important;
-    }
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h3 {
-        color: #333 !important; font-family: sans-serif !important;
-    }
-    [data-testid="stSidebar"] button,
-    [data-testid="stSidebarNav"] a {color: #333 !important;}
-    [data-testid="stSidebarNav"] a[aria-current="page"] {
-        background: #e9eff8 !important;
-        border-color: #dfe7f2 !important;
-    }
-    [data-testid="stMainBlockContainer"] {
-        max-width: 1510px; color: #292929 !important;
-    }
-    [data-testid="stMainBlockContainer"] p,
-    [data-testid="stMainBlockContainer"] li,
-    [data-testid="stMainBlockContainer"] h1,
-    [data-testid="stMainBlockContainer"] h2,
-    [data-testid="stMainBlockContainer"] h3 {color: #2b2b2b !important;}
-    .alba-workspace-kicker, .alba-welcome-eyebrow {
-        color: #777 !important; font-size: .78rem;
-        letter-spacing: .08em; text-align: center;
-    }
-    .alba-welcome-title {
-        color: #222 !important; font-size: clamp(1.9rem,3.2vw,2.8rem);
-        font-weight: 630; letter-spacing: -.03em;
-        text-align: center; margin: .8rem auto;
-    }
-    .alba-welcome-subtitle {
-        color: #656565 !important; font-size: 1rem;
-        text-align: center; margin: .45rem auto 1rem;
-    }
-    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
-        background: #f0f0f0 !important;
-        border: 1px solid #e5e5e5 !important;
-    }
-    .st-key-alba_sources_panel {
-        border-left: 1px solid #dedede !important;
-        padding-left: 1rem;
-        min-height: 65vh;
-    }
-    .st-key-alba_sources_panel [data-testid="stLinkButton"] button {
-        border: 0 !important; background: transparent !important;
-        box-shadow: none !important; text-align: left;
-        justify-content: flex-start; color: #444 !important;
-    }
-    .alba-source-title {
-        font-size: .7rem; font-weight: 720;
-        letter-spacing: .09em; color: #626262;
-        margin: .4rem 0 .6rem;
-    }
-    [data-testid="stBottom"] [data-testid="stChatInput"] {
-        background: white !important; border: 1px solid #d4d4d4 !important;
-        border-radius: 17px !important;
-    }
-    .st-key-alba_sidebar_chat_search input {
-        background: white !important; border: 1px solid #ddd !important;
-    }
-    .st-key-alba_shortcut_legal_drafting button,
-    .st-key-alba_shortcut_toc button,
-    .st-key-alba_shortcut_reporting button {
-        background: #fafafa !important; color: #292929 !important;
-        border: 1px solid #dedede !important;
-    }
-    @media (max-width: 760px) {
-        .st-key-alba_sources_panel {
-            min-height: 0; border-left: 0 !important;
-            padding-left: 0;
-        }
-    }
-    .st-key-alba_followups {border-bottom: 1px solid #dedede; margin-top: .35rem; padding-bottom: .6rem;}
-    .st-key-alba_followups .stButton > button {
-        border: 1px solid #c7c7c7 !important; border-radius: 999px !important;
-        min-height: 2rem !important; padding: .28rem .85rem !important;
-        background: #fff !important; color: #333 !important;
-        text-align: left; justify-content: flex-start;
-        font-size: .84rem; font-weight: 440;
-    }
-    .st-key-alba_followups .stButton > button:hover {
-        background: #f5f5f5 !important; border-color: #959595 !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+apply_workspace_ui()
 
 
 def _secret(name: str) -> str:
@@ -430,7 +287,7 @@ def _sidebar_chat_entry(chat: dict, available_projects: list[dict]) -> None:
 
 
 with st.sidebar:
-    if st.button("＋ New chat", key="alba_new_chat", icon=":material/add_comment:", use_container_width=True):
+    if st.button("New chat", key="alba_new_chat", icon=":material/add:", use_container_width=True):
         _start_chat()
         st.rerun()
 
@@ -533,7 +390,7 @@ with st.sidebar:
 # Keep backup and recovery under one optional menu rather than adding
 # controls throughout the ChatGPT-style sidebar.
 with st.sidebar:
-    with st.popover("History backup", icon=":material/history:"):
+    with st.popover("Backup & restore", icon=":material/history:"):
         try:
             workspace_json = export_guest_workspace(
                 store, owner,
@@ -699,13 +556,14 @@ def _render_chat_content(value: str) -> None:
 # Chat-first layout. The optional sources panel never claims that the
 # chat model retrieved or verified an official text: only user-shared
 # references are listed until a verified research connector is wired in.
-st.markdown(
-    '<div class="alba-workspace-kicker">ALBA / Legal workspace</div>',
-    unsafe_allow_html=True,
-)
 header_left, header_right = st.columns([5, 1], vertical_alignment="center")
 with header_left:
-    st.markdown("**Legal Assistant**")
+    st.markdown(
+        '<div class="alba-top-title">ALBA'
+        '<span class="alba-top-subtitle">European & Albanian legal workspace</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 with header_right:
     if st.button(
         "Sources", key="alba_sources_toggle", icon=":material/bookmarks:",
@@ -717,7 +575,7 @@ with header_right:
         )
         st.rerun()
 
-show_sources = bool(st.session_state.get("alba_sources_open", True))
+show_sources = bool(st.session_state.get("alba_sources_open", False))
 if show_sources:
     chat_area, sources_area = st.columns([3.1, 1], gap="large")
 else:
@@ -835,20 +693,13 @@ with chat_area:
                     response_no += 1
                     _response_actions(message, response_no, active_id)
 
-        # If the last user turn requests a specialised ALBA workflow, offer
-        # exactly one direct handoff. General questions stay in the conversation.
+        # Stay in this conversation for drafting, analysis and reporting.
+        # Other specialist implementations remain registered but hidden.
         latest_question = next(
             (item["content"] for item in reversed(messages)
              if item["role"] == "user"),
             "",
         )
-        recommended = suggest_handoff(latest_question)
-        if recommended and st.button(
-            "Continue in " + recommended.label,
-            key="alba_handoff_" + active_id + "_" + str(len(messages)),
-        ):
-            prepare_handoff(recommended, latest_question, st.session_state)
-            st.switch_page(recommended.page)
 
         # Three relevant Albanian/EU-law questions beneath the latest answer.
         # They are generated locally from the last user question: no extra
@@ -874,34 +725,15 @@ with chat_area:
         messages = []
     if not conversation:
         st.markdown(
-            '<div class="alba-welcome-eyebrow">LEGAL RESEARCH & DRAFTING</div>'
-            '<div class="alba-welcome-title">How can I help with your legal work?</div>'
+            '<div class="alba-welcome-eyebrow">ALBA LEGAL WORKSPACE</div>'
+            '<div class="alba-welcome-title">What would you like to work on?</div>'
             '<div class="alba-welcome-subtitle">'
-            'Ask about Albanian or EU law, analyse a public document, '
-            'or open a dedicated drafting tool.'
+            'Research EU and Albanian law, compare legal texts, '
+            'review a public document or draft institutional material. '
+            'Start with a question below.'
             '</div>',
             unsafe_allow_html=True,
         )
-        st.caption("ALBA answers in your language. Official legal status is confirmed only when the source has been checked.")
-        quick_a, quick_b, quick_c = st.columns(3, gap="small")
-        with quick_a:
-            if st.button(
-                "Legal drafting", key="alba_shortcut_legal_drafting",
-                icon=":material/gavel:", use_container_width=True,
-            ):
-                st.switch_page("pages/3_Legal_Drafting.py")
-        with quick_b:
-            if st.button(
-                "Table of Concordance", key="alba_shortcut_toc",
-                icon=":material/table_chart:", use_container_width=True,
-            ):
-                st.switch_page("pages/1_ToC_Builder.py")
-        with quick_c:
-            if st.button(
-                "EU reporting", key="alba_shortcut_reporting",
-                icon=":material/article:", use_container_width=True,
-            ):
-                st.switch_page("pages/4_EU_Reporting.py")
 
 if show_sources:
     with sources_area:
