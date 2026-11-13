@@ -46,11 +46,13 @@ RIA_SECTIONS = {
         "treguesit dhe afatet vetëm kur mbështeten në të dhëna."
     )),
     "options": ("Pjesa 2 – Përshkrimi i opsioneve", (
-        "Opsioni 0 është status quo (baseline dinamik), ndërsa opsionet "
-        "1, 2, 3 përshkruhen vetëm nëse burimi i identifikon ose si "
-        "propozime të shënuara qartësisht. Konsidero edhe alternativa "
-        "jo-rregullatore, ku janë reale. Për përafrimin me acquis "
-        "dallo detyrimet e detyrueshme të BE-së nga zgjedhjet kombëtare."
+        "Përdor situatën ekzistuese (status quo) si bazë krahasimi. "
+        "Në një politikë të re mund të jetë opsion real mosndërhyrja; "
+        "por për përafrim me acquis që është angazhim i detyrueshëm, "
+        "status quo nuk duhet ofruar si opsion politik legjitim për "
+        "moskryerjen e detyrimit. Krahaso opsione reale për mënyrën, "
+        "fazat dhe koston e zbatimit, vetëm brenda diskrecionit që "
+        "lejon teksti i BE-së. Mos shpik opsione 1, 2 ose 3 si fakte."
     )),
     "impacts": ("Pjesa 2 – Analiza e ndikimeve", (
         "Krahaso secilin opsion kundrejt status quo-së: buxheti i shtetit, "
@@ -119,6 +121,12 @@ Rregullores së Këshillit të Ministrave, miratuar me VKM nr. 584/2003,
 sipas kopjes së përditësuar me ndryshimin nr. 559/2025 të dhënë.
 Përdor shtatë hapat e Metodologjisë shqiptare të VN-së (2018), veçanërisht
 për trajtimin e status quo-së, opsioneve, ndikimeve, zbatimit dhe monitorimit.
+Për projektligjet e përafrimit me acquis, Metodologjia (faqet e shtypura
+30–33) sqaron se në shumicën e rasteve status quo NUK është opsion
+i vlefshëm politik për shmangien e angazhimit të harmonizimit.
+Përdore status quo-në si skenar krahasues, por analizën e opsioneve
+fokusoje në mjetet, fazat dhe kërkesat e zbatimit të lejueshme nga acquis.
+Mos e trajto një detyrim transpozimi si zgjedhje për të mos e zbatuar.
 Manuali për Hartimin e Legjislacionit (2023) drejton teknikën juridike.
 EU Better Regulation Toolbox (dhjetor 2025) mund të ndihmojë analizën,
 por nuk zëvendëson detyrimet kombëtare ose formatin e Shtojcës 2.
@@ -227,7 +235,10 @@ def report_docx(metadata: dict[str,str], sections: dict[str,str]) -> bytes:
     options_table.style = "Table Grid"
     for i, label in enumerate(("Opsioni", "Kostoja (VAK)", "Përfitimi (VAP)", "VAN")):
         options_table.rows[0].cells[i].text = label
-    for label in ("Opsioni 0 (status quo)", "Opsioni 1", "Opsioni 2", "Opsioni 3"):
+    for label in (
+        "Skenari i referencës (status quo)",
+        "Opsioni 1", "Opsioni 2", "Opsioni 3",
+    ):
         options_table.add_row().cells[0].text = label
     document.add_paragraph(
         "Referencat metodologjike: VKM 584/2003, Shtojca 2, "
