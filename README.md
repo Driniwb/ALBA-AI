@@ -1,5 +1,32 @@
 # ALBA – Legal and Institutional Writing Toolkit
 
+## ALBA 2.0 — unified Projects & Chats interface (November 2026)
+
+On `develop/alba-v2`, the default workspace has a redesigned, original
+light legal-research interface inspired by the clean layout of EU-law AI
+products: white reading canvas, soft grey sidebar, navy/blue controls, and
+a centered empty-chat welcome.
+
+The **only sidebar content sections** are **Projects** and **Chats**,
+with New chat, search, and optional backup/restore actions. Previous standalone
+Writing Assistant, ToC Builder, Legal Drafting, RIA Builder, and EU Reporting
+pages are **registered but hidden**, not deleted. The chat no longer shows
+their shortcut cards or "Continue in ..." handoff prompts. Document upload
+uses the chat input's native **+**, with public PDF/DOCX/XLSX/PPTX files
+screened before model requests. Answer style, jurisdiction scope, and
+project creation are accessible via compact chat composer controls. The
+optional sources panel starts closed and offers navigational references
+without claiming that legislation has been independently retrieved.
+
+**Scope:** This is a UI/conversational consolidation, not feature parity with
+eulaw.ai. The old structured seven-column ToC Word builder, live primary-source
+retrieval, persistent indexed document library, and cross-device account
+storage are **not** made available inside unified chat by this design change.
+The chat can draft from supplied public excerpts and export answers as Word,
+but does not have a verified live EU/legal search backend. Streamlit Cloud
+deployment and end-to-end browser behavior must be checked on the actual
+deployed `develop/alba-v2` app. No existing `main` deployment is modified.
+
 ALBA is an experimental assistant for Albanian legal and institutional language.
 
 Launch `streamlit run app.py` for six named pages:
