@@ -15,6 +15,7 @@ from typing import MutableMapping
 MODULES = {
     "legal": ("Legal Drafting", "pages/3_Legal_Drafting.py", "legal_source", 10500),
     "toc": ("ToC Builder", "pages/1_ToC_Builder.py", None, 0),
+    "ria": ("RIA Builder", "pages/6_RIA_Builder.py", None, 0),
     "eu": ("EU Reporting", "pages/4_EU_Reporting.py", "eu_source", 8000),
     "communication": ("Communication Studio", "pages/2_Communication_Studio.py", "comm_source", 8000),
     "writing": ("Writing Assistant", "writing_assistant.py", "alba_writing_source", 4000),
@@ -44,6 +45,11 @@ _TASK = (
     r"formulo|riformulo)\b"
 )
 _TOC = r"\b(?:toc|table of concordance|tabel[aeë](?:n)?\s+(?:e\s+)?p[eë]rputhshm[eë]ris[eë]|konkordanc[eë])\b"
+_RIA = (
+    r"\b(?:RIA|regulatory impact assessment|impact assessment|"
+    r"vler[eë]sim(?:i|in)?\s+(?:i\s+)?ndikimit|"
+    r"raport(?:i|in)?\s+(?:i\s+)?vler[eë]simit\s+t[eë]\s+ndikimit)\b"
+)
 _EU = (
     r"\b(?:information note|administrative capacit(?:y|ies)|"
     r"kapacitet(?:et)?\s+administrativ(?:e|ë)?|"
@@ -109,6 +115,15 @@ def app_help_answer(query: str) -> str | None:
     if route is None:
         return None
     explanations = {
+        "ria": (
+            "Hap **RIA Builder** në ALBA. Plotëso titullin, ministrinë "
+            "udhëheqëse, fazën, problemin dhe provat, pastaj shqyrto "
+            "opsionet duke përfshirë status quo-në. Përgatite raportin "
+            "seksion pas seksioni sipas **Shtojcës 2 të VKM nr. 584/2003** "
+            "dhe Metodologjisë shqiptare të VN-së (2018). Shkarko "
+            "draftin në Word. Mos përdor vlera të supozuara; përjashtimet "
+            "sipas pikës 45/1 duhen argumentuar dhe verifikuar."
+        ),
         "toc": (
             "Në ALBA, **ToC** është **Tabela e Përputhshmërisë "
             "(Table of Concordance)**, jo tabela e përmbajtjes. "
@@ -166,7 +181,9 @@ def suggest_handoff(query: str) -> Handoff | None:
     howto = is_app_howto_question(q)
     if not (_has(_TASK, q) or howto):
         return None
-    if _has(_TOC, q):
+    if _has(_RIA, q):
+        key, defaults = "ria", ()
+    elif _has(_TOC, q):
         key, defaults = "toc", ()
     elif _has(_EU, q):
         key = "eu"
