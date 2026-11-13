@@ -13,6 +13,7 @@ import requests
 
 from chat_store import MODES, MAX_MESSAGE_CHARS
 from chat_handoff import app_help_answer
+from official_research import link_answer, official_links
 from communication_studio import API_ROOT, MODEL, extract_ai_text
 from privacy_guard import BLOCK_NOTICE_SQ, scan_text_fields
 
@@ -209,6 +210,18 @@ def prepare_chat_messages(
             "jurisdiction-specific databases or verification of national law. "
             "Where the explicit user question differs, follow the question."
         )
+    # Include exact official entry points when the user identifies a legal
+    # act. These are links, not extracted legal texts or validation evidence.
+    sources = official_links(user_text, clean_history)
+    if sources:
+        system += (
+            "\nOFFICIAL SOURCE NAVIGATION (not live-verified text):\n"
+            + "\n".join(f"{entry.label}: {entry.url}. {entry.note}" for entry in sources)
+            + "\nIf asked for a link, provide the real URL. "
+            "Never assert that an official text was read merely because a URL exists. "
+            "For Member-State comparisons, EUR-Lex NIM is the starting register, "
+            "not a substitute for checking each national implementing measure."
+        )
     return [
         {"role": "system", "content": system},
         *tail,
@@ -357,6 +370,12 @@ def generate_chat_reply(
         return "Përshëndetje! Si mund të të ndihmoj?"
     if re.fullmatch(r"(?:hi|hello|hey)[.!? ]*", greeting):
         return "Hello! How can I help?"
+
+    # Explicit official-link follow-ups are resolved from this chat's actual
+    # earlier questions. Do not claim to have searched a law that was not read.
+    found_links = link_answer(user_text, history)
+    if found_links is not None:
+        return found_links
 
     # Answer supported document-format questions without inventing features.
     document_help = _document_format_answer(user_text)
