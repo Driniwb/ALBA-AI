@@ -35,7 +35,7 @@ from alba_followups import follow_up_questions
 from official_research import official_links
 from legal_sources_probe import probe_case
 
-st.set_page_config(page_title="ALBA | European Legal Workspace", page_icon="⚖️", layout="wide")
+st.set_page_config(page_title="ALBA 2.0", page_icon="⚖️", layout="wide")
 # All ALBA 2.0 UI elements use a single minimal workspace theme.
 # The native Streamlit chat composer owns public document attachments.
 apply_workspace_ui()
