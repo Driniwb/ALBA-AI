@@ -858,7 +858,7 @@ if show_sources:
                     )
                 else:
                     st.caption(
-                        "Documents uploaded using + appear here after "
+                        "Public documents attached using + appear here after "
                         "their excerpts are added to the conversation."
                     )
 
@@ -943,19 +943,13 @@ def _chat_composer_controls() -> None:
         [1.45, 1.4, 1.15], gap="small", vertical_alignment="center",
     )
     with plus_col:
-        with st.popover("＋ · " + current_style, help="Documents and answer style"):
-            st.file_uploader(
-                "Upload document",
-                type=["docx", "xlsx", "pdf", "pptx"],
-                key="alba_plus_file_" + str(st.session_state.get("alba_doc_nonce", 0)),
-                help="One public Word, Excel, PDF or PowerPoint file, maximum 12 MB.",
-            )
+        with st.popover("Style · " + current_style, help="Choose the answer format"):
             st.selectbox(
                 "Answer style", options=list(ANSWER_STYLES),
                 key="alba_answer_style",
                 help="Changes the drafting approach of the next reply.",
             )
-            st.caption("The uploaded public excerpt is sent only with your next question.")
+            st.caption("Attach a public document using + inside the chat box.")
     with country_col:
         with st.popover("Country · " + current_country, icon=":material/public:"):
             st.multiselect(
@@ -992,6 +986,9 @@ def _chat_composer_controls() -> None:
 chat_input_options = dict(
     key="alba_chat_prompt",
     max_chars=MAX_USER_CHARS,
+    accept_file=True,
+    file_type=["docx", "xlsx", "pdf", "pptx"],
+    max_upload_size=12,
     disabled=not (account and api_key) or bool(pending_attachment),
 )
 if conversation:
@@ -1013,12 +1010,9 @@ if submission:
         submission.strip() if isinstance(submission, str)
         else (submission.text or "").strip()
     )
-    # The single + menu owns upload and style selection. Native st.chat_input
-    # handles only text, avoiding a second, misleading upload + control.
-    chosen_upload = st.session_state.get(
-        "alba_plus_file_" + str(st.session_state.get("alba_doc_nonce", 0))
-    )
-    uploads = [chosen_upload] if chosen_upload is not None else []
+    # Streamlit's native + attaches a file to the very same chat submission.
+    # No separate uploader or temporary upload state is required.
+    uploads = list(submission.files) if not isinstance(submission, str) else []
     if uploads:
         # Validate both file size and contents before any AI request.
         document = uploads[0]
@@ -1142,9 +1136,6 @@ if (prompt or retry or staged_submission) and pending:
                 st.session_state["alba_pending_chat_text"] = None
                 st.session_state["alba_pending_chat_error"] = None
                 st.session_state["alba_pending_display_question"] = None
-                st.session_state["alba_doc_nonce"] = (
-                    st.session_state.get("alba_doc_nonce", 0) + 1
-                )
                 st.rerun()
             except Exception:
                 st.session_state["alba_pending_chat_error"] = (
