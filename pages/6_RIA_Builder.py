@@ -67,6 +67,13 @@ with three:
             "përgjegjësi e institucionit."
         )
 
+if origin == "Transpozim i BE-së":
+    st.caption(
+        "Për përafrimin me acquis, status quo përdoret për krahasim, "
+        "jo automatikisht si opsion për të mos përmbushur angazhimin. "
+        "Krahasoni mënyrën dhe fazat e zbatimit që lejon acquis."
+    )
+
 st.markdown("**2. Të dhënat dhe provat e nismës**")
 context = st.text_area(
     "Përshkrimi i problemit, baza faktike, kuadri ligjor dhe objektivat",
@@ -79,7 +86,11 @@ context = st.text_area(
 options = st.text_area(
     "Opsionet për krahasim (përfshirë Opsionin 0 – status quo)",
     key="ria_options", height=110, max_chars=3500,
-    placeholder="Opsioni 0: …\nOpsioni 1: …\nOpsioni 2: …",
+    placeholder=(
+        "Skenari aktual / status quo: …\n"
+        "Opsioni 1 – mënyra e zbatimit: …\n"
+        "Opsioni 2 – alternativë e lejueshme: …"
+    ),
 )
 consultation = st.text_area(
     "Konsultimet dhe vlerësimet e kostove/përfitimeve të dokumentuara (opsionale)",
