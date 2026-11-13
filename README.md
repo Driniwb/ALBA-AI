@@ -10,13 +10,14 @@ a centered empty-chat welcome.
 The **only sidebar content sections** are **Projects** and **Chats**,
 with New chat, search, and optional backup/restore actions. Previous standalone
 Writing Assistant, ToC Builder, Legal Drafting, RIA Builder, and EU Reporting
-pages are **registered but hidden**, not deleted. The chat no longer shows
-their shortcut cards or "Continue in ..." handoff prompts. Document upload
-uses the chat input's native **+**, with public PDF/DOCX/XLSX/PPTX files
-screened before model requests. Answer style, jurisdiction scope, and
-project creation are accessible via compact chat composer controls. The
-optional sources panel starts closed and offers navigational references
-without claiming that legislation has been independently retrieved.
+pages are **not registered** in the ALBA 2.0 router; their implementation
+files remain in the repository. The chat no longer shows shortcut cards or
+"Continue in ..." handoff prompts. Document upload uses the chat input's
+native **+**, with public PDF/DOCX/XLSX/PPTX files screened before model
+requests. Jurisdiction and answer-style filters are in one compact popover;
+project creation is in the sidebar. The optional sources panel starts closed
+and offers navigational references without claiming that legislation has been
+independently retrieved.
 
 **Scope:** This is a UI/conversational consolidation, not feature parity with
 eulaw.ai. The old structured seven-column ToC Word builder, live primary-source
@@ -29,7 +30,7 @@ deployed `develop/alba-v2` app. No existing `main` deployment is modified.
 
 ALBA is an experimental assistant for Albanian legal and institutional language.
 
-Launch `streamlit run app.py` for six named pages:
+The standalone modules described below are retained in the codebase for possible future integration. **Only the unified chat is routed in ALBA 2.0** when launched with `streamlit run app.py` from this branch:
 
 - **Chat Workspace:** ChatGPT-style multi-turn conversations, conversation history, project folders, rename/move/delete/export controls. Guest chats are saved in the same browser through localStorage (public/synthetic only); verified sign-in + hosted PostgreSQL enables durable, owner-isolated cross-device history.
 - **Writing Assistant:** existing text editor with source-traceable writing guidance.
