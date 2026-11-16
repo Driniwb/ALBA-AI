@@ -32,7 +32,8 @@ from alba_workspace_ui import apply_workspace_ui
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
 from workspace_sources import user_source_links, user_document_excerpts
 from alba_followups import follow_up_questions
-from official_research import official_links
+from official_research import official_links, link_answer
+from legal_research_engine import research_for_chat, ResearchBundle, source_note
 from legal_sources_probe import probe_case
 
 st.set_page_config(page_title="ALBA 2.0", page_icon="⚖️", layout="wide")
@@ -1069,13 +1070,51 @@ if (prompt or retry or staged_submission) and pending:
                 jurisdictions=st.session_state.get("alba_jurisdictions", ["European Union"]),
             )
             with st.chat_message("assistant"):
-                with st.spinner("ALBA is responding..."):
+                with st.spinner("ALBA is researching and responding..."):
+                    # Only an identified legal act is sent to approved
+                    # official public endpoints. No confidential chat data
+                    # is submitted to EUR-Lex or QBZ.
+                    jurisdictions = st.session_state.get(
+                        "alba_jurisdictions", ["European Union"],
+                    )
+                    bundle = ResearchBundle()
+                    if link_answer(pending, messages) is None:
+                        bundle = research_for_chat(
+                            pending, messages, jurisdictions,
+                        )
+                    research_evidence = bundle.evidence[:8500]
+                    if bundle.warnings and not bundle.was_retrieved():
+                        research_evidence += (
+                            "\nOfficial retrieval was attempted but the "
+                            "source text was not confirmed; use only the "
+                            "official entry-point links, with a limitation note. "
+                            + " ".join(bundle.warnings[:2])[:300]
+                        )
                     reply = generate_chat_reply(
                         mode=mode, history=messages, user_text=pending,
                         account_id=account, api_token=api_key,
                         answer_style=st.session_state.get("alba_answer_style", "Lawyer"),
-                        jurisdictions=st.session_state.get("alba_jurisdictions", ["European Union"]),
+                        jurisdictions=jurisdictions,
+                        research_evidence=research_evidence[:9000],
                     )
+                    trace = source_note(bundle)
+                    if not trace and bundle.sources:
+                        refs = [
+                            x for x in bundle.sources if x.status == "entry_point"
+                        ][:3]
+                        trace = (
+                            "\n\n**Official entry points (text not independently retrieved)**\n"
+                            + "\n".join(
+                                f"- [{x.label}]({x.url})" for x in refs
+                            )
+                        )
+                        if bundle.warnings:
+                            trace += (
+                                "\nRetrieval limitation: "
+                                + "; ".join(bundle.warnings[:2])[:300]
+                            )
+                    if trace and len(reply) + len(trace) <= 8500:
+                        reply += trace
         except ValueError as exc:
             # Preserve the exact question and rerender the Retry controls.
             st.session_state["alba_pending_chat_error"] = str(exc)
