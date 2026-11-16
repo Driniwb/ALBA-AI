@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from html import unescape
+import os
 import re
 from urllib.parse import urljoin, urlsplit
 
@@ -256,6 +257,11 @@ def research_for_chat(
             bundle.sources.append(ResearchSource(
                 link.label, link.url, "entry_point", link.note
             ))
+    # Headless UI regression tests must never contact real official sites.
+    # Unit tests may still exercise retrieval with an injected fake client.
+    if (os.environ.get("ALBA_HEADLESS_TEST") == "1"
+            and get is None and qbz_retrieve is None):
+        return bundle
     if kind == "eu":
         source_url = "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:" + number
         try:
