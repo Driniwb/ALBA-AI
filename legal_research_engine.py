@@ -46,7 +46,7 @@ FOLLOWUP = re.compile(
     r"(?i)\b(?:this|that|it|these|those|previous|earlier|"
     r"k[eë]t[eë]|k[eë]saj|k[eë]tij|at[eë]|m[eë]\s+par[eë]|"
     r"krahaso|compare|implement|transpoz|practices?|praktik|"
-    r"german|gjerman|franc|span|ital)\b"
+    r"german\w*|gjerman\w*|franc\w*|span\w*|ital\w*|continue|vazhdo\w*)\b"
 )
 
 
@@ -170,7 +170,7 @@ def _nim_entries(html: str, country: str) -> tuple[int | None, list[tuple[str, s
         end = min(len(tokens), start+800)
         for n in range(start+5, end):
             v = tokens[n][0]
-            if n > start+15 and v.casefold() in {
+            if n > start+3 and v.casefold() in {
                 (c+" "+c).casefold() for c in NIM_COUNTRIES if c != country
             }:
                 end = n
@@ -218,7 +218,7 @@ def _eu_text_excerpt(html: str, celex: str, question: str) -> str:
         )
     ):
         return ""
-    if len(text) < 500:
+    if len(text) < 150:
         return ""
     section = re.search(r"(?i)\b(?:Article|Neni)\s+(\d{1,3})\b", question)
     if section:
