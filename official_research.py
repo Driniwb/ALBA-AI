@@ -177,6 +177,17 @@ def link_answer(question: str, history: list[dict] | None = None) -> str | None:
     """Answer explicit source-link requests with real URLs; no AI invention."""
     if not _LINK_REQUEST.search(question):
         return None
+    # A request containing both a URL/reference and substantive legal work
+    # must continue through the actual research + model path. Never replace
+    # "find the law and analyse its obligations" with a static link answer.
+    if re.search(
+        r"(?i)\b(?:analy[sz]\w*|compar\w*|explain\w*|review\w*|"
+        r"interpret\w*|summari[sz]\w*|draft\w*|check\w*|"
+        r"verifik\w*|shqyrt\w*|krahas\w*|analiz\w*|"
+        r"hart\w*|shpjeg\w*|p[eë]rgatit\w*)\b",
+        question,
+    ):
+        return None
     links = official_links(question, history)
     if not links:
         return None
