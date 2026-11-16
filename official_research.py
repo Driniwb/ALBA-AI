@@ -29,6 +29,17 @@ _EU_DIR = re.compile(
     r"(20\d{2})\s*/\s*(\d{1,4})\b"
 )
 _CELEX = re.compile(r"(?i)\b(3\d{4}L\d{4})\b")
+_DIRECT_ELI = re.compile(
+    r"https://qbz\.gov\.al/eli/(?:ligj|vendim|udhezim|urdher|dekret)/"
+    r"\d{4}/\d{2}/\d{2}/\d+(?:-\d+)?",
+    flags=re.IGNORECASE,
+)
+_FOLLOW_UP = re.compile(
+    r"(?i)\b(?:this|that|these|those|it|previous|earlier|"
+    r"german\w*|franc\w*|span\w*|ital\w*|compar\w*|"
+    r"transpos\w*|implement\w*|krahas\w*|praktik\w*|"
+    r"k[eë]t[eë]|k[eë]saj|k[eë]tij|p[eë]rpara)\b"
+)
 _LINK_REQUEST = re.compile(
     r"(?i)\b(?:link\w*|lidhj\w*|url|adres\w*|version\w*|"
     r"gjej\w*|find|where|open|hap|burim\w*|source\w*)\b"
@@ -60,7 +71,9 @@ class OfficialLink:
 def detect_reference(question: str, history: list[dict] | None = None) -> tuple[str, str, str] | None:
     """Resolve short follow-ups ('give me the link') against this chat alone."""
     candidates = [question]
-    if history and _LINK_REQUEST.search(question):
+    if history and (
+        _LINK_REQUEST.search(question) or _FOLLOW_UP.search(question)
+    ):
         # Most recent earlier user question is stronger than a generated
         # assistant statement; do not borrow context from a different chat.
         candidates.extend(
@@ -69,6 +82,9 @@ def detect_reference(question: str, history: list[dict] | None = None) -> tuple[
             if item.get("role") == "user"
         )
     for value in candidates:
+        match = _DIRECT_ELI.search(value)
+        if match:
+            return ("eli", match.group(0), "")
         match = _AL_LAW.search(value)
         if match:
             return ("ligj", str(int(match.group(1))), match.group(2))
@@ -91,6 +107,12 @@ def official_links(
     if not identifier:
         return []
     kind, num, year = identifier
+    if kind == "eli":
+        return [OfficialLink(
+            label="QBZ – ELI i aktit të identifikuar",
+            url=num, scope="exact_eli",
+            note="Lidhje e plotë ELI; statusi në fuqi dhe versionet duhen verifikuar.",
+        )]
     if kind == "eu":
         out = [OfficialLink(
             label="EUR-Lex – teksti i direktivës " + num,
