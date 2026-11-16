@@ -30,7 +30,9 @@ from chat_store import ChatStore, MODES, MAX_CHAT_TITLE
 from chat_auth import verified_chat_owner
 from alba_workspace_ui import apply_workspace_ui
 from privacy_guard import BLOCK_NOTICE, scan_text_fields, screen_upload, upload_block_message
-from workspace_sources import user_source_links, user_document_excerpts
+from workspace_sources import (
+    user_source_links, user_document_excerpts, assistant_research_sources,
+)
 from alba_followups import follow_up_questions
 from official_research import official_links, link_answer
 from legal_research_engine import research_for_chat, ResearchBundle, source_note
@@ -760,11 +762,24 @@ if show_sources:
             source_tab, document_tab = st.tabs(["Official sources", "Documents"])
             with source_tab:
                 st.caption(
-                    "Official links you shared. Their content, status and "
-                    "consolidated versions have not yet been independently verified "
-                    "by this chat. These are references, not confirmed citations."
+                    "Separates official pages read by ALBA from navigational "
+                    "links. A retrieved excerpt is not confirmation that the "
+                    "act is in force or fully transposed."
                 )
+                traced = assistant_research_sources(relevant_messages)
+                if traced:
+                    st.markdown("**Saved research traces**")
+                    for item in traced:
+                        st.link_button(
+                            item["label"], item["url"],
+                            use_container_width=True,
+                        )
+                        st.caption(item["status"])
+                else:
+                    st.caption("No official-source text was recorded as retrieved for this response.")
                 cited_links = user_source_links(relevant_messages)
+                if cited_links:
+                    st.markdown("**References provided in the chat**")
                 st.caption(f"{len(cited_links)} user-provided reference(s)")
                 if cited_links:
                     for index, source in enumerate(cited_links, start=1):
