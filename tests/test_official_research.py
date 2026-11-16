@@ -42,6 +42,14 @@ class OfficialResearchTests(unittest.TestCase):
         self.assertNotIn("/eli/ligj/2025/01/01/999", links[0].url)
         self.assertIn("JO", links[0].note)
 
+    def test_mixed_link_and_legal_analysis_still_uses_research(self):
+        self.assertIsNone(
+            link_answer("Find Directive 2019/520 and analyse Article 3.")
+        )
+        self.assertIsNone(
+            link_answer("Gjej ligjin nr. 44/2023 dhe analizo përmbajtjen.")
+        )
+
     def test_no_network_calls_are_hidden_in_link_building(self):
         self.assertIsNone(detect_reference("Read this document"))
         self.assertEqual(official_links("Which country has the highest fines?"), [])
