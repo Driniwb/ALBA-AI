@@ -96,3 +96,62 @@ def user_document_excerpts(
                 if len(names) >= limit:
                     return names
     return names
+
+
+# The backend appends these exact headings after its attempt to read official
+# source content. This is a source-trace display, NOT authentication of the
+# current legal status or a substitute for article-level citation checking.
+_RESEARCH_TRACE_HEADING = "**Official source trace (read-only; not a legal-status certificate)**"
+_RESEARCH_ENTRY_HEADING = "**Official entry points (text not independently retrieved)**"
+_TRACE_LINE = re.compile(r"^\s*-\s*\[([^\]\n]{1,160})\]\((https://[^)\s]+)\)")
+
+
+def assistant_research_sources(
+    messages: list[dict], *, limit: int = 8
+) -> list[dict[str, str]]:
+    """Read only explicit, appended source-trace blocks from assistant turns.
+
+    An official URL must still pass exact-host checks. The returned labels
+    disclose whether the text was reportedly fetched or only linked.
+    """
+    found, seen = [], set()
+    for item in reversed(messages):
+        if item.get("role") != "assistant":
+            continue
+        content = item.get("content", "")
+        if not isinstance(content, str):
+            continue
+        verified = content.rfind(_RESEARCH_TRACE_HEADING)
+        navigational = content.rfind(_RESEARCH_ENTRY_HEADING)
+        if max(verified, navigational) < 0:
+            continue
+        is_read = verified > navigational
+        index = verified if is_read else navigational
+        block = content[index:].split("\n\n---", 1)[0]
+        for line in block.splitlines():
+            match = _TRACE_LINE.match(line)
+            if not match:
+                continue
+            title, url = match.groups()
+            # The source link is a presentation record, not a network grant.
+            known = official_link(url)
+            if known is None:
+                from urllib.parse import urlsplit
+                parsed = urlsplit(url)
+                if (parsed.scheme != "https" or parsed.hostname not in {
+                    "qbz.gov.al", "www.qbz.gov.al",
+                } or not parsed.path.startswith("/alfresco/webdav/Aktet/")
+                    or not parsed.path.lower().endswith(".pdf")
+                    or parsed.query or parsed.fragment or parsed.username):
+                    continue
+            if url in seen:
+                continue
+            found.append({
+                "label": title,
+                "url": url,
+                "status": "text retrieved" if is_read else "link only",
+            })
+            seen.add(url)
+            if len(found) >= limit:
+                return found
+    return found
