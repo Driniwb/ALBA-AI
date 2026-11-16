@@ -331,6 +331,13 @@ def research_for_chat(
              r"\d{4}/\d{2}/\d{2}/\d+(?:-\d+)?", link.url
          )), None
     )
+    # A linked *base act* may differ from the amendment being asked about.
+    # Example: Law 44/2023 amended Law 69/2012; never retrieve 69/2012
+    # and present its PDF as the text of Law 44/2023.
+    if eli and kind != "eli":
+        expected = f"/{year}/"
+        if expected not in eli or not eli.rstrip("/").endswith("/" + number):
+            eli = None
     if not eli:
         return bundle
     try:
