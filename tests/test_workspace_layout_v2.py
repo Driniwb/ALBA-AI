@@ -34,7 +34,7 @@ class WorkspaceLayoutTests(unittest.TestCase):
         app.button(key="alba_sources_toggle").click().run()
         self.assertTrue(app.session_state["alba_sources_open"])
         self.assertTrue(any(
-            "not yet been independently verified" in str(item.value)
+            "not confirmation that the" in str(item.value)
             for item in app.caption
         ))
 
